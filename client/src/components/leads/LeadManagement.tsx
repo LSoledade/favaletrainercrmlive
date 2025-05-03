@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, ChangeEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Lead, InsertLead } from "@shared/schema";
 import { useLeadContext } from "@/context/LeadContext";
+import { useToast } from "@/hooks/use-toast";
 import LeadTable from "./LeadTable";
 import LeadDialog from "./LeadDialog";
 import { 
@@ -14,6 +15,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -32,11 +41,14 @@ export default function LeadManagement() {
     selectedLead, 
     setSelectedLead,
     deleteLead,
+    createLead,
     selectedLeadIds,
     setSelectedLeadIds,
     updateLeadsInBatch,
     deleteLeadsInBatch
   } = useLeadContext();
+  
+  const { toast } = useToast();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false);
@@ -46,6 +58,9 @@ export default function LeadManagement() {
     status: "",
     campaign: ""
   });
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [batchStatusValue, setBatchStatusValue] = useState("");
   const [batchSourceValue, setBatchSourceValue] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
@@ -95,6 +110,173 @@ export default function LeadManagement() {
     }
   };
 
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const rows = content.split('\n');
+        
+        if (rows.length < 2) {
+          toast({
+            title: "Erro na importação",
+            description: "O arquivo não contém dados válidos.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Extract headers and normalize them
+        const headers = rows[0]
+          .split(',')
+          .map(header => header.trim().toLowerCase());
+        
+        const requiredHeaders = ['nome', 'email'];
+        const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
+        
+        if (missingHeaders.length > 0) {
+          toast({
+            title: "Erro na importação",
+            description: `O arquivo não contém os cabeçalhos obrigatórios: ${missingHeaders.join(', ')}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Process each row
+        const leadsToImport: InsertLead[] = [];
+        const errorRows: number[] = [];
+        
+        for (let i = 1; i < rows.length; i++) {
+          if (!rows[i].trim()) continue;
+          
+          const values = rows[i].split(',');
+          if (values.length !== headers.length) {
+            errorRows.push(i);
+            continue;
+          }
+          
+          // Create lead object from CSV row
+          try {
+            const leadData: Record<string, any> = {};
+            
+            headers.forEach((header, index) => {
+              const value = values[index]?.trim() || "";
+              
+              switch(header) {
+                case 'nome':
+                  leadData.name = value;
+                  break;
+                case 'email':
+                  leadData.email = value;
+                  break;
+                case 'telefone':
+                  leadData.phone = value;
+                  break;
+                case 'estado':
+                  leadData.state = value;
+                  break;
+                case 'campanha':
+                  leadData.campaign = value;
+                  break;
+                case 'origem':
+                  leadData.source = value;
+                  break;
+                case 'status':
+                  leadData.status = value || "Lead";
+                  break;
+                case 'tags':
+                  leadData.tags = value ? value.split(';').map(tag => tag.trim()) : [];
+                  break;
+                case 'data_entrada':
+                  try {
+                    leadData.entryDate = value ? new Date(value).toISOString() : new Date().toISOString();
+                  } catch (e) {
+                    leadData.entryDate = new Date().toISOString();
+                  }
+                  break;
+                case 'observacoes':
+                  leadData.notes = value;
+                  break;
+              }
+            });
+            
+            // Validate required fields
+            if (!leadData.name || !leadData.email) {
+              errorRows.push(i);
+              continue;
+            }
+            
+            // Set defaults for missing fields
+            if (!leadData.status) leadData.status = "Lead";
+            if (!leadData.source) leadData.source = "Favale";
+            if (!leadData.tags) leadData.tags = [];
+            if (!leadData.entryDate) leadData.entryDate = new Date().toISOString();
+            
+            leadsToImport.push(leadData as InsertLead);
+          } catch (error) {
+            console.error(`Erro ao processar linha ${i}:`, error);
+            errorRows.push(i);
+          }
+        }
+        
+        // Report results
+        if (leadsToImport.length === 0) {
+          toast({
+            title: "Erro na importação",
+            description: "Nenhum lead válido encontrado no arquivo.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Create each lead
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (const lead of leadsToImport) {
+          try {
+            await createLead(lead);
+            successCount++;
+          } catch (error) {
+            console.error('Erro ao criar lead:', error);
+            errorCount++;
+          }
+        }
+        
+        // Show results
+        setImportDialogOpen(false);
+        toast({
+          title: "Importação concluída",
+          description: `${successCount} leads importados com sucesso.${errorCount > 0 ? ` ${errorCount} leads com erro.` : ''}`,
+          variant: successCount > 0 ? "default" : "destructive",
+        });
+        
+      } catch (error) {
+        console.error('Erro ao processar arquivo:', error);
+        toast({
+          title: "Erro na importação",
+          description: "Ocorreu um erro ao processar o arquivo.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    reader.onerror = () => {
+      toast({
+        title: "Erro na importação",
+        description: "Erro ao ler o arquivo.",
+        variant: "destructive",
+      });
+    };
+    
+    reader.readAsText(file);
+    e.target.value = ''; // Reset the input
+  };
+  
   const handleExportLeads = () => {
     if (!filteredLeads || filteredLeads.length === 0) return;
     
@@ -183,7 +365,10 @@ export default function LeadManagement() {
           Gerenciamento de Leads
         </h2>
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-          <button className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200">
+          <button 
+            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
+            onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+          >
             <span className="material-icons text-sm mr-1 text-primary-400 dark:text-pink-400">filter_list</span>
             Filtrar
           </button>
@@ -194,6 +379,13 @@ export default function LeadManagement() {
           >
             <span className="material-icons text-sm mr-1 text-primary-400 dark:text-pink-400">{exportLoading ? 'hourglass_empty' : 'file_download'}</span>
             {exportLoading ? 'Exportando...' : 'Exportar'}
+          </button>
+          <button 
+            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
+            onClick={() => setImportDialogOpen(true)}
+          >
+            <span className="material-icons text-sm mr-1 text-primary-400 dark:text-pink-400">upload_file</span>
+            Importar
           </button>
           <a ref={csvLinkRef} style={{ display: 'none' }} />
           <button 
@@ -332,6 +524,65 @@ export default function LeadManagement() {
 
       {/* Lead Dialog */}
       <LeadDialog />
+      
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Importar Leads</DialogTitle>
+            <DialogDescription>
+              Importe leads a partir de um arquivo CSV. O arquivo deve seguir o seguinte formato:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-4">
+            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border dark:border-gray-700 mb-4 overflow-x-auto">
+              <code className="text-xs">
+                <span className="text-blue-600 dark:text-blue-400">nome</span>,
+                <span className="text-blue-600 dark:text-blue-400">email</span>,
+                <span className="text-blue-600 dark:text-blue-400">telefone</span>,
+                <span className="text-blue-600 dark:text-blue-400">estado</span>,
+                <span className="text-blue-600 dark:text-blue-400">campanha</span>,
+                <span className="text-blue-600 dark:text-blue-400">origem</span>,
+                <span className="text-blue-600 dark:text-blue-400">status</span>,
+                <span className="text-blue-600 dark:text-blue-400">tags</span>,
+                <span className="text-blue-600 dark:text-blue-400">data_entrada</span>,
+                <span className="text-blue-600 dark:text-blue-400">observacoes</span>
+              </code>
+            </div>
+            
+            <ul className="space-y-2 text-sm">
+              <li><span className="font-medium">nome</span>: Nome completo do lead (obrigatório)</li>
+              <li><span className="font-medium">email</span>: Email do lead (obrigatório)</li>
+              <li><span className="font-medium">telefone</span>: Número de telefone</li>
+              <li><span className="font-medium">estado</span>: Sigla do estado (ex: SP, RJ)</li>
+              <li><span className="font-medium">campanha</span>: Canal de origem (Instagram, Facebook, Email, Site, Indicação)</li>
+              <li><span className="font-medium">origem</span>: Deve ser "Favale" ou "Pink"</li>
+              <li><span className="font-medium">status</span>: Deve ser "Lead" ou "Aluno"</li>
+              <li><span className="font-medium">tags</span>: Lista de tags separadas por ponto-e-vírgula (ex: "tag1;tag2;tag3")</li>
+              <li><span className="font-medium">data_entrada</span>: Data no formato YYYY-MM-DD (ex: 2023-01-31)</li>
+              <li><span className="font-medium">observacoes</span>: Notas adicionais</li>
+            </ul>
+            
+            <div className="mt-6">
+              <input 
+                type="file" 
+                accept=".csv" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleFileUpload}
+              />
+              <button 
+                className="w-full py-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors duration-200"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <span className="material-icons text-3xl text-gray-400 mb-2">upload_file</span>
+                <span className="text-gray-600 dark:text-gray-300">Clique para selecionar um arquivo CSV</span>
+                <span className="text-gray-400 text-sm mt-1">ou arraste e solte aqui</span>
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
