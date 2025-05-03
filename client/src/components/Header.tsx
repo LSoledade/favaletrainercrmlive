@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { useTheme } from "@/context/ThemeContext";
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void;
@@ -6,6 +7,7 @@ interface HeaderProps {
 
 export default function Header({ setSidebarOpen }: HeaderProps) {
   const [location] = useLocation();
+  const { theme, toggleTheme } = useTheme();
   
   const getPageTitle = () => {
     switch (location) {
@@ -25,7 +27,7 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
   };
   
   return (
-    <header className="bg-white shadow-md h-16 flex items-center px-4 justify-between z-10">
+    <header className="bg-background border-b border-border shadow-md h-16 flex items-center px-4 justify-between z-10 transition-colors duration-200">
       <div className="flex items-center">
         <button 
           className="md:hidden mr-4"
@@ -49,9 +51,19 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
         </div>
         
         <div className="flex items-center">
-          <button className="p-2 relative mr-4">
-            <span className="material-icons text-gray-600">notifications</span>
-            <span className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full text-white text-xs flex items-center justify-center">3</span>
+          <button className="p-2 relative mr-2">
+            <span className="material-icons text-gray-600 dark:text-gray-300">notifications</span>
+            <span className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full text-white text-xs flex items-center justify-center dark:glow">3</span>
+          </button>
+          
+          <button 
+            onClick={toggleTheme}
+            className="p-2 mr-4 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            title={theme === 'light' ? 'Mudar para tema escuro' : 'Mudar para tema claro'}
+          >
+            <span className="material-icons">
+              {theme === 'light' ? 'dark_mode' : 'light_mode'}
+            </span>
           </button>
           
           <div className="flex items-center">

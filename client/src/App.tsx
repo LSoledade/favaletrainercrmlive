@@ -5,6 +5,8 @@ import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 import DashboardPage from "@/pages/DashboardPage";
 import LeadsPage from "@/pages/LeadsPage";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { LeadProvider } from "@/context/LeadContext";
 
 function Router() {
   return (
@@ -18,12 +20,16 @@ function Router() {
 
 function App() {
   return (
-    <TooltipProvider>
-      <Layout>
-        <Router />
-      </Layout>
-      <Toaster />
-    </TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <LeadProvider>
+          <Layout>
+            <Router />
+          </Layout>
+          <Toaster />
+        </LeadProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   );
 }
 

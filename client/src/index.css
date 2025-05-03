@@ -37,6 +37,10 @@
   --ring: 340 86% 51%;
   
   --radius: 0.5rem;
+  
+  /* Glow effect */
+  --glow-primary: 0 0 20px hsla(340, 86%, 51%, 0.5);
+  --glow-primary-strong: 0 0 30px hsla(340, 86%, 51%, 0.7);
 
   /* Chart colors */
   --chart-1: 340 86% 51%;
@@ -47,20 +51,20 @@
 }
 
 .dark {
-  --background: 240 10% 3.9%;
+  --background: 260 18% 5%; /* Fundo preto azulado escuro */
   --foreground: 0 0% 98%;
   
-  --muted: 240 3.7% 15.9%;
+  --muted: 260 15% 10%;
   --muted-foreground: 240 5% 64.9%;
   
-  --popover: 240 10% 3.9%;
+  --popover: 260 15% 7%;
   --popover-foreground: 0 0% 98%;
   
-  --card: 240 10% 3.9%;
+  --card: 260 15% 8%;
   --card-foreground: 0 0% 98%;
   
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
+  --border: 340 46% 30%;
+  --input: 260 15% 12%;
   
   --primary: 340 86% 51%;
   --primary-foreground: 0 0% 98%;
@@ -74,7 +78,11 @@
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
   
-  --ring: 240 4.9% 83.9%;
+  --ring: 340 86% 51%;
+  
+  /* Glow effect para o dark mode */
+  --glow-primary: 0 0 25px hsla(340, 86%, 51%, 0.6);
+  --glow-primary-strong: 0 0 35px hsla(340, 86%, 51%, 0.8);
 }
 
 @layer base {
@@ -88,6 +96,24 @@
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
+  }
+  
+  .dark .glow {
+    box-shadow: var(--glow-primary);
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .dark .glow:hover {
+    box-shadow: var(--glow-primary-strong);
+  }
+  
+  .dark .glow-text {
+    text-shadow: var(--glow-primary);
+  }
+  
+  .dark .glow-border {
+    border-color: hsl(var(--primary));
+    box-shadow: var(--glow-primary);
   }
 }
 
