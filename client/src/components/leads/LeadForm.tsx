@@ -16,7 +16,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
   const { 
     register, 
     handleSubmit, 
-    formState: { errors },
+    formState: { errors, isSubmitting },
     setValue, 
     reset
   } = useForm<InsertLead>({
@@ -38,11 +38,24 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
   // Update form when lead changes
   useEffect(() => {
     if (lead) {
-      reset(lead);
+      // Para edição, formatar a data no formato YYYY-MM-DD para o campo date
+      const entryDate = lead.entryDate instanceof Date
+        ? lead.entryDate
+        : new Date(lead.entryDate);
+        
+      const formattedDate = entryDate.toISOString().split('T')[0];
+      
+      reset({
+        ...lead,
+        entryDate: formattedDate
+      });
       setTags(lead.tags || []);
     } else {
+      // Para novo lead, usar a data atual formatada
+      const today = new Date().toISOString().split('T')[0];
+      
       reset({
-        entryDate: new Date(),
+        entryDate: today,
         name: "",
         email: "",
         phone: "",
@@ -58,11 +71,21 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
   }, [lead, reset]);
   
   const onFormSubmit = (data: InsertLead) => {
-    const formData = {
-      ...data,
-      tags
-    };
-    onSubmit(formData);
+    try {
+      // Ensure entryDate is properly formatted (ISO string format) for the API
+      const formData = {
+        ...data,
+        entryDate: data.entryDate instanceof Date 
+          ? data.entryDate.toISOString() 
+          : new Date(data.entryDate as string).toISOString(),
+        tags
+      };
+      
+      console.log('Submitting form data:', formData);
+      onSubmit(formData);
+    } catch (error) {
+      console.error('Error formatting lead data:', error);
+    }
   };
   
   // Handle tags updates
@@ -74,6 +97,17 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
   return (
     <form onSubmit={handleSubmit(onFormSubmit)}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-foreground">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Data de Entrada</label>
+          <input 
+            type="date" 
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${errors.entryDate ? "border-red-300" : ""}`}
+            {...register("entryDate")}
+          />
+          {errors.entryDate && (
+            <p className="mt-1 text-xs text-red-600">{errors.entryDate.message}</p>
+          )}
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Nome</label>
           <input 
@@ -243,16 +277,24 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       <div className="flex justify-end space-x-2">
         <button 
           type="button" 
-          className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
           onClick={onCancel}
         >
           Cancelar
         </button>
         <button 
           type="submit" 
-          className="px-4 py-2 bg-primary text-white rounded-md text-sm"
+          className="px-4 py-2 bg-primary text-white rounded-md text-sm flex items-center hover:bg-primary/90 dark:glow-button-sm transition-all duration-200"
+          disabled={isSubmitting}
         >
-          Salvar
+          {isSubmitting ? (
+            <>
+              <span className="material-icons text-sm mr-1">hourglass_empty</span>
+              Salvando...
+            </>
+          ) : (
+            <>Salvar</>
+          )}
         </button>
       </div>
     </form>
