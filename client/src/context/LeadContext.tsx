@@ -53,7 +53,7 @@ export function LeadProvider({ children }: { children: ReactNode }) {
   // Update an existing lead
   const updateLead = async (id: number, lead: Partial<InsertLead>) => {
     try {
-      await apiRequest("PUT", `/api/leads/${id}`, lead);
+      await apiRequest<Lead>("PATCH", `/api/leads/${id}`, lead);
       await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       
@@ -77,7 +77,7 @@ export function LeadProvider({ children }: { children: ReactNode }) {
   // Delete a lead
   const deleteLead = async (id: number) => {
     try {
-      await apiRequest("DELETE", `/api/leads/${id}`);
+      await apiRequest<void>("DELETE", `/api/leads/${id}`);
       await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       

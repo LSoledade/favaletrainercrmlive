@@ -5,9 +5,37 @@ import { insertLeadSchema, leadValidationSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // prefix all routes with /api
-  const apiRouter = app.route('/api');
-
+  // Batch operations for leads
+  app.post('/api/leads/batch/update', async (req, res) => {
+    try {
+      const { ids, updates } = req.body;
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "IDs de leads são obrigatórios" });
+      }
+      
+      const count = await storage.updateLeadsInBatch(ids, updates);
+      res.json({ updatedCount: count });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar leads em lote" });
+    }
+  });
+  
+  app.post('/api/leads/batch/delete', async (req, res) => {
+    try {
+      const { ids } = req.body;
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "IDs de leads são obrigatórios" });
+      }
+      
+      const count = await storage.deleteLeadsInBatch(ids);
+      res.json({ deletedCount: count });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir leads em lote" });
+    }
+  });
+  
   // Get all leads
   app.get('/api/leads', async (req, res) => {
     try {
@@ -52,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update lead
-  app.put('/api/leads/:id', async (req, res) => {
+  app.patch('/api/leads/:id', async (req, res) => {
     try {
       const leadId = parseInt(req.params.id);
       const validationResult = insertLeadSchema.partial().safeParse(req.body);
@@ -90,37 +118,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Batch operations
-  app.post('/api/leads/batch/update', async (req, res) => {
-    try {
-      const { ids, updates } = req.body;
-      
-      if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ message: "IDs de leads são obrigatórios" });
-      }
-      
-      const count = await storage.updateLeadsInBatch(ids, updates);
-      res.json({ updatedCount: count });
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao atualizar leads em lote" });
-    }
-  });
-  
-  app.post('/api/leads/batch/delete', async (req, res) => {
-    try {
-      const { ids } = req.body;
-      
-      if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ message: "IDs de leads são obrigatórios" });
-      }
-      
-      const count = await storage.deleteLeadsInBatch(ids);
-      res.json({ deletedCount: count });
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao excluir leads em lote" });
-    }
-  });
-
   // Get lead statistics
   app.get('/api/stats', async (req, res) => {
     try {
