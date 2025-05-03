@@ -69,6 +69,7 @@ export class MemStorage implements IStorage {
       ...insertLead, 
       id, 
       entryDate: insertLead.entryDate || now,
+      notes: insertLead.notes || null,
       createdAt: now, 
       updatedAt: now 
     };
