@@ -56,7 +56,10 @@ export default function LeadManagement() {
   const [filters, setFilters] = useState({
     source: "",
     status: "",
-    campaign: ""
+    campaign: "",
+    state: "",
+    startDate: "",
+    endDate: ""
   });
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -65,6 +68,7 @@ export default function LeadManagement() {
   const [batchSourceValue, setBatchSourceValue] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
   const csvLinkRef = useRef<HTMLAnchorElement>(null);
+  const [importLoading, setImportLoading] = useState(false);
 
   const handleNewLead = () => {
     setSelectedLead(null);
@@ -346,8 +350,52 @@ export default function LeadManagement() {
     const matchesStatus = filters.status === "" || lead.status === filters.status;
     const matchesCampaign = filters.campaign === "" || lead.campaign === filters.campaign;
     
-    return matchesSearch && matchesSource && matchesStatus && matchesCampaign;
+    // Advanced filters
+    const matchesState = filters.state === "" || lead.state === filters.state;
+    
+    // Date filters
+    let matchesDateRange = true;
+    if (filters.startDate && filters.endDate) {
+      const leadDate = new Date(lead.entryDate);
+      const startDate = new Date(filters.startDate);
+      const endDate = new Date(filters.endDate);
+      // Add one day to end date to include the end date itself
+      endDate.setDate(endDate.getDate() + 1);
+      
+      matchesDateRange = leadDate >= startDate && leadDate < endDate;
+    } else if (filters.startDate) {
+      const leadDate = new Date(lead.entryDate);
+      const startDate = new Date(filters.startDate);
+      matchesDateRange = leadDate >= startDate;
+    } else if (filters.endDate) {
+      const leadDate = new Date(lead.entryDate);
+      const endDate = new Date(filters.endDate);
+      // Add one day to end date to include the end date itself
+      endDate.setDate(endDate.getDate() + 1);
+      matchesDateRange = leadDate < endDate;
+    }
+    
+    return matchesSearch && matchesSource && matchesStatus && matchesCampaign && matchesState && matchesDateRange;
   });
+
+  // Check if there are active filters
+  const hasActiveFilters = [
+    filters.source,
+    filters.status,
+    filters.campaign,
+    filters.state,
+    filters.startDate,
+    filters.endDate
+  ].some(filter => filter !== "");
+  
+  // Count active filters
+  const activeFilterCount = [
+    filters.source,
+    filters.status,
+    filters.campaign,
+    filters.state,
+    (filters.startDate || filters.endDate) ? 1 : 0, // Count date range as one filter
+  ].filter(Boolean).length;
 
   if (error) {
     return (
@@ -366,11 +414,28 @@ export default function LeadManagement() {
         </h2>
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <button 
-            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
+            className={`${hasActiveFilters 
+              ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-700' 
+              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700'} 
+              border rounded-md px-4 py-2 text-sm 
+              ${hasActiveFilters 
+                ? 'text-primary-700 dark:text-primary-300' 
+                : 'text-gray-700 dark:text-gray-300'} 
+              hover:bg-primary-50 dark:hover:bg-primary-900/20 
+              flex items-center transition-colors duration-200 relative`
+            }
             onClick={() => setFilterMenuOpen(!filterMenuOpen)}
           >
-            <span className="material-icons text-sm mr-1 text-primary-400 dark:text-pink-400">filter_list</span>
+            <span className={`material-icons text-sm mr-1 
+              ${hasActiveFilters ? 'text-primary-600 dark:text-primary-400' : 'text-primary-400 dark:text-pink-400'}`}>
+              filter_list
+            </span>
             Filtrar
+            {hasActiveFilters && (
+              <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center dark:glow-xs">
+                {activeFilterCount}
+              </span>
+            )}
           </button>
           <button 
             className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
@@ -450,6 +515,62 @@ export default function LeadManagement() {
             </select>
           </div>
         </div>
+        
+        {/* Advanced filter panel */}
+        {filterMenuOpen && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Filtros Avançados</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Estado</label>
+                <select 
+                  className="w-full border dark:border-gray-700 rounded-md px-3 py-2 text-sm dark:bg-gray-800 dark:text-white transition-colors duration-200"
+                  value={filters.state || ""}
+                  onChange={(e) => setFilters({...filters, state: e.target.value})}
+                >
+                  <option value="">Todos</option>
+                  <option value="SP">São Paulo</option>
+                  <option value="RJ">Rio de Janeiro</option>
+                  <option value="MG">Minas Gerais</option>
+                  <option value="RS">Rio Grande do Sul</option>
+                  <option value="PR">Paraná</option>
+                  <option value="SC">Santa Catarina</option>
+                  <option value="BA">Bahia</option>
+                  <option value="DF">Distrito Federal</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Entrada</label>
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="date" 
+                    className="flex-1 border dark:border-gray-700 rounded-md px-3 py-2 text-sm dark:bg-gray-800 dark:text-white transition-colors duration-200"
+                    value={filters.startDate || ""}
+                    onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                  />
+                  <span className="text-gray-500 dark:text-gray-400">até</span>
+                  <input 
+                    type="date" 
+                    className="flex-1 border dark:border-gray-700 rounded-md px-3 py-2 text-sm dark:bg-gray-800 dark:text-white transition-colors duration-200"
+                    value={filters.endDate || ""}
+                    onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-end">
+                <button 
+                  className="w-full bg-primary text-white rounded-md px-4 py-2 text-sm flex items-center justify-center hover:bg-primary/90 dark:glow-button-xs transition-all duration-200"
+                  onClick={() => setFilters({ source: "", status: "", campaign: "", state: "", startDate: "", endDate: "" })}
+                >
+                  <span className="material-icons text-sm mr-1">clear</span>
+                  Limpar Filtros
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Batch Operations Bar - only visible when leads are selected */}
