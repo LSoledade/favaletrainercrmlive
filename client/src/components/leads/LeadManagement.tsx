@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Lead } from "@shared/schema";
+import { Lead, InsertLead } from "@shared/schema";
 import { useLeadContext } from "@/context/LeadContext";
 import LeadTable from "./LeadTable";
 import LeadDialog from "./LeadDialog";
@@ -14,6 +14,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function LeadManagement() {
   const { data: leads, isLoading, error } = useQuery<Lead[]>({
@@ -24,16 +31,23 @@ export default function LeadManagement() {
     setIsDialogOpen, 
     selectedLead, 
     setSelectedLead,
-    deleteLead 
+    deleteLead,
+    selectedLeadIds,
+    setSelectedLeadIds,
+    updateLeadsInBatch,
+    deleteLeadsInBatch
   } = useLeadContext();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     source: "",
     status: "",
     campaign: ""
   });
+  const [batchStatusValue, setBatchStatusValue] = useState("");
+  const [batchSourceValue, setBatchSourceValue] = useState("");
 
   const handleNewLead = () => {
     setSelectedLead(null);
@@ -49,6 +63,33 @@ export default function LeadManagement() {
     if (selectedLead) {
       await deleteLead(selectedLead.id);
       setDeleteDialogOpen(false);
+    }
+  };
+
+  const handleBatchStatusUpdate = async () => {
+    if (selectedLeadIds.length > 0 && batchStatusValue) {
+      await updateLeadsInBatch(selectedLeadIds, { status: batchStatusValue });
+      setBatchStatusValue("");
+    }
+  };
+
+  const handleBatchSourceUpdate = async () => {
+    if (selectedLeadIds.length > 0 && batchSourceValue) {
+      await updateLeadsInBatch(selectedLeadIds, { source: batchSourceValue });
+      setBatchSourceValue("");
+    }
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedLeadIds.length > 0) {
+      setBatchDeleteDialogOpen(true);
+    }
+  };
+
+  const confirmBatchDelete = async () => {
+    if (selectedLeadIds.length > 0) {
+      await deleteLeadsInBatch(selectedLeadIds);
+      setBatchDeleteDialogOpen(false);
     }
   };
 
@@ -154,6 +195,69 @@ export default function LeadManagement() {
           </div>
         </div>
       </div>
+      
+      {/* Batch Operations Bar - only visible when leads are selected */}
+      {selectedLeadIds.length > 0 && (
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6 flex flex-wrap items-center gap-4">
+          <div className="flex items-center">
+            <span className="font-semibold text-primary mr-2">{selectedLeadIds.length}</span>
+            <span className="text-gray-700">leads selecionados</span>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Select
+              value={batchStatusValue}
+              onValueChange={setBatchStatusValue}
+            >
+              <SelectTrigger className="w-[180px] h-9 text-sm">
+                <SelectValue placeholder="Alterar status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Lead">Lead</SelectItem>
+                <SelectItem value="Aluno">Aluno</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <button 
+              className="bg-primary text-white rounded-md px-3 py-1 text-sm"
+              onClick={handleBatchStatusUpdate}
+              disabled={!batchStatusValue}
+            >
+              Aplicar
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Select
+              value={batchSourceValue}
+              onValueChange={setBatchSourceValue}
+            >
+              <SelectTrigger className="w-[180px] h-9 text-sm">
+                <SelectValue placeholder="Alterar origem" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Favale">Favale</SelectItem>
+                <SelectItem value="Pink">Pink</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <button 
+              className="bg-primary text-white rounded-md px-3 py-1 text-sm"
+              onClick={handleBatchSourceUpdate}
+              disabled={!batchSourceValue}
+            >
+              Aplicar
+            </button>
+          </div>
+          
+          <button 
+            className="ml-auto bg-red-100 text-red-600 hover:bg-red-200 rounded-md px-3 py-1 text-sm"
+            onClick={handleBatchDelete}
+          >
+            Excluir selecionados
+          </button>
+        </div>
+      )}
 
       {/* Lead table */}
       <LeadTable 
@@ -179,6 +283,28 @@ export default function LeadManagement() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Batch Delete Confirmation Dialog */}
+      <AlertDialog open={batchDeleteDialogOpen} onOpenChange={setBatchDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Leads Selecionados</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir {selectedLeadIds.length} leads?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmBatchDelete}
               className="bg-red-600 hover:bg-red-700"
             >
               Excluir

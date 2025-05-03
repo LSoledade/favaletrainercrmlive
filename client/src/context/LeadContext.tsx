@@ -100,11 +100,11 @@ export function LeadProvider({ children }: { children: ReactNode }) {
   // Batch operations
   const updateLeadsInBatch = async (ids: number[], updates: Partial<InsertLead>): Promise<number> => {
     try {
-      const response = await apiRequest("POST", "/api/leads/batch/update", { ids, updates });
+      const response = await apiRequest<{ updatedCount: number }>("POST", "/api/leads/batch/update", { ids, updates });
       await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       
-      const { updatedCount } = response;
+      const updatedCount = response.updatedCount || 0;
       
       toast({
         title: "Sucesso",
@@ -126,11 +126,11 @@ export function LeadProvider({ children }: { children: ReactNode }) {
 
   const deleteLeadsInBatch = async (ids: number[]): Promise<number> => {
     try {
-      const response = await apiRequest("POST", "/api/leads/batch/delete", { ids });
+      const response = await apiRequest<{ deletedCount: number }>("POST", "/api/leads/batch/delete", { ids });
       await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       
-      const { deletedCount } = response;
+      const deletedCount = response.deletedCount || 0;
       
       toast({
         title: "Sucesso",
