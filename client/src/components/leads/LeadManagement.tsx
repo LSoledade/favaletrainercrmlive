@@ -53,7 +53,16 @@ export default function LeadManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filters, setFilters] = useState({
+  type FilterState = {
+    source: string;
+    status: string;
+    campaign: string;
+    state: string;
+    startDate: string;
+    endDate: string;
+  };
+
+  const [filters, setFilters] = useState<FilterState>({
     source: "",
     status: "",
     campaign: "",

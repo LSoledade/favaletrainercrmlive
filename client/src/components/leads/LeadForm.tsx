@@ -47,15 +47,15 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       
       reset({
         ...lead,
-        entryDate: formattedDate
-      });
+        entryDate: formattedDate // Apenas para exibição no input type="date"
+      } as any);
       setTags(lead.tags || []);
     } else {
       // Para novo lead, usar a data atual formatada
       const today = new Date().toISOString().split('T')[0];
       
       reset({
-        entryDate: today,
+        entryDate: today, // Apenas para exibição no input type="date"
         name: "",
         email: "",
         phone: "",
@@ -65,19 +65,19 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
         source: "",
         status: "Lead",
         notes: ""
-      });
+      } as any);
       setTags([]);
     }
   }, [lead, reset]);
   
-  const onFormSubmit = (data: InsertLead) => {
+  const onFormSubmit = (data: any) => {
     try {
       // Ensure entryDate is properly formatted (ISO string format) for the API
-      const formData = {
+      const formData: InsertLead = {
         ...data,
         entryDate: data.entryDate instanceof Date 
-          ? data.entryDate.toISOString() 
-          : new Date(data.entryDate as string).toISOString(),
+          ? data.entryDate 
+          : new Date(data.entryDate),
         tags
       };
       
