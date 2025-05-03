@@ -1,0 +1,53 @@
+import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+});
+
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+
+// Lead schema
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  entryDate: timestamp("entry_date").defaultNow().notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  state: text("state").notNull(),
+  campaign: text("campaign").notNull(),
+  tags: text("tags").array().notNull(),
+  source: text("source").notNull(), // "Favale" or "Pink"
+  status: text("status").notNull(), // "Lead" or "Aluno"
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertLeadSchema = createInsertSchema(leads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const leadValidationSchema = insertLeadSchema.extend({
+  name: z.string().min(1, "O nome é obrigatório"),
+  email: z.string().min(1, "O e-mail é obrigatório").email("E-mail inválido"),
+  phone: z.string().min(1, "O telefone é obrigatório"),
+  state: z.string().min(1, "O estado é obrigatório"),
+  campaign: z.string().min(1, "A campanha é obrigatória"),
+  source: z.string().min(1, "A origem é obrigatória"),
+  status: z.string().min(1, "O status é obrigatório"),
+});
+
+export type InsertLead = z.infer<typeof insertLeadSchema>;
+export type Lead = typeof leads.$inferSelect;
