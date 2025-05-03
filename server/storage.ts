@@ -116,21 +116,25 @@ export class DatabaseStorage implements IStorage {
 
   // Batch operations
   async updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number> {
+    if (ids.length === 0) return 0;
+    
     const result = await db
       .update(leads)
       .set({
         ...updates,
         updatedAt: new Date(),
       })
-      .where(inArray(leads.id, ids));
+      .where(sql`${leads.id} IN (${sql.join(ids, sql`, `)})`);
     
     return ids.length; // Return the number of affected rows
   }
 
   async deleteLeadsInBatch(ids: number[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    
     await db
       .delete(leads)
-      .where(inArray(leads.id, ids));
+      .where(sql`${leads.id} IN (${sql.join(ids, sql`, `)})`);
     
     return ids.length; // Return the number of deleted rows
   }

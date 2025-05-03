@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Lead } from "@shared/schema";
 import { useLeadContext } from "@/context/LeadContext";
 import { formatDate } from "@/utils/formatters";
@@ -10,9 +10,13 @@ interface LeadTableProps {
 }
 
 export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps) {
-  const { setSelectedLead, setIsDialogOpen } = useLeadContext();
+  const { 
+    setSelectedLead, 
+    setIsDialogOpen,
+    selectedLeadIds,
+    setSelectedLeadIds 
+  } = useLeadContext();
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedLeads, setSelectedLeads] = useState<Set<number>>(new Set());
   const leadsPerPage = 10;
   
   const handleEdit = (lead: Lead) => {
@@ -21,21 +25,19 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
   };
   
   const handleSelectLead = (leadId: number, checked: boolean) => {
-    const newSelected = new Set(selectedLeads);
     if (checked) {
-      newSelected.add(leadId);
+      setSelectedLeadIds([...selectedLeadIds, leadId]);
     } else {
-      newSelected.delete(leadId);
+      setSelectedLeadIds(selectedLeadIds.filter(id => id !== leadId));
     }
-    setSelectedLeads(newSelected);
   };
   
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const allIds = currentLeads.map(lead => lead.id);
-      setSelectedLeads(new Set(allIds));
+      setSelectedLeadIds(allIds);
     } else {
-      setSelectedLeads(new Set());
+      setSelectedLeadIds([]);
     }
   };
   
@@ -94,7 +96,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                 <input 
                   type="checkbox" 
                   className="mr-2"
-                  checked={currentLeads.length > 0 && selectedLeads.size === currentLeads.length}
+                  checked={currentLeads.length > 0 && selectedLeadIds.length === currentLeads.length}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </th>
@@ -134,7 +136,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                   <td className="px-6 py-4 whitespace-nowrap">
                     <input 
                       type="checkbox" 
-                      checked={selectedLeads.has(lead.id)}
+                      checked={selectedLeadIds.includes(lead.id)}
                       onChange={(e) => handleSelectLead(lead.id, e.target.checked)}
                     />
                   </td>

@@ -12,6 +12,10 @@ interface LeadContextProps {
   createLead: (lead: InsertLead) => Promise<void>;
   updateLead: (id: number, lead: Partial<InsertLead>) => Promise<void>;
   deleteLead: (id: number) => Promise<void>;
+  updateLeadsInBatch: (ids: number[], updates: Partial<InsertLead>) => Promise<number>;
+  deleteLeadsInBatch: (ids: number[]) => Promise<number>;
+  selectedLeadIds: number[];
+  setSelectedLeadIds: (ids: number[]) => void;
 }
 
 const LeadContext = createContext<LeadContextProps | undefined>(undefined);
@@ -19,6 +23,7 @@ const LeadContext = createContext<LeadContextProps | undefined>(undefined);
 export function LeadProvider({ children }: { children: ReactNode }) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<number[]>([]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -92,6 +97,59 @@ export function LeadProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Batch operations
+  const updateLeadsInBatch = async (ids: number[], updates: Partial<InsertLead>): Promise<number> => {
+    try {
+      const response = await apiRequest("POST", "/api/leads/batch/update", { ids, updates });
+      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      
+      const { updatedCount } = response;
+      
+      toast({
+        title: "Sucesso",
+        description: `${updatedCount} leads atualizados com sucesso`,
+      });
+      
+      setSelectedLeadIds([]);
+      return updatedCount;
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Falha ao atualizar leads em lote",
+        variant: "destructive",
+      });
+      console.error("Error updating leads in batch:", error);
+      return 0;
+    }
+  };
+
+  const deleteLeadsInBatch = async (ids: number[]): Promise<number> => {
+    try {
+      const response = await apiRequest("POST", "/api/leads/batch/delete", { ids });
+      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      
+      const { deletedCount } = response;
+      
+      toast({
+        title: "Sucesso",
+        description: `${deletedCount} leads excluídos com sucesso`,
+      });
+      
+      setSelectedLeadIds([]);
+      return deletedCount;
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Falha ao excluir leads em lote",
+        variant: "destructive",
+      });
+      console.error("Error deleting leads in batch:", error);
+      return 0;
+    }
+  };
+
   const value = {
     selectedLead,
     setSelectedLead,
@@ -100,6 +158,10 @@ export function LeadProvider({ children }: { children: ReactNode }) {
     createLead,
     updateLead,
     deleteLead,
+    updateLeadsInBatch,
+    deleteLeadsInBatch,
+    selectedLeadIds,
+    setSelectedLeadIds
   };
 
   return <LeadContext.Provider value={value}>{children}</LeadContext.Provider>;
