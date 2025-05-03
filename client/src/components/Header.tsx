@@ -30,12 +30,12 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
     <header className="bg-background border-b border-border shadow-md h-16 flex items-center px-4 justify-between z-10 transition-colors duration-200">
       <div className="flex items-center">
         <button 
-          className="md:hidden mr-4"
+          className="lg:hidden mr-4"
           onClick={() => setSidebarOpen(true)}
         >
-          <span className="material-icons text-secondary">menu</span>
+          <span className="material-icons text-secondary dark:text-white">menu</span>
         </button>
-        <h1 className="font-heading text-secondary text-xl hidden sm:block">
+        <h1 className="font-heading text-secondary dark:text-white text-xl hidden sm:block dark:glow-text">
           {getPageTitle()}
         </h1>
       </div>
@@ -45,9 +45,9 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
           <input 
             type="text" 
             placeholder="Pesquisar..." 
-            className="bg-slate-50 rounded-full py-1 px-4 pl-10 outline-none focus:ring-2 focus:ring-primary text-sm w-40 md:w-auto" 
+            className="bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-full py-1 px-4 pl-10 outline-none focus:ring-2 focus:ring-primary dark:focus:ring-primary text-sm w-40 md:w-auto transition-colors duration-200" 
           />
-          <span className="material-icons absolute left-3 top-1 text-gray-400 text-sm">search</span>
+          <span className="material-icons absolute left-3 top-1 text-gray-400 dark:text-gray-300 text-sm">search</span>
         </div>
         
         <div className="flex items-center">

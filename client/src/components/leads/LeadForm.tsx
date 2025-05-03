@@ -73,9 +73,9 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
   
   return (
     <form onSubmit={handleSubmit(onFormSubmit)}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-foreground">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Nome</label>
           <input 
             type="text" 
             className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
@@ -88,7 +88,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">E-mail</label>
           <input 
             type="email" 
             className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
@@ -101,7 +101,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Telefone</label>
           <input 
             type="tel" 
             className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
@@ -114,7 +114,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Estado</label>
           <select 
             className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
               errors.state ? "border-red-300" : ""
@@ -155,7 +155,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Campanha</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Campanha</label>
           <select 
             className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
               errors.campaign ? "border-red-300" : ""
@@ -174,7 +174,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Origem</label>
           <div className="flex mt-1 space-x-4">
             <label className="inline-flex items-center">
               <input 
@@ -200,7 +200,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Status</label>
           <div className="flex mt-1 space-x-4">
             <label className="inline-flex items-center">
               <input 
@@ -228,12 +228,12 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Tags</label>
         <TagInput tags={tags} setTags={handleTagsChange} />
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Observações</label>
         <textarea 
           className="w-full border rounded-md px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-primary"
           {...register("notes")}
