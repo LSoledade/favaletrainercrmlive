@@ -1,6 +1,7 @@
 import { leads, type Lead, type InsertLead, type User, type InsertUser, users } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -20,6 +21,10 @@ export interface IStorage {
   getLeadsByStatus(status: string): Promise<Lead[]>;
   getLeadsByCampaign(campaign: string): Promise<Lead[]>;
   getLeadsByState(state: string): Promise<Lead[]>;
+  
+  // Batch operations
+  updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number>;
+  deleteLeadsInBatch(ids: number[]): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -107,6 +112,27 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(leads)
       .where(eq(leads.state, state));
+  }
+
+  // Batch operations
+  async updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number> {
+    const result = await db
+      .update(leads)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(inArray(leads.id, ids));
+    
+    return ids.length; // Return the number of affected rows
+  }
+
+  async deleteLeadsInBatch(ids: number[]): Promise<number> {
+    await db
+      .delete(leads)
+      .where(inArray(leads.id, ids));
+    
+    return ids.length; // Return the number of deleted rows
   }
 }
 
