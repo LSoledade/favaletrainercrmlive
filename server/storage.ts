@@ -1,4 +1,6 @@
 import { leads, type Lead, type InsertLead, type User, type InsertUser, users } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -20,121 +22,93 @@ export interface IStorage {
   getLeadsByState(state: string): Promise<Lead[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private leadsMap: Map<number, Lead>;
-  userCurrentId: number;
-  leadCurrentId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.leadsMap = new Map();
-    this.userCurrentId = 1;
-    this.leadCurrentId = 1;
-    
-    // Add some initial data for testing
-    this.initializeDemoData();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   // Lead methods
   async getLeads(): Promise<Lead[]> {
-    return Array.from(this.leadsMap.values());
+    return await db.select().from(leads);
   }
 
   async getLead(id: number): Promise<Lead | undefined> {
-    return this.leadsMap.get(id);
+    const [lead] = await db.select().from(leads).where(eq(leads.id, id));
+    return lead || undefined;
   }
 
   async createLead(insertLead: InsertLead): Promise<Lead> {
-    const id = this.leadCurrentId++;
-    const now = new Date();
-    const lead: Lead = { 
-      ...insertLead, 
-      id, 
-      entryDate: insertLead.entryDate || now,
-      notes: insertLead.notes || null,
-      createdAt: now, 
-      updatedAt: now 
-    };
-    this.leadsMap.set(id, lead);
+    const [lead] = await db
+      .insert(leads)
+      .values({
+        ...insertLead,
+        notes: insertLead.notes || null,
+      })
+      .returning();
     return lead;
   }
 
   async updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead | undefined> {
-    const existingLead = this.leadsMap.get(id);
-    if (!existingLead) {
-      return undefined;
-    }
-
-    const updatedLead: Lead = {
-      ...existingLead,
-      ...updates,
-      updatedAt: new Date()
-    };
-
-    this.leadsMap.set(id, updatedLead);
-    return updatedLead;
+    const [updatedLead] = await db
+      .update(leads)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(leads.id, id))
+      .returning();
+    return updatedLead || undefined;
   }
 
   async deleteLead(id: number): Promise<boolean> {
-    return this.leadsMap.delete(id);
+    const result = await db
+      .delete(leads)
+      .where(eq(leads.id, id));
+    return true; // Assuming no error means success
   }
 
   async getLeadsBySource(source: string): Promise<Lead[]> {
-    return Array.from(this.leadsMap.values()).filter(
-      (lead) => lead.source === source
-    );
+    return await db
+      .select()
+      .from(leads)
+      .where(eq(leads.source, source));
   }
 
   async getLeadsByStatus(status: string): Promise<Lead[]> {
-    return Array.from(this.leadsMap.values()).filter(
-      (lead) => lead.status === status
-    );
+    return await db
+      .select()
+      .from(leads)
+      .where(eq(leads.status, status));
   }
 
   async getLeadsByCampaign(campaign: string): Promise<Lead[]> {
-    return Array.from(this.leadsMap.values()).filter(
-      (lead) => lead.campaign === campaign
-    );
+    return await db
+      .select()
+      .from(leads)
+      .where(eq(leads.campaign, campaign));
   }
 
   async getLeadsByState(state: string): Promise<Lead[]> {
-    return Array.from(this.leadsMap.values()).filter(
-      (lead) => lead.state === state
-    );
-  }
-
-  private initializeDemoData() {
-    // This is only for initial setup of the application 
-    // We're not going to use this data as mock data during runtime
-    const campaigns = ["Instagram", "Facebook", "Email", "Site", "Indicação"];
-    const sources = ["Favale", "Pink"];
-    const statuses = ["Lead", "Aluno"];
-    const states = ["SP", "RJ", "MG", "PR", "SC", "RS", "BA"];
-    
-    const demoUser: InsertUser = {
-      username: "admin",
-      password: "admin123"
-    };
-    this.createUser(demoUser);
+    return await db
+      .select()
+      .from(leads)
+      .where(eq(leads.state, state));
   }
 }
 
-export const storage = new MemStorage();
+// Inicializa o armazenamento usando o banco de dados PostgreSQL
+export const storage = new DatabaseStorage();
