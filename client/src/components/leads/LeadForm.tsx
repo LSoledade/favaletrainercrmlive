@@ -72,12 +72,43 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
   
   const onFormSubmit = (data: any) => {
     try {
-      // Ensure entryDate is properly formatted (ISO string format) for the API
+      // Ensure entryDate is properly formatted as a valid Date object for the API
+      // This handles different date string formats including dd/mm/yyyy
+      let entryDate: Date;
+      
+      if (data.entryDate instanceof Date) {
+        entryDate = data.entryDate;
+      } else {
+        // Handle different date formats (dd/mm/yyyy, mm/dd/yyyy, yyyy-mm-dd)
+        const dateParts = data.entryDate.split(/[\/\-]/);
+        
+        // Try to determine the format and create a valid Date
+        if (dateParts.length === 3) {
+          // If it's in yyyy-mm-dd format (from input type="date")
+          if (dateParts[0].length === 4) {
+            entryDate = new Date(data.entryDate);
+          } 
+          // If it's in dd/mm/yyyy format (common in Brazil)
+          else if (dateParts[0].length === 2 && dateParts[1].length === 2) {
+            entryDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
+          } else {
+            // Fallback to standard parsing
+            entryDate = new Date(data.entryDate);
+          }
+        } else {
+          // Fallback to standard parsing
+          entryDate = new Date(data.entryDate);
+        }
+      }
+      
+      // Validate that we got a valid date
+      if (isNaN(entryDate.getTime())) {
+        throw new Error('Data de entrada inválida');
+      }
+      
       const formData: InsertLead = {
         ...data,
-        entryDate: data.entryDate instanceof Date 
-          ? data.entryDate 
-          : new Date(data.entryDate),
+        entryDate,
         tags
       };
       
@@ -104,6 +135,9 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
             className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${errors.entryDate ? "border-red-300" : ""}`}
             {...register("entryDate")}
           />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Formato: DD/MM/AAAA ou AAAA-MM-DD
+          </p>
           {errors.entryDate && (
             <p className="mt-1 text-xs text-red-600">{errors.entryDate.message}</p>
           )}

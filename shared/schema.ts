@@ -40,6 +40,12 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
 });
 
 export const leadValidationSchema = insertLeadSchema.extend({
+  entryDate: z.union([
+    z.string().refine(value => !isNaN(Date.parse(value)), {
+      message: "Data de entrada precisa ser uma data válida"
+    }),
+    z.date()
+  ]),
   name: z.string().min(1, "O nome é obrigatório"),
   email: z.string().min(1, "O e-mail é obrigatório").email("E-mail inválido"),
   phone: z.string().min(1, "O telefone é obrigatório"),
