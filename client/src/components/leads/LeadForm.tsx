@@ -113,7 +113,13 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       };
       
       console.log('Submitting form data:', formData);
-      onSubmit(formData);
+      // Enviar a data no formato ISO para evitar problemas com fusos horários
+      const normalizedFormData = {
+        ...formData,
+        entryDate: formData.entryDate.toISOString(),
+      };
+      console.log('Normalized form data for submission:', normalizedFormData);
+      onSubmit(normalizedFormData);
     } catch (error) {
       console.error('Error formatting lead data:', error);
     }

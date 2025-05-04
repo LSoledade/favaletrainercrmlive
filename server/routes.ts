@@ -9,15 +9,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/leads/batch/update', async (req, res) => {
     try {
       const { ids, updates } = req.body;
+      console.log('Atualizando leads em lote:', { ids, updates });
       
       if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: "IDs de leads são obrigatórios" });
       }
       
-      const count = await storage.updateLeadsInBatch(ids, updates);
+      const validationResult = insertLeadSchema.partial().safeParse(updates);
+      
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        console.error('Erro de validação na atualização em lote:', validationError.message);
+        return res.status(400).json({ message: validationError.message });
+      }
+      
+      // Preparar os dados para atualização
+      let dataToUpdate = validationResult.data;
+      
+      // Se entryDate for uma string, converter para Date
+      if (dataToUpdate.entryDate && typeof dataToUpdate.entryDate === 'string') {
+        dataToUpdate = {
+          ...dataToUpdate,
+          entryDate: new Date(dataToUpdate.entryDate)
+        };
+      }
+      
+      console.log('Dados para atualização em lote:', dataToUpdate);
+      const count = await storage.updateLeadsInBatch(ids, dataToUpdate);
       res.json({ updatedCount: count });
     } catch (error) {
-      res.status(500).json({ message: "Erro ao atualizar leads em lote" });
+      console.error('Erro ao atualizar leads em lote:', error);
+      res.status(500).json({ message: "Erro ao atualizar leads em lote", details: String(error) });
     }
   });
   
