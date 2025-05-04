@@ -53,38 +53,40 @@
 }
 
 .dark {
-  --background: 260 18% 5%; /* Fundo preto azulado escuro */
-  --foreground: 0 0% 98%;
+  --background: 260 18% 4%; /* Fundo preto azulado mais escuro para melhor contraste */
+  --foreground: 0 0% 100%; /* Texto mais branco para maior contraste */
   
   --muted: 260 15% 10%;
-  --muted-foreground: 240 5% 64.9%;
+  --muted-foreground: 240 5% 75%; /* Aumentado para melhor legibilidade */
   
-  --popover: 260 15% 7%;
-  --popover-foreground: 0 0% 98%;
+  --popover: 260 15% 6%;
+  --popover-foreground: 0 0% 100%;
   
-  --card: 260 15% 8%;
-  --card-foreground: 0 0% 98%;
+  --card: 260 15% 7%;
+  --card-foreground: 0 0% 100%;
   
-  --border: 340 46% 30%;
+  --border: 340 70% 40%;
   --input: 260 15% 12%;
   
-  --primary: 340 86% 51%;
-  --primary-foreground: 0 0% 98%;
+  --primary: 340 90% 55%; /* Pink mais vibrante */
+  --primary-foreground: 0 0% 100%;
   
-  --secondary: 260 69% 34%;
-  --secondary-foreground: 0 0% 98%;
+  --secondary: 260 70% 40%; /* Aumentando a saturação */
+  --secondary-foreground: 0 0% 100%;
   
-  --accent: 260 69% 45%;
-  --accent-foreground: 0 0% 98%;
+  --accent: 260 75% 50%;
+  --accent-foreground: 0 0% 100%;
   
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive: 0 70% 35%;
+  --destructive-foreground: 0 0% 100%;
   
-  --ring: 340 86% 51%;
+  --ring: 340 90% 55%;
   
-  /* Glow effect para o dark mode */
-  --glow-primary: 0 0 25px hsla(340, 86%, 51%, 0.6);
-  --glow-primary-strong: 0 0 35px hsla(340, 86%, 51%, 0.8);
+  /* Efeitos neon aprimorados para o dark mode */
+  --glow-primary: 0 0 20px hsla(340, 90%, 60%, 0.5);
+  --glow-primary-strong: 0 0 30px hsla(340, 90%, 60%, 0.7);
+  --glow-xs: 0 0 10px hsla(340, 90%, 60%, 0.4);
+  --glow-focus: 0 0 0 3px hsla(340, 90%, 60%, 0.25);
 }
 
 @layer base {
