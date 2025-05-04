@@ -82,7 +82,10 @@ export function SessionCalendar() {
   );
 
   // Função para destacar datas no calendário
-  const getDayClass = (day: Date) => {
+  const getDayClass = (day: Date | undefined) => {
+    // Se o dia for undefined, retornar string vazia
+    if (!day) return '';
+    
     // Verificar se há sessões no dia
     const hasSessionsOnDay = sessions.some(session => isSameDay(new Date(session.startTime), day));
     if (hasSessionsOnDay) {
@@ -129,20 +132,29 @@ export function SessionCalendar() {
               modifiersClassNames={{
                 today: 'bg-primary text-primary-foreground',
               }}
+              // Usando modifiers para marcação de datas especiais
               modifiers={{
-                highlighted: (date) => sessions.some(session => 
+                highlighted: (date) => date && sessions.some(session => 
                   isSameDay(new Date(session.startTime), date)
-                )
+                ),
+                favale: (date) => date && sessions.some(session => 
+                  isSameDay(new Date(session.startTime), date) && session.source === 'Favale'
+                ),
+                pink: (date) => date && sessions.some(session => 
+                  isSameDay(new Date(session.startTime), date) && session.source === 'Pink'
+                ),
+                both: (date) => date && 
+                  sessions.some(session => isSameDay(new Date(session.startTime), date) && session.source === 'Favale') &&
+                  sessions.some(session => isSameDay(new Date(session.startTime), date) && session.source === 'Pink')
               }}
+              // Estilizando os dias com classes específicas
               classNames={{
                 day_today: "bg-primary text-primary-foreground",
-                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
-              }}
-              styles={{
-                day: (date) => ({
-                  borderLeft: getDayClass(date).includes('border-l-blue-500') ? '4px solid #3b82f6' : undefined,
-                  borderRight: getDayClass(date).includes('border-r-pink-500') ? '4px solid #ec4899' : undefined
-                })
+                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                day: "relative",
+                day_favale: "before:absolute before:content-[''] before:h-full before:w-1 before:bg-blue-500 before:left-0",
+                day_pink: "before:absolute before:content-[''] before:h-full before:w-1 before:bg-pink-500 before:left-0",
+                day_both: "before:absolute before:content-[''] before:h-full before:w-1 before:bg-blue-500 before:left-0 after:absolute after:content-[''] after:h-full after:w-1 after:bg-pink-500 after:right-0"
               }}
             />
             <div className="flex flex-col space-y-2 mt-4">
