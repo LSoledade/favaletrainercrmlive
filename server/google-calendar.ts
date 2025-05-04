@@ -4,14 +4,33 @@ import { Trainer, Session } from '@shared/schema';
 import { formatInTimeZone } from 'date-fns-tz';
 
 // Configuração do OAuth2
-const oauth2Client = new google.auth.OAuth2(
+const oauth2Client = new googleAuth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI
 );
 
 // Criar uma instância da API do Calendar
-const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+const calendar = googleCalendar({ version: 'v3', auth: oauth2Client });
+
+// TODO: Implementar modo de teste para desenvolvimento sem API keys
+const isTestMode = !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET;
+
+// Função para simular requisições do calendar em modo de teste
+function simulateCalendarOperation(operation: string, data: any = {}): any {
+  console.log(`[SIMULAÇÃO GOOGLE CALENDAR] ${operation}`, data);
+  
+  // Simular dados de resposta com base na operação
+  if (operation === 'insert') {
+    return { data: { id: `fake-event-${Date.now()}` } };
+  } else if (operation === 'update' || operation === 'delete') {
+    return { data: { updated: true } };
+  } else if (operation === 'list') {
+    return { data: { items: [] } };
+  }
+  
+  return { data: {} };
+}
 
 // Escopos necessários para acessar o calendar
 const SCOPES = [
@@ -23,6 +42,11 @@ const SCOPES = [
  * Gera a URL de autorização para o Google
  */
 export function getAuthUrl(): string {
+  if (isTestMode) {
+    console.log(`[SIMULAÇÃO GOOGLE CALENDAR] getAuthUrl`);
+    return 'https://teste-oauth-url.example.com/authorize';
+  }
+  
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
@@ -38,6 +62,15 @@ export async function getTokensFromCode(code: string): Promise<{
   refresh_token?: string;
   expiry_date: number;
 }> {
+  if (isTestMode) {
+    console.log(`[SIMULAÇÃO GOOGLE CALENDAR] getTokensFromCode ${code}`);
+    return {
+      access_token: 'fake-access-token',
+      refresh_token: 'fake-refresh-token',
+      expiry_date: Date.now() + 3600000, // 1 hora a partir de agora
+    };
+  }
+  
   const { tokens } = await oauth2Client.getToken(code);
   return {
     access_token: tokens.access_token!,
@@ -54,6 +87,11 @@ export function setCredentials(tokens: {
   refresh_token?: string;
   expiry_date: number;
 }): void {
+  if (isTestMode) {
+    console.log(`[SIMULAÇÃO GOOGLE CALENDAR] setCredentials`, tokens);
+    return;
+  }
+  
   oauth2Client.setCredentials(tokens);
 }
 
@@ -103,11 +141,24 @@ export async function createCalendarEvent(session: Session, trainer: Trainer, st
     // ID do calendário do professor ou o calendário primário se não especificado
     const calendarId = trainer.calendarId || 'primary';
 
-    const response = await calendar.events.insert({
-      calendarId: calendarId,
-      requestBody: event,
-      sendNotifications: true,
-    });
+    // Modo de teste ou produção
+    let response;
+    if (isTestMode) {
+      // Simular operação do Google Calendar em modo de teste
+      response = simulateCalendarOperation('insert', {
+        calendarId,
+        event,
+        studentName,
+        trainerEmail: trainer.email
+      });
+    } else {
+      // Fazer requisição real ao Google Calendar
+      response = await calendar.events.insert({
+        calendarId: calendarId,
+        requestBody: event,
+        sendNotifications: true,
+      });
+    }
 
     return response.data.id || null;
   } catch (error) {
@@ -167,12 +218,25 @@ export async function updateCalendarEvent(
     // ID do calendário do professor ou o calendário primário se não especificado
     const calendarId = trainer.calendarId || 'primary';
     
-    await calendar.events.update({
-      calendarId: calendarId,
-      eventId: eventId,
-      requestBody: event,
-      sendNotifications: true,
-    });
+    // Modo de teste ou produção
+    if (isTestMode) {
+      // Simular operação do Google Calendar em modo de teste
+      simulateCalendarOperation('update', {
+        calendarId,
+        eventId,
+        event,
+        studentName,
+        trainerEmail: trainer.email
+      });
+    } else {
+      // Fazer requisição real ao Google Calendar
+      await calendar.events.update({
+        calendarId: calendarId,
+        eventId: eventId,
+        requestBody: event,
+        sendNotifications: true,
+      });
+    }
     
     return true;
   } catch (error) {
@@ -189,11 +253,22 @@ export async function deleteCalendarEvent(trainer: Trainer, eventId: string): Pr
     // ID do calendário do professor ou o calendário primário se não especificado
     const calendarId = trainer.calendarId || 'primary';
     
-    await calendar.events.delete({
-      calendarId: calendarId,
-      eventId: eventId,
-      sendNotifications: true,
-    });
+    // Modo de teste ou produção
+    if (isTestMode) {
+      // Simular operação do Google Calendar em modo de teste
+      simulateCalendarOperation('delete', {
+        calendarId,
+        eventId,
+        trainerEmail: trainer.email
+      });
+    } else {
+      // Fazer requisição real ao Google Calendar
+      await calendar.events.delete({
+        calendarId: calendarId,
+        eventId: eventId,
+        sendNotifications: true,
+      });
+    }
     
     return true;
   } catch (error) {
@@ -218,17 +293,31 @@ export async function checkTrainerAvailability(
     const startTimeISO = formatInTimeZone(startTime, 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
     const endTimeISO = formatInTimeZone(endTime, 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
     
-    // Consultar eventos no período
-    const response = await calendar.events.list({
-      calendarId: calendarId,
-      timeMin: startTimeISO,
-      timeMax: endTimeISO,
-      singleEvents: true,
-      orderBy: 'startTime',
-    });
-    
-    // Se não há eventos no período, o professor está disponível
-    return response.data.items && response.data.items.length === 0;
+    // Modo de teste ou produção
+    let response;
+    if (isTestMode) {
+      // Simular operação do Google Calendar em modo de teste
+      response = simulateCalendarOperation('list', {
+        calendarId,
+        timeMin: startTimeISO,
+        timeMax: endTimeISO,
+        trainerEmail: trainer.email
+      });
+      // Em modo de teste, sempre retornar disponível
+      return true;
+    } else {
+      // Fazer requisição real ao Google Calendar
+      response = await calendar.events.list({
+        calendarId: calendarId,
+        timeMin: startTimeISO,
+        timeMax: endTimeISO,
+        singleEvents: true,
+        orderBy: 'startTime',
+      });
+      
+      // Se não há eventos no período, o professor está disponível
+      return response.data.items && response.data.items.length === 0;
+    }
   } catch (error) {
     console.error('Erro ao verificar disponibilidade do professor:', error);
     return false;
@@ -251,16 +340,30 @@ export async function getTrainerEvents(
     const startTimeISO = formatInTimeZone(startDate, 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
     const endTimeISO = formatInTimeZone(endDate, 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
     
-    // Consultar eventos no período
-    const response = await calendar.events.list({
-      calendarId: calendarId,
-      timeMin: startTimeISO,
-      timeMax: endTimeISO,
-      singleEvents: true,
-      orderBy: 'startTime',
-    });
-    
-    return response.data.items || [];
+    // Modo de teste ou produção
+    let response;
+    if (isTestMode) {
+      // Simular operação do Google Calendar em modo de teste
+      response = simulateCalendarOperation('list', {
+        calendarId,
+        timeMin: startTimeISO,
+        timeMax: endTimeISO,
+        trainerEmail: trainer.email
+      });
+      // Em modo de teste, retornar um array vazio
+      return [];
+    } else {
+      // Fazer requisição real ao Google Calendar
+      response = await calendar.events.list({
+        calendarId: calendarId,
+        timeMin: startTimeISO,
+        timeMax: endTimeISO,
+        singleEvents: true,
+        orderBy: 'startTime',
+      });
+      
+      return response.data.items || [];
+    }
   } catch (error) {
     console.error('Erro ao obter eventos do professor:', error);
     return [];
