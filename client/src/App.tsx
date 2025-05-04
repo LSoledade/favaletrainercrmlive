@@ -22,7 +22,6 @@ function Router() {
       <ProtectedRoute path="/leads" component={LeadsPage} />
       <ProtectedRoute path="/agendamentos" component={SessionsPage} />
       <ProtectedRoute path="/calendario" component={CalendarPage} />
-      <ProtectedRoute path="/relatorios" component={ReportPage} />
       <ProtectedRoute path="/config" component={ConfigPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
