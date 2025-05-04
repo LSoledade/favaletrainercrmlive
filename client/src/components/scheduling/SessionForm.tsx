@@ -1,353 +1,273 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { CalendarIcon, Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useToast } from '@/hooks/use-toast';
 
-interface SessionFormProps {
-  selectedDate?: Date;
-  onSuccess: () => void;
-  initialData?: any; // Para modo de edição
+type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+
+interface Session {
+  id: number;
+  startTime: Date;
+  endTime: Date;
+  location: string;
+  source: 'Favale' | 'Pink';
+  notes?: string;
+  status: SessionStatus;
+  studentId: string;
+  studentName: string;
+  trainerId: string;
+  trainerName: string;
+  calendarEventId?: string;
 }
 
-export function SessionForm({ selectedDate, onSuccess, initialData }: SessionFormProps) {
-  const [timePickerOpen, setTimePickerOpen] = useState(false);
+interface SessionFormProps {
+  initialData?: Session;
+  onSuccess: () => void;
+}
 
-  // Schema de validação do formulário
-  const formSchema = z.object({
-    studentId: z.string().min(1, { message: "Selecione um aluno" }),
-    trainerId: z.string().min(1, { message: "Selecione um professor" }),
-    startTime: z.date({ required_error: "Selecione a data/hora de início" }),
-    endTime: z.date({ required_error: "Selecione a data/hora de término" }),
-    location: z.string().min(1, { message: "O local é obrigatório" }),
-    source: z.enum(["Favale", "Pink"], { required_error: "Selecione Favale ou Pink" }),
-    notes: z.string().optional(),
-  });
+export function SessionForm({ initialData, onSuccess }: SessionFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  // Dados mock para alunos e professores
+  // Mock data de alunos e professores
   const students = [
-    { id: "1", name: "Ana Silva" },
-    { id: "2", name: "Bruno Santos" },
-    { id: "3", name: "Carol Pereira" },
+    { id: '101', name: 'Carlos Oliveira' },
+    { id: '102', name: 'Maria Santos' },
+    { id: '103', name: 'João Pereira' },
+    { id: '104', name: 'Paula Ferreira' },
   ];
 
   const trainers = [
-    { id: "1", name: "Marcos Oliveira" },
-    { id: "2", name: "Paula Costa" },
-    { id: "3", name: "Ricardo Martins" },
+    { id: '201', name: 'Ana Silva', specialties: ['Musculação', 'Funcional'] },
+    { id: '202', name: 'Pedro Costa', specialties: ['Cardio', 'Yoga'] },
+    { id: '203', name: 'Roberto Alves', specialties: ['CrossFit', 'Pilates'] },
   ];
 
   const locations = [
-    "Academia Central", 
-    "Estúdio Zona Norte", 
-    "Academia Sul",
-    "Espaço Fitness Leste",
+    'Academia Central',
+    'Estúdio Zona Norte',
+    'Academia Sul',
+    'Espaço Fitness Leste',
   ];
 
-  // Configuração do formulario
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
-      startTime: selectedDate || new Date(),
-      endTime: new Date(new Date().setHours(new Date().getHours() + 1)),
-      source: "Favale",
-      notes: "",
-    },
+  // Estado do formulário
+  const [formData, setFormData] = useState({
+    studentId: initialData?.studentId || '',
+    trainerId: initialData?.trainerId || '',
+    date: initialData ? new Date(initialData.startTime).toISOString().slice(0, 10) : '',
+    startTime: initialData ? new Date(initialData.startTime).toISOString().slice(11, 16) : '',
+    endTime: initialData ? new Date(initialData.endTime).toISOString().slice(11, 16) : '',
+    location: initialData?.location || '',
+    notes: initialData?.notes || '',
+    source: initialData?.source || 'Favale',
+    status: initialData?.status || 'scheduled',
   });
 
-  // Função para lidar com o envio do formulário
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Implementar chamada à API
-    setTimeout(() => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validar formulário
+    if (!formData.studentId || !formData.trainerId || !formData.date || !formData.startTime || !formData.endTime || !formData.location) {
+      toast({
+        title: 'Erro no formulário',
+        description: 'Por favor, preencha todos os campos obrigatórios.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Simular envio para API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Em uma implementação real, aqui enviaria os dados para a API
+      console.log('Dados do formulário:', formData);
+      
       onSuccess();
-    }, 500);
-  }
+    } catch (error) {
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Ocorreu um erro ao salvar a sessão.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="source"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Categoria</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione a categoria" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Favale" className="text-blue-500 font-semibold">Favale</SelectItem>
-                  <SelectItem value="Pink" className="text-pink-500 font-semibold">Pink</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="studentId">Aluno</Label>
+          <Select 
+            name="studentId" 
+            value={formData.studentId}
+            onValueChange={(value) => handleSelectChange('studentId', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o aluno" />
+            </SelectTrigger>
+            <SelectContent>
+              {students.map((student) => (
+                <SelectItem key={student.id} value={student.id}>
+                  {student.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <FormField
-          control={form.control}
-          name="studentId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Aluno</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione um aluno" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {students.map((student) => (
-                    <SelectItem key={student.id} value={student.id}>
-                      {student.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="trainerId">Professor</Label>
+          <Select 
+            name="trainerId" 
+            value={formData.trainerId}
+            onValueChange={(value) => handleSelectChange('trainerId', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o professor" />
+            </SelectTrigger>
+            <SelectContent>
+              {trainers.map((trainer) => (
+                <SelectItem key={trainer.id} value={trainer.id}>
+                  {trainer.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <FormField
-          control={form.control}
-          name="trainerId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Professor</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione um professor" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {trainers.map((trainer) => (
-                    <SelectItem key={trainer.id} value={trainer.id}>
-                      {trainer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="startTime"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Data/Hora de Início</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPp", { locale: ptBR })
-                        ) : (
-                          <span>Selecione a data/hora</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={(date) => {
-                        if (date) {
-                          // Manter a hora atual se uma data diferente for selecionada
-                          const newDate = new Date(date);
-                          if (field.value) {
-                            newDate.setHours(field.value.getHours());
-                            newDate.setMinutes(field.value.getMinutes());
-                          }
-                          field.onChange(newDate);
-                        }
-                      }}
-                      initialFocus
-                    />
-                    <div className="p-3 border-t border-border">
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4" />
-                        <Input
-                          type="time"
-                          value={field.value ? format(field.value, "HH:mm") : ""}
-                          onChange={(e) => {
-                            const [hours, minutes] = e.target.value.split(":");
-                            const newDate = new Date(field.value || new Date());
-                            newDate.setHours(parseInt(hours, 10));
-                            newDate.setMinutes(parseInt(minutes, 10));
-                            field.onChange(newDate);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="endTime"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Data/Hora de Término</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPp", { locale: ptBR })
-                        ) : (
-                          <span>Selecione a data/hora</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={(date) => {
-                        if (date) {
-                          // Manter a hora atual se uma data diferente for selecionada
-                          const newDate = new Date(date);
-                          if (field.value) {
-                            newDate.setHours(field.value.getHours());
-                            newDate.setMinutes(field.value.getMinutes());
-                          }
-                          field.onChange(newDate);
-                        }
-                      }}
-                      initialFocus
-                    />
-                    <div className="p-3 border-t border-border">
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4" />
-                        <Input
-                          type="time"
-                          value={field.value ? format(field.value, "HH:mm") : ""}
-                          onChange={(e) => {
-                            const [hours, minutes] = e.target.value.split(":");
-                            const newDate = new Date(field.value || new Date());
-                            newDate.setHours(parseInt(hours, 10));
-                            newDate.setMinutes(parseInt(minutes, 10));
-                            field.onChange(newDate);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
+        <div className="space-y-2">
+          <Label htmlFor="date">Data</Label>
+          <Input
+            id="date"
+            name="date"
+            type="date"
+            value={formData.date}
+            onChange={handleChange}
           />
         </div>
-        
-        <FormField
-          control={form.control}
-          name="location"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Local</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione o local" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {locations.map((location) => (
-                    <SelectItem key={location} value={location}>
-                      {location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Observações</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Adicione observações para esta sessão"
-                  className="resize-none"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>
-                Informações adicionais como equipamentos, foco do treino, etc.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-2">
+            <Label htmlFor="startTime">Hora Início</Label>
+            <Input
+              id="startTime"
+              name="startTime"
+              type="time"
+              value={formData.startTime}
+              onChange={handleChange}
+            />
+          </div>
 
-        <div className="flex justify-end space-x-2">
-          <Button type="button" variant="outline" onClick={onSuccess}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {initialData ? "Atualizar" : "Agendar"} Sessão
-          </Button>
+          <div className="space-y-2">
+            <Label htmlFor="endTime">Hora Fim</Label>
+            <Input
+              id="endTime"
+              name="endTime"
+              type="time"
+              value={formData.endTime}
+              onChange={handleChange}
+            />
+          </div>
         </div>
-      </form>
-    </Form>
+
+        <div className="space-y-2">
+          <Label htmlFor="location">Local</Label>
+          <Select 
+            name="location" 
+            value={formData.location}
+            onValueChange={(value) => handleSelectChange('location', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o local" />
+            </SelectTrigger>
+            <SelectContent>
+              {locations.map((location) => (
+                <SelectItem key={location} value={location}>
+                  {location}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Categoria</Label>
+          <RadioGroup 
+            value={formData.source} 
+            onValueChange={(value) => handleSelectChange('source', value)}
+            className="flex space-x-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Favale" id="favale" />
+              <Label htmlFor="favale" className="text-blue-600 dark:text-blue-400">Favale</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Pink" id="pink" />
+              <Label htmlFor="pink" className="text-pink-600 dark:text-pink-400">Pink</Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        {initialData && (
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select 
+              name="status" 
+              value={formData.status}
+              onValueChange={(value) => handleSelectChange('status', value as SessionStatus)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scheduled">Agendada</SelectItem>
+                <SelectItem value="completed">Concluída</SelectItem>
+                <SelectItem value="cancelled">Cancelada</SelectItem>
+                <SelectItem value="no-show">Não Compareceu</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="notes">Observações</Label>
+          <Textarea
+            id="notes"
+            name="notes"
+            placeholder="Observações sobre a sessão..."
+            value={formData.notes}
+            onChange={handleChange}
+            rows={3}
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-2 pt-4">
+        <Button type="button" variant="outline" onClick={onSuccess}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Salvando...' : initialData ? 'Atualizar' : 'Agendar'}
+        </Button>
+      </div>
+    </form>
   );
 }

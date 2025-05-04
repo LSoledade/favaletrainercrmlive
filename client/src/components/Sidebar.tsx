@@ -45,7 +45,6 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     { path: "/leads", label: "Leads", icon: "people" },
     { path: "/agendamentos", label: "Agendamentos", icon: "calendar_today" },
     { path: "/calendario", label: "Calendário", icon: "event" },
-    { path: "/relatorios", label: "Relatórios", icon: "description" },
     { path: "/config", label: "Configurações", icon: "settings" },
   ];
   

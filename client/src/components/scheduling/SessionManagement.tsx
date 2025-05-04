@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -122,69 +121,63 @@ export function SessionManagement() {
   });
 
   return (
-    <div className="container mx-auto p-4">
-      <Card className="w-full">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Gerenciamento de Sessões</CardTitle>
-              <CardDescription>Agende e gerencie sessões de treinamento</CardDescription>
-            </div>
-            <Button onClick={() => setCreateDialogOpen(true)}>Nova Sessão</Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Input
-              placeholder="Buscar por aluno, professor ou local..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="max-w-sm"
-            />
-          </div>
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h3 className="text-lg font-medium">Gerenciamento de Sessões</h3>
+          <p className="text-sm text-muted-foreground">Agende e gerencie sessões de treinamento</p>
+        </div>
+        <Button onClick={() => setCreateDialogOpen(true)}>Nova Sessão</Button>
+      </div>
+      <div className="mb-4">
+        <Input
+          placeholder="Buscar por aluno, professor ou local..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          className="max-w-sm"
+        />
+      </div>
 
-          <Tabs defaultValue="all">
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">Todas</TabsTrigger>
-              <TabsTrigger value="scheduled">Agendadas</TabsTrigger>
-              <TabsTrigger value="completed">Concluídas</TabsTrigger>
-              <TabsTrigger value="cancelled">Canceladas</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="all">
-              <SessionTable 
-                sessions={filteredSessions}
-                onViewSession={handleViewSession}
-                onEditSession={handleEditSession}
-              />
-            </TabsContent>
-            
-            <TabsContent value="scheduled">
-              <SessionTable 
-                sessions={filteredSessions.filter(s => s.status === 'scheduled')}
-                onViewSession={handleViewSession}
-                onEditSession={handleEditSession}
-              />
-            </TabsContent>
-            
-            <TabsContent value="completed">
-              <SessionTable 
-                sessions={filteredSessions.filter(s => s.status === 'completed')}
-                onViewSession={handleViewSession}
-                onEditSession={handleEditSession}
-              />
-            </TabsContent>
-            
-            <TabsContent value="cancelled">
-              <SessionTable 
-                sessions={filteredSessions.filter(s => s.status === 'cancelled')}
-                onViewSession={handleViewSession}
-                onEditSession={handleEditSession}
-              />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="all">
+        <TabsList className="mb-4">
+          <TabsTrigger value="all">Todas</TabsTrigger>
+          <TabsTrigger value="scheduled">Agendadas</TabsTrigger>
+          <TabsTrigger value="completed">Concluídas</TabsTrigger>
+          <TabsTrigger value="cancelled">Canceladas</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="all">
+          <SessionTable 
+            sessions={filteredSessions}
+            onViewSession={handleViewSession}
+            onEditSession={handleEditSession}
+          />
+        </TabsContent>
+        
+        <TabsContent value="scheduled">
+          <SessionTable 
+            sessions={filteredSessions.filter(s => s.status === 'scheduled')}
+            onViewSession={handleViewSession}
+            onEditSession={handleEditSession}
+          />
+        </TabsContent>
+        
+        <TabsContent value="completed">
+          <SessionTable 
+            sessions={filteredSessions.filter(s => s.status === 'completed')}
+            onViewSession={handleViewSession}
+            onEditSession={handleEditSession}
+          />
+        </TabsContent>
+        
+        <TabsContent value="cancelled">
+          <SessionTable 
+            sessions={filteredSessions.filter(s => s.status === 'cancelled')}
+            onViewSession={handleViewSession}
+            onEditSession={handleEditSession}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Dialog para criar nova sessão */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
