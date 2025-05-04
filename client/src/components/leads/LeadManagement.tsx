@@ -1,5 +1,5 @@
 import { useState, useRef, ChangeEvent, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lead, InsertLead } from "@shared/schema";
 import { useLeadContext } from "@/context/LeadContext";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 
 export default function LeadManagement() {
+  const queryClient = useQueryClient();
   const { data: leads, isLoading, error } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
   });
@@ -796,6 +797,9 @@ export default function LeadManagement() {
         throw new Error('Erro ao processar resposta do servidor');
       }
       console.log('Resultado da importação em lote:', result);
+      
+      // Atualizar a lista de leads após a importação bem-sucedida
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       
       // Show results
       setImportProgress(100);
