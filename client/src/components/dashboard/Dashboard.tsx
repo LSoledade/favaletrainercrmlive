@@ -42,9 +42,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+    <div className="p-2 xs:p-3 sm:p-4 md:p-6 space-y-3 xs:space-y-4 sm:space-y-6 overflow-x-hidden">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
         <KpiCard
           title="Total de Leads"
           value={stats.totalLeads}
@@ -83,18 +83,18 @@ export default function Dashboard() {
       </div>
       
       {/* Charts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <ChartCard title="Distribuição por Origem" className="md:col-span-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 xs:gap-4 md:gap-6">
+        <ChartCard title="Distribuição por Origem" className="h-[300px] xs:h-[350px] md:h-auto md:col-span-1">
           <SourcePieChart data={stats.leadsBySource} />
         </ChartCard>
         
-        <ChartCard title="Leads por Estado" className="md:col-span-1 lg:col-span-2">
+        <ChartCard title="Leads por Estado" className="h-[300px] xs:h-[350px] md:h-auto md:col-span-1 lg:col-span-2">
           <StateBarChart data={stats.leadsByState} />
         </ChartCard>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <ChartCard title="Leads ao Longo do Tempo" className="md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 xs:gap-4 md:gap-6">
+        <ChartCard title="Leads ao Longo do Tempo" className="h-[300px] xs:h-[350px] md:h-auto md:col-span-2">
           <TimelineChart />
         </ChartCard>
         
