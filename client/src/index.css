@@ -48,6 +48,15 @@
   --chart-1: 340 86% 51%;
   --chart-2: 260 69% 34%;
   --chart-3: 212 100% 48%;
+  
+  /* Sidebar colors */
+  --sidebar: 260 69% 34%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-muted: 260 40% 40%;
+  --sidebar-border: 260 30% 40%;
+  --sidebar-accent: 260 50% 40%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 340 86% 51%;
   --chart-4: 130 65% 38%;
   --chart-5: 45 93% 47%;
 }
@@ -81,6 +90,15 @@
   --destructive-foreground: 0 0% 100%;
   
   --ring: 340 90% 55%;
+  
+  /* Sidebar colors - dark mode */
+  --sidebar: 260 30% 14%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-muted: 260 20% 30%;
+  --sidebar-border: 340 70% 40%;
+  --sidebar-accent: 340 70% 45%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 340 90% 55%;
   
   /* Efeitos neon aprimorados para o dark mode */
   --glow-primary: 0 0 20px hsla(340, 90%, 60%, 0.5);
