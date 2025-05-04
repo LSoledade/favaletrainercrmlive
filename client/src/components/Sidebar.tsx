@@ -49,27 +49,27 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
   
   const getNavClasses = (path: string) => {
     const isActive = location === path;
-    const baseClasses = "flex items-center text-white transition-all duration-200 rounded-md my-1 mx-2";
+    const baseClasses = "flex items-center text-white transition-all duration-200 rounded-md my-1 mx-1 sm:mx-2";
     return isActive 
-      ? `${baseClasses} bg-primary dark:glow ${expanded ? 'px-5' : 'justify-center'} py-3`
-      : `${baseClasses} hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 ${expanded ? 'px-5' : 'justify-center'} py-3`;
+      ? `${baseClasses} bg-primary dark:glow ${expanded ? 'px-3 sm:px-5' : 'justify-center'} py-2 sm:py-3`
+      : `${baseClasses} hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 ${expanded ? 'px-3 sm:px-5' : 'justify-center'} py-2 sm:py-3`;
   };
   
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Mobile/Desktop sidebar */}
       <aside 
         className={`${expanded ? 'w-64' : 'w-20'} bg-secondary dark:bg-[#0F0A19] dark:glow-border text-white lg:block flex-shrink-0 fixed lg:relative inset-y-0 left-0 transform ${
           open ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40`}
+        } lg:translate-x-0 transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40 h-full overflow-y-auto`}
       >
-        <div className="p-4 flex items-center justify-between border-b border-secondary-light dark:border-primary/20">
+        <div className="p-3 sm:p-4 flex items-center justify-between border-b border-secondary-light dark:border-primary/20">
           {expanded ? (
-            <div className="font-heading text-xl font-bold tracking-wider dark:glow-text">
+            <div className="font-heading text-lg sm:text-xl font-bold tracking-wider dark:glow-text">
               Favale<span className="text-primary">&Pink</span>
             </div>
           ) : (
-            <div className="font-heading text-xl font-bold tracking-wider text-center mx-auto dark:glow-text">
+            <div className="font-heading text-lg sm:text-xl font-bold tracking-wider text-center mx-auto dark:glow-text">
               <span className="text-primary">F&P</span>
             </div>
           )}
@@ -87,8 +87,8 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           )}
         </div>
         
-        <nav className="py-4">
-          <ul>
+        <nav className="py-2 sm:py-4">
+          <ul className="space-y-1">
             {navItems.map((item) => (
               <li key={item.path}>
                 <Link 
@@ -96,8 +96,8 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                   onClick={() => setOpen(false)}
                   className={getNavClasses(item.path)}
                 >
-                  <span className="material-icons mr-3">{item.icon}</span>
-                  {expanded && <span>{item.label}</span>}
+                  <span className="material-icons text-base sm:text-lg mr-2 sm:mr-3">{item.icon}</span>
+                  {expanded && <span className="text-sm sm:text-base">{item.label}</span>}
                 </Link>
               </li>
             ))}
@@ -106,44 +106,53 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
         
         {/* User Profile Section */}
         {user && (
-          <div className="mt-auto border-t border-secondary-light dark:border-primary/20 p-3">
+          <div className="mt-auto border-t border-secondary-light dark:border-primary/20 p-2 sm:p-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className={`flex items-center w-full ${expanded ? 'justify-between' : 'justify-center'} text-white hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 rounded-md p-2`}>
+                <button className={`flex items-center w-full ${expanded ? 'justify-between' : 'justify-center'} text-white hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 rounded-md p-1.5 sm:p-2`}>
                   <div className="flex items-center">
-                    <Avatar className="h-8 w-8 bg-primary-light">
-                      <AvatarFallback className="text-sm font-medium text-white dark:text-white">
+                    <Avatar className="h-6 w-6 sm:h-8 sm:w-8 bg-primary-light">
+                      <AvatarFallback className="text-xs sm:text-sm font-medium text-white dark:text-white">
                         {user.username.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     {expanded && (
-                      <span className="ml-3 truncate">{user.username}</span>
+                      <span className="ml-2 sm:ml-3 truncate text-sm sm:text-base">{user.username}</span>
                     )}
                   </div>
                   {expanded && (
-                    <span className="material-icons text-sm">expand_more</span>
+                    <span className="material-icons text-xs sm:text-sm">expand_more</span>
                   )}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuContent align="start" className="w-48 sm:w-56">
                 <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <Link href="/config" onClick={() => setOpen(false)}>
                   <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Perfil e Configurações</span>
+                    <User className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="text-sm">Perfil e Configurações</span>
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logoutMutation.mutate()}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sair</span>
+                  <LogOut className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="text-sm">Sair</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         )}
       </aside>
+      
+      {/* Background overlay for mobile sidebar */}
+      {open && isMobile && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-20 lg:hidden" 
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
     </>
   );
 }

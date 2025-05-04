@@ -68,14 +68,14 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
   
   const getStatusBadgeClasses = (status: string) => {
     return status === "Aluno" 
-      ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 transition-colors duration-200 shadow-sm hover:shadow hover:-translate-y-0.5 transform"
-      : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300 transition-colors duration-200 shadow-sm hover:shadow hover:-translate-y-0.5 transform";
+      ? "inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 transition-colors duration-200 shadow-sm hover:shadow hover:-translate-y-0.5 transform"
+      : "inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300 transition-colors duration-200 shadow-sm hover:shadow hover:-translate-y-0.5 transform";
   };
   
   const getSourceBadgeClasses = (source: string) => {
     return source === "Favale" 
-      ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-primary dark:bg-pink-900/30 dark:text-pink-400 transition-colors duration-200 shadow-sm hover:shadow hover:-translate-y-0.5 transform"
-      : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-secondary dark:bg-purple-900/30 dark:text-purple-400 transition-colors duration-200 shadow-sm hover:shadow hover:-translate-y-0.5 transform";
+      ? "inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-pink-100 text-primary dark:bg-pink-900/30 dark:text-pink-400 transition-colors duration-200 shadow-sm hover:shadow hover:-translate-y-0.5 transform"
+      : "inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-purple-100 text-secondary dark:bg-purple-900/30 dark:text-purple-400 transition-colors duration-200 shadow-sm hover:shadow hover:-translate-y-0.5 transform";
   };
   
   if (isLoading) {
@@ -92,39 +92,39 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
         <table className="min-w-full">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 transition-colors duration-200">
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 <input 
                   type="checkbox" 
-                  className="mr-2 h-4 w-4 rounded border-primary/30 text-primary focus:ring-primary/30 transition-all duration-200"
+                  className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 rounded border-primary/30 text-primary focus:ring-primary/30 transition-all duration-200"
                   checked={currentLeads.length > 0 && selectedLeadIds.length === currentLeads.length}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Data de Entrada
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
+                Data
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Nome
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
                 Telefone
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
                 Estado
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                 Campanha
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                 Tags
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
                 Origem
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Ações
               </th>
             </tr>
@@ -133,67 +133,67 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
             {currentLeads.length > 0 ? (
               currentLeads.map((lead) => (
                 <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/70 transition-all duration-200 hover:shadow-md dark:hover:shadow-gray-900/20">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                     <input 
                       type="checkbox" 
-                      className="h-4 w-4 rounded border-primary/30 text-primary focus:ring-primary/30 transition-all duration-200"
+                      className="h-3 w-3 sm:h-4 sm:w-4 rounded border-primary/30 text-primary focus:ring-primary/30 transition-all duration-200"
                       checked={selectedLeadIds.includes(lead.id)}
                       onChange={(e) => handleSelectLead(lead.id, e.target.checked)}
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 dark:text-gray-300 hidden sm:table-cell">
                     {formatDate(lead.entryDate)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{lead.name}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{lead.email}</div>
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                    <div className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-100 truncate max-w-[100px] sm:max-w-none">{lead.name}</div>
+                    <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate max-w-[100px] sm:max-w-none">{lead.email}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 dark:text-gray-300 hidden md:table-cell">
                     {lead.phone}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 dark:text-gray-300 hidden md:table-cell">
                     {lead.state}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 dark:text-gray-300 hidden lg:table-cell">
                     {lead.campaign}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-wrap gap-1.5">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap hidden lg:table-cell">
+                    <div className="flex flex-wrap gap-1">
                       {lead.tags && lead.tags.map((tag, index) => (
                         <span 
                           key={index} 
-                          className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-pink-300 text-xs px-2 py-0.5 rounded-full font-medium transition-all duration-200 hover:bg-primary/20 dark:hover:bg-primary/30 dark:hover:shadow-glow-xs"
+                          className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-pink-300 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium transition-all duration-200 hover:bg-primary/20 dark:hover:bg-primary/30 dark:hover:shadow-glow-xs"
                         >
                           {tag}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap hidden sm:table-cell">
                     <span className={getSourceBadgeClasses(lead.source)}>
                       {lead.source}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                     <span className={getStatusBadgeClasses(lead.status)}>
                       {lead.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-3">
+                  <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
+                    <div className="flex space-x-1 sm:space-x-3">
                       <button 
-                        className="p-1.5 rounded-full text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:text-indigo-300 dark:hover:bg-indigo-900/30 transition-all duration-200"
+                        className="p-1 sm:p-1.5 rounded-full text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:text-indigo-300 dark:hover:bg-indigo-900/30 transition-all duration-200"
                         onClick={() => handleEdit(lead)}
                         title="Editar"
                       >
-                        <span className="material-icons text-sm">edit</span>
+                        <span className="material-icons text-xs sm:text-sm">edit</span>
                       </button>
                       <button 
-                        className="p-1.5 rounded-full text-red-600 hover:text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30 transition-all duration-200"
+                        className="p-1 sm:p-1.5 rounded-full text-red-600 hover:text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30 transition-all duration-200"
                         onClick={() => onDelete(lead)}
                         title="Excluir"
                       >
-                        <span className="material-icons text-sm">delete</span>
+                        <span className="material-icons text-xs sm:text-sm">delete</span>
                       </button>
                     </div>
                   </td>
@@ -201,7 +201,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
               ))
             ) : (
               <tr className="transition-colors duration-200">
-                <td colSpan={10} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">
+                <td colSpan={10} className="px-2 sm:px-6 py-2 sm:py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">
                   Nenhum lead encontrado
                 </td>
               </tr>
@@ -212,17 +212,20 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
       
       {/* Pagination */}
       {leads.length > 0 && (
-        <div className="px-6 py-4 flex items-center justify-between border-t dark:border-gray-700">
-          <div className="flex-1 flex justify-between sm:hidden">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 justify-between border-t dark:border-gray-700">
+          <div className="flex w-full sm:w-auto justify-between sm:hidden">
             <button 
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 hover:shadow-md dark:hover:shadow-glow-xs hover:-translate-y-0.5 transform"
+              className="relative inline-flex items-center px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-200 hover:shadow-md dark:hover:shadow-glow-xs hover:-translate-y-0.5 transform"
               onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
               disabled={currentPage === 1}
             >
               Anterior
             </button>
+            <span className="inline-flex items-center text-xs text-gray-700 dark:text-gray-300">
+              {currentPage} de {totalPages}
+            </span>
             <button 
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 hover:shadow-md dark:hover:shadow-glow-xs hover:-translate-y-0.5 transform"
+              className="relative inline-flex items-center px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-200 hover:shadow-md dark:hover:shadow-glow-xs hover:-translate-y-0.5 transform"
               onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
               disabled={currentPage === totalPages}
             >
@@ -231,7 +234,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
           </div>
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Mostrando <span className="font-medium">{indexOfFirstLead + 1}</span> a{" "}
                 <span className="font-medium">
                   {Math.min(indexOfLastLead, leads.length)}
@@ -242,20 +245,20 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
             <div>
               <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                 <button 
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-gray-800 transition-all duration-200 dark:hover:shadow-glow-xs hover:-translate-y-0.5 transform"
+                  className="relative inline-flex items-center px-2 py-1.5 sm:py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-offset-gray-800 transition-all duration-200 dark:hover:shadow-glow-xs hover:-translate-y-0.5 transform"
                   onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
                   disabled={currentPage === 1}
                 >
-                  <span className="material-icons text-sm">chevron_left</span>
+                  <span className="material-icons text-xs sm:text-sm">chevron_left</span>
                 </button>
                 {displayPageNumbers.map((number, index) => (
                   <button
                     key={index}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium transition-all duration-200 ${
+                    className={`relative inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 text-xs sm:text-sm font-medium transition-all duration-200 ${
                       number === currentPage
                         ? "bg-primary text-white border-primary dark:border-primary dark:shadow-glow-sm"
                         : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:-translate-y-0.5 transform"
-                    } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-gray-800 ${number !== '...' ? 'hover:shadow-md dark:hover:shadow-glow-xs' : ''}`}
+                    } focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-offset-gray-800 ${number !== '...' ? 'hover:shadow-md dark:hover:shadow-glow-xs' : ''}`}
                     onClick={() => number !== '...' && setCurrentPage(number as number)}
                     disabled={number === '...'}
                   >
@@ -263,11 +266,11 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                   </button>
                 ))}
                 <button 
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-gray-800 transition-all duration-200 dark:hover:shadow-glow-xs hover:-translate-y-0.5 transform"
+                  className="relative inline-flex items-center px-2 py-1.5 sm:py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-offset-gray-800 transition-all duration-200 dark:hover:shadow-glow-xs hover:-translate-y-0.5 transform"
                   onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
                   disabled={currentPage === totalPages}
                 >
-                  <span className="material-icons text-sm">chevron_right</span>
+                  <span className="material-icons text-xs sm:text-sm">chevron_right</span>
                 </button>
               </nav>
             </div>

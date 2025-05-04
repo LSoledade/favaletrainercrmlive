@@ -45,17 +45,17 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex">
       {/* Auth Form Section */}
-      <div className="w-full lg:w-1/2 p-8 lg:p-16 flex items-center justify-center">
+      <div className="w-full lg:w-1/2 p-4 sm:p-8 lg:p-16 flex items-center justify-center">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary">Favale & Pink</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-2">
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary">Favale & Pink</h1>
+            <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-2">
               Sistema de Gerenciamento de Leads
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-md">
-            <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
+          <div className="bg-white dark:bg-gray-900 p-4 sm:p-8 rounded-lg shadow-md">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center">Login</h2>
             
             <Form {...form}>
               <form
