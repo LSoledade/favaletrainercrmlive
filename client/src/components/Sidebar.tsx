@@ -77,17 +77,25 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
             </div>
           )}
           
-          {!isMobile && (
+          {!isMobile && (expanded ? (
             <button 
-              onClick={() => setExpanded(!expanded)}
-              className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-all duration-300 absolute -right-3 top-4 bg-secondary dark:bg-[#0F0A19] dark:border dark:border-primary/30 dark:shadow-glow-xs dark:hover:shadow-glow-sm z-50 w-6 h-6 flex items-center justify-center"
-              title={expanded ? "Recolher menu" : "Expandir menu"}
+              onClick={() => setExpanded(false)}
+              className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-all duration-300 absolute right-2 top-4 bg-secondary dark:bg-[#0F0A19] dark:border-2 dark:border-primary/30 dark:shadow-glow-xs dark:hover:shadow-glow-sm z-50 w-7 h-7 flex items-center justify-center"
+              title="Recolher menu"
             >
-              <span className="material-icons text-white text-sm">
-                {expanded ? "chevron_left" : "chevron_right"}
-              </span>
+              <span className="material-icons text-white text-sm dark:text-primary dark:glow-text-xs">chevron_left</span>
             </button>
-          )}
+          ) : (
+            <div className="absolute top-0 right-0 -mr-7 mt-4 z-50">
+              <button
+                onClick={() => setExpanded(true)}
+                className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-all duration-300 bg-secondary dark:bg-[#0F0A19] dark:border-2 dark:border-primary/30 dark:shadow-glow-sm dark:hover:shadow-glow w-7 h-7 flex items-center justify-center"
+                title="Expandir menu"
+              >
+                <span className="material-icons text-white text-sm dark:text-primary dark:glow-text-xs">chevron_right</span>
+              </button>
+            </div>
+          ))}
         </div>
         
         <nav className="py-2 sm:py-4 overflow-y-auto flex-grow">
