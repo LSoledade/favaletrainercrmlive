@@ -66,6 +66,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/leads', async (req, res) => {
     try {
       console.log('Recebendo dados para criar lead:', req.body);
+      
+      // Primeiro validamos com o schema que aceita data como string (para validar formato)
       const validationResult = leadValidationSchema.safeParse(req.body);
       
       if (!validationResult.success) {
@@ -75,7 +77,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log('Dados validados:', validationResult.data);
-      const newLead = await storage.createLead(validationResult.data);
+      
+      // Garantir que entryDate seja um objeto Date antes de enviar para o banco
+      const leadToInsert = {
+        ...validationResult.data,
+        entryDate: validationResult.data.entryDate instanceof Date 
+          ? validationResult.data.entryDate 
+          : new Date(validationResult.data.entryDate)
+      };
+      
+      console.log('Dados convertidos para inserção:', leadToInsert);
+      const newLead = await storage.createLead(leadToInsert);
       res.status(201).json(newLead);
     } catch (error) {
       console.error('Erro ao criar lead:', error);
@@ -87,14 +99,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/leads/:id', async (req, res) => {
     try {
       const leadId = parseInt(req.params.id);
+      console.log('Atualizando lead:', req.body);
+      
+      // Validar os dados recebidos
       const validationResult = insertLeadSchema.partial().safeParse(req.body);
       
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
+        console.error('Erro de validação na atualização:', validationError.message);
         return res.status(400).json({ message: validationError.message });
       }
       
-      const updatedLead = await storage.updateLead(leadId, validationResult.data);
+      // Preparar os dados para atualização
+      let dataToUpdate = validationResult.data;
+      
+      // Se entryDate for uma string, converter para Date
+      if (dataToUpdate.entryDate && typeof dataToUpdate.entryDate === 'string') {
+        dataToUpdate = {
+          ...dataToUpdate,
+          entryDate: new Date(dataToUpdate.entryDate)
+        };
+      }
+      
+      console.log('Dados para atualização:', dataToUpdate);
+      const updatedLead = await storage.updateLead(leadId, dataToUpdate);
       
       if (!updatedLead) {
         return res.status(404).json({ message: "Lead não encontrado" });
@@ -102,7 +130,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(updatedLead);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao atualizar lead" });
+      console.error('Erro ao atualizar lead:', error);
+      res.status(500).json({ message: "Erro ao atualizar lead", details: String(error) });
     }
   });
 
