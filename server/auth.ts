@@ -1,11 +1,12 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { logAuditEvent, AuditEventType } from "./audit-log";
 
 interface AuthInfo {
   message?: string;
@@ -33,12 +34,18 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  if (!process.env.SESSION_SECRET) {
+    console.warn('ATENÇÃO: SESSION_SECRET não encontrado no ambiente. Utilizando um valor padrão para desenvolvimento.');
+  }
+  
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "favale-pink-secret-key",
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
+      httpOnly: true, // Previne acesso ao cookie via JavaScript
+      sameSite: "strict", // Proteção contra CSRF
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
     store: storage.sessionStore
@@ -85,9 +92,24 @@ export function setupAuth(app: Express) {
         ...req.body,
         password: await hashPassword(req.body.password),
       });
+      
+      // Registrar criação de usuário
+      logAuditEvent(AuditEventType.USER_CREATED, req, {
+        userId: user.id,
+        username: user.username,
+        role: user.role
+      });
 
       req.login(user, (err: Error | null) => {
         if (err) return next(err);
+        
+        // Registrar login após registro
+        logAuditEvent(AuditEventType.LOGIN_SUCCESS, req, {
+          userId: user.id,
+          username: user.username,
+          registrationLogin: true
+        });
+        
         return res.status(201).json(user);
       });
     } catch (err) {
@@ -98,18 +120,46 @@ export function setupAuth(app: Express) {
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err: Error | null, user: SelectUser | false, info: AuthInfo) => {
       if (err) return next(err);
-      if (!user) return res.status(401).json({ message: info?.message || "Credenciais inválidas" });
+      
+      if (!user) {
+        // Registra tentativa de login falha
+        logAuditEvent(AuditEventType.LOGIN_FAILURE, req, {
+          username: req.body.username,
+          reason: info?.message || "Credenciais inválidas"
+        });
+        return res.status(401).json({ message: info?.message || "Credenciais inválidas" });
+      }
       
       req.login(user, (err: Error | null) => {
         if (err) return next(err);
+        
+        // Registra login bem-sucedido
+        logAuditEvent(AuditEventType.LOGIN_SUCCESS, req, {
+          userId: user.id,
+          username: user.username
+        });
+        
         return res.status(200).json(user);
       });
     })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
+    // Capturar informações do usuário antes do logout
+    const userId = req.user?.id;
+    const username = req.user?.username;
+    
     req.logout((err: Error | null) => {
       if (err) return next(err);
+      
+      // Registrar evento de logout
+      if (userId && username) {
+        logAuditEvent(AuditEventType.LOGOUT, req, {
+          userId,
+          username
+        });
+      }
+      
       res.sendStatus(200);
     });
   });

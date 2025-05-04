@@ -12,3 +12,10 @@ vite.config.ts.*
 .env.test
 .env.production
 .env*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
