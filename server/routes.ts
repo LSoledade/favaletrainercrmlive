@@ -109,36 +109,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(leads) || leads.length === 0) {
         return res.status(400).json({ message: "Nenhum lead válido fornecido para importação" });
       }
-      
-      // Criar um schema para validar o array inteiro
-      const batchLeadSchema = leadValidationSchema.array();
-      const validationResult = batchLeadSchema.safeParse(leads);
-      
-      if (!validationResult.success) {
-        const validationError = fromZodError(validationResult.error);
-        console.error('Erro de validação na importação em lote:', validationError.message);
-        return res.status(400).json({ message: validationError.message });
-      }
-      
-      const validatedLeads = validationResult.data;
-      console.log(`Iniciando importação em lote de ${validatedLeads.length} leads`); 
-      
-      // Processar todos os leads de uma vez
+
+      // Processar todos os leads de uma vez      
       const results = { 
         success: [], 
         errors: [] 
       };
       
-      for (let i = 0; i < validatedLeads.length; i++) {
+      for (let i = 0; i < leads.length; i++) {
         try {
-          const leadData = validatedLeads[i];
+          const leadData = leads[i];
           
-          // Converter qualquer string de data para objeto Date
-          if (typeof leadData.entryDate === 'string') {
-            leadData.entryDate = new Date(leadData.entryDate);
+          // Validar cada lead individualmente para melhor tratamento de erros
+          const validationResult = leadValidationSchema.safeParse(leadData);
+          
+          if (!validationResult.success) {
+            const validationError = fromZodError(validationResult.error);
+            throw new Error(`Erro de validação: ${validationError.message}`);
           }
           
-          const lead = await storage.createLead(leadData);
+          const validatedLead = validationResult.data;
+          
+          // Converter qualquer string de data para objeto Date
+          if (typeof validatedLead.entryDate === 'string') {
+            validatedLead.entryDate = new Date(validatedLead.entryDate);
+          }
+          
+          const lead = await storage.createLead(validatedLead);
           results.success.push({
             index: i,
             id: lead.id,
@@ -149,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results.errors.push({
             index: i,
             error: error instanceof Error ? error.message : 'Erro desconhecido',
-            data: validatedLeads[i]
+            data: leads[i]
           });
         }
       }

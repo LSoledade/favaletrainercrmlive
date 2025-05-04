@@ -549,12 +549,26 @@ export default function LeadManagement() {
             body: JSON.stringify({ leads: leadsToImport })
           });
           
+          let result;
           if (!response.ok) {
-            const errorText = await response.text();
+            let errorText;
+            try {
+              // Tenta obter o erro como JSON
+              const errorJson = await response.json();
+              errorText = errorJson.message || 'Erro desconhecido';
+            } catch (e) {
+              // Se não for JSON, tenta obter como texto
+              errorText = await response.text();
+            }
             throw new Error(`Erro na importação em lote: ${errorText}`);
           }
           
-          const result = await response.json();
+          try {
+            result = await response.json();
+          } catch (e) {
+            console.error('Erro ao parsear resultado JSON:', e);
+            throw new Error('Erro ao processar resposta do servidor');
+          }
           console.log('Resultado da importação em lote:', result);
           
           setImportProgress(100);
@@ -761,12 +775,26 @@ export default function LeadManagement() {
         body: JSON.stringify({ leads: parsedLeads })
       });
       
+      let result;
       if (!response.ok) {
-        const errorText = await response.text();
+        let errorText;
+        try {
+          // Tenta obter o erro como JSON
+          const errorJson = await response.json();
+          errorText = errorJson.message || 'Erro desconhecido';
+        } catch (e) {
+          // Se não for JSON, tenta obter como texto
+          errorText = await response.text();
+        }
         throw new Error(`Erro na importação em lote: ${errorText}`);
       }
       
-      const result = await response.json();
+      try {
+        result = await response.json();
+      } catch (e) {
+        console.error('Erro ao parsear resultado JSON:', e);
+        throw new Error('Erro ao processar resposta do servidor');
+      }
       console.log('Resultado da importação em lote:', result);
       
       // Show results
