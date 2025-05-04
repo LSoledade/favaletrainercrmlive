@@ -28,15 +28,21 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-pink-400 dark:shadow-glow-sm"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-pink-400 dark:shadow-glow-md relative">
+          <div className="absolute inset-0 rounded-full dark:shadow-glow-xs dark:opacity-50 animate-pulse"></div>
+        </div>
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="m-6 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg text-red-600 dark:text-red-400">
-        <p>Erro ao carregar estatísticas do dashboard.</p>
+      <div className="m-6 bg-red-50 dark:bg-red-900/20 p-6 rounded-lg text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 dark:shadow-glow-xs relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mt-1 -mr-1 bg-red-100 dark:bg-red-500/20 p-3 rounded-bl-lg dark:shadow-glow-xs">
+          <span className="material-icons text-red-500 dark:text-red-400 dark:glow-text">error</span>
+        </div>
+        <h3 className="text-lg font-semibold mb-2 dark:glow-text-subtle">Erro no Dashboard</h3>
+        <p>Erro ao carregar estatísticas do dashboard. Tente novamente mais tarde.</p>
       </div>
     );
   }

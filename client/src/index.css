@@ -361,6 +361,15 @@
   }
 }
 
+/* Efeitos específicos para gráficos */
+.drop-shadow-glow {
+  filter: drop-shadow(0 0 3px rgba(233, 30, 99, 0.5));
+}
+
+.drop-shadow-glow-secondary {
+  filter: drop-shadow(0 0 3px rgba(103, 58, 183, 0.5));
+}
+
 /* Classes responsivas personalizadas */
 .mobile-chart-container {
   @apply w-full overflow-auto pb-2;

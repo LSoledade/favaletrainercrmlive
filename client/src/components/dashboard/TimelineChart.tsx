@@ -161,11 +161,13 @@ export default function TimelineChart() {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white dark:bg-slate-800 shadow-md dark:shadow-primary/20 rounded p-2 text-xs sm:text-sm border border-gray-100 dark:border-gray-700">
-          <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+        <div className="bg-white dark:bg-slate-800 shadow-md dark:shadow-glow-xs rounded p-2 text-xs sm:text-sm border border-gray-100 dark:border-primary/30">
+          <p className="font-semibold text-gray-800 dark:text-gray-200 dark:glow-text-subtle mb-1">{label}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }} className="text-gray-600 dark:text-gray-300">
-              {entry.name}: {entry.value}
+            <p key={index} style={{ color: entry.color }} className="text-gray-600 dark:text-gray-300 flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
+              <span className="font-medium">{entry.name}:</span> 
+              <span className="dark:glow-text-subtle">{entry.value}</span>
             </p>
           ))}
         </div>
@@ -179,20 +181,29 @@ export default function TimelineChart() {
     return (
       <div className="w-full h-full flex flex-col">
         <div className="flex justify-end mb-2 sm:mb-4">
-          <select 
-            className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-primary"
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-          >
-            <option value="7d">Últimos 7 dias</option>
-            <option value="30d">Últimos 30 dias</option>
-            <option value="year">Este ano</option>
-          </select>
+          <div className="relative group">
+            <select 
+              className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-primary/30 dark:text-gray-300 focus:outline-none dark:focus:ring-1 dark:focus:ring-primary/50 dark:focus:shadow-glow-xs transition-all duration-200 dark:hover:border-primary/50 pr-6 appearance-none opacity-70 cursor-pointer"
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value)}
+              disabled
+            >
+              <option value="7d">Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+              <option value="year">Este ano</option>
+            </select>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400 transition-colors duration-200">
+              <span className="material-icons text-sm">expand_more</span>
+            </div>
+          </div>
         </div>
         
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-gray-500 dark:text-gray-400 text-sm">
-            Carregando dados...
+          <div className="flex flex-col items-center space-y-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary dark:border-pink-400 dark:shadow-glow-sm"></div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm dark:glow-text-subtle">
+              Carregando dados...
+            </div>
           </div>
         </div>
       </div>
@@ -202,15 +213,20 @@ export default function TimelineChart() {
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex justify-end mb-2 sm:mb-4">
-        <select 
-          className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-200"
-          value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value)}
-        >
-          <option value="7d">Últimos 7 dias</option>
-          <option value="30d">Últimos 30 dias</option>
-          <option value="year">Este ano</option>
-        </select>
+        <div className="relative group">
+          <select 
+            className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-primary/30 dark:text-gray-300 focus:outline-none dark:focus:ring-1 dark:focus:ring-primary/50 dark:focus:shadow-glow-xs transition-all duration-200 dark:hover:border-primary/50 pr-6 appearance-none cursor-pointer"
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+          >
+            <option value="7d">Últimos 7 dias</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="year">Este ano</option>
+          </select>
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400 dark:group-hover:text-primary/80 transition-colors duration-200">
+            <span className="material-icons text-sm">expand_more</span>
+          </div>
+        </div>
       </div>
       
       <div className="w-full overflow-auto pb-2 flex-1">
