@@ -1,7 +1,9 @@
 import { leads, type Lead, type InsertLead, type User, type InsertUser, users } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -25,9 +27,22 @@ export interface IStorage {
   // Batch operations
   updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number>;
   deleteLeadsInBatch(ids: number[]): Promise<number>;
+  
+  // Session store for authentication
+  sessionStore: session.Store;
 }
 
+const PostgresSessionStore = connectPg(session);
+
 export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true
+    });
+  }
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
