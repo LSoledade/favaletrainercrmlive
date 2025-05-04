@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeadSchema, leadValidationSchema } from "@shared/schema";
@@ -8,6 +8,49 @@ import { setupAuth } from "./auth";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes and middleware
   setupAuth(app);
+  
+  // Middleware para checar se é administrador
+  function isAdmin(req: Request, res: Response, next: NextFunction) {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    next();
+  }
+
+  // Endpoints de usuários (apenas para administradores)
+  app.get("/api/users", isAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+
+  app.delete("/api/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Não permitir excluir o próprio usuário
+      if (userId === req.user?.id) {
+        return res.status(400).json({ message: "Não é possível excluir o próprio usuário" });
+      }
+      
+      const success = await storage.deleteUser(userId);
+      if (success) {
+        res.status(200).json({ message: "Usuário excluído com sucesso" });
+      } else {
+        res.status(404).json({ message: "Usuário não encontrado" });
+      }
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ message: "Erro ao excluir usuário" });
+    }
+  });
 
   // Batch operations for leads
   app.post('/api/leads/batch/update', async (req, res) => {

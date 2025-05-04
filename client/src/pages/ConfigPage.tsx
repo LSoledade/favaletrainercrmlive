@@ -17,8 +17,14 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
+import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, 
+         DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 const userProfileSchema = z.object({
   username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
@@ -26,6 +32,16 @@ const userProfileSchema = z.object({
   newPassword: z.string().min(6, "Nova senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string().min(1, "Confirmação de senha é obrigatória"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "As senhas não coincidem",
+  path: ["confirmPassword"],
+});
+
+const newUserSchema = z.object({
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  confirmPassword: z.string().min(1, "Confirmação de senha é obrigatória"),
+  role: z.string().min(1, "Perfil é obrigatório"),
+}).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
 });
@@ -49,10 +65,34 @@ const systemSettingsSchema = z.object({
 type UserProfileValues = z.infer<typeof userProfileSchema>;
 type NotificationSettingsValues = z.infer<typeof notificationSettingsSchema>;
 type SystemSettingsValues = z.infer<typeof systemSettingsSchema>;
+type NewUserValues = z.infer<typeof newUserSchema>;
+
+type User = {
+  id: number;
+  username: string;
+  role?: string;
+};
 
 export default function ConfigPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("profile");
+  const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Buscar lista de usuários
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({ 
+    queryKey: ["/api/users"],
+  });
+  
+  const newUserForm = useForm<NewUserValues>({
+    resolver: zodResolver(newUserSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      confirmPassword: "",
+      role: "",
+    },
+  });
 
   const userProfileForm = useForm<UserProfileValues>({
     resolver: zodResolver(userProfileSchema),
@@ -112,6 +152,53 @@ export default function ConfigPage() {
       description: "As configurações do sistema foram atualizadas com sucesso.",
     });
   };
+  
+  const onCreateUserSubmit = async (values: NewUserValues) => {
+    try {
+      setIsUpdating(true);
+      const { confirmPassword, ...userData } = values;
+      
+      await apiRequest("POST", "/api/register", userData);
+      
+      toast({
+        title: "Usuário criado",
+        description: `O usuário ${values.username} foi criado com sucesso.`,
+      });
+      
+      newUserForm.reset();
+      setIsNewUserDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    } catch (error) {
+      toast({
+        title: "Erro ao criar usuário",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  const deleteUser = async (userId: number) => {
+    if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
+    
+    try {
+      await apiRequest("DELETE", `/api/users/${userId}`);
+      
+      toast({
+        title: "Usuário excluído",
+        description: "O usuário foi excluído com sucesso.",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir usuário",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -150,6 +237,12 @@ export default function ConfigPage() {
                 className="w-full justify-start text-left px-3 py-2 data-[state=active]:bg-muted"
               >
                 Sistema
+              </TabsTrigger>
+              <TabsTrigger
+                value="users"
+                className="w-full justify-start text-left px-3 py-2 data-[state=active]:bg-muted"
+              >
+                Usuários
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -374,6 +467,177 @@ export default function ConfigPage() {
                     </Button>
                   </form>
                 </Form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Gerência de Usuários */}
+          {activeTab === "users" && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Gerência de Usuários</CardTitle>
+                  <CardDescription>
+                    Crie, edite e exclua usuários do sistema.
+                  </CardDescription>
+                </div>
+                <Dialog open={isNewUserDialogOpen} onOpenChange={setIsNewUserDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Novo Usuário
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Adicionar Usuário</DialogTitle>
+                      <DialogDescription>
+                        Crie um novo usuário para acessar o sistema.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <Form {...newUserForm}>
+                      <form onSubmit={newUserForm.handleSubmit(onCreateUserSubmit)} className="space-y-4">
+                        <FormField
+                          control={newUserForm.control}
+                          name="username"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nome de Usuário</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Digite o nome de usuário" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={newUserForm.control}
+                          name="role"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Perfil</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione um perfil" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="admin">Administrador</SelectItem>
+                                  <SelectItem value="marketing">Marketing</SelectItem>
+                                  <SelectItem value="comercial">Comercial</SelectItem>
+                                  <SelectItem value="trainer">Personal Trainer</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={newUserForm.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Senha</FormLabel>
+                              <FormControl>
+                                <Input type="password" placeholder="Digite a senha" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={newUserForm.control}
+                          name="confirmPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Confirmar Senha</FormLabel>
+                              <FormControl>
+                                <Input type="password" placeholder="Confirme a senha" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <DialogFooter>
+                          <Button 
+                            variant="outline" 
+                            type="button" 
+                            onClick={() => setIsNewUserDialogOpen(false)}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button type="submit" disabled={isUpdating}>
+                            {isUpdating ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...
+                              </>
+                            ) : (
+                              "Salvar"
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                {isLoadingUsers ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="border rounded-md">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="py-3 px-4 text-left font-medium">Nome de Usuário</th>
+                          <th className="py-3 px-4 text-left font-medium">Perfil</th>
+                          <th className="py-3 px-4 text-right font-medium">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.length > 0 ? (
+                          users.map((user) => (
+                            <tr key={user.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-4">{user.username}</td>
+                              <td className="py-3 px-4">
+                                {{
+                                  admin: "Administrador",
+                                  marketing: "Marketing",
+                                  comercial: "Comercial",
+                                  trainer: "Personal Trainer"
+                                }[user.role || ""] || "Não definido"}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteUser(user.id)}
+                                  disabled={user.id === user?.id} // Não permite excluir o próprio usuário
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={3} className="py-6 text-center text-muted-foreground">
+                              Nenhum usuário encontrado
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
