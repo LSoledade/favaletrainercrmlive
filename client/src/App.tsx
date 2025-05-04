@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -25,14 +25,21 @@ function Router() {
 }
 
 function App() {
+  const [location] = useLocation();
+  const isAuthPage = location === "/auth";
+  
   return (
     <ThemeProvider>
       <TooltipProvider>
         <AuthProvider>
           <LeadProvider>
-            <Layout>
+            {isAuthPage ? (
               <Router />
-            </Layout>
+            ) : (
+              <Layout>
+                <Router />
+              </Layout>
+            )}
             <Toaster />
           </LeadProvider>
         </AuthProvider>
