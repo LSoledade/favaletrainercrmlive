@@ -80,19 +80,19 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
   
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6 flex justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex justify-center transition-colors duration-200">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-primary-light"></div>
       </div>
     );
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transition-colors duration-200">
       <div className="overflow-x-auto">
         <table className="min-w-full">
           <thead>
-            <tr className="bg-gray-50 border-b">
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <tr className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 <input 
                   type="checkbox" 
                   className="mr-2"
@@ -100,60 +100,61 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Data de Entrada
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Nome
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Telefone
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Estado
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Campanha
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Tags
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Origem
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Ações
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {currentLeads.length > 0 ? (
               currentLeads.map((lead) => (
-                <tr key={lead.id} className="hover:bg-gray-50">
+                <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <input 
                       type="checkbox" 
+                      className="accent-primary"
                       checked={selectedLeadIds.includes(lead.id)}
                       onChange={(e) => handleSelectLead(lead.id, e.target.checked)}
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                     {formatDate(lead.entryDate)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium">{lead.name}</div>
-                    <div className="text-sm text-gray-500">{lead.email}</div>
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{lead.name}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{lead.email}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                     {lead.phone}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                     {lead.state}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                     {lead.campaign}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -161,7 +162,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                       {lead.tags && lead.tags.map((tag, index) => (
                         <span 
                           key={index} 
-                          className="bg-primary-light text-primary-dark text-xs px-2 py-1 rounded-full"
+                          className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light text-xs px-2 py-0.5 rounded-full font-medium"
                         >
                           {tag}
                         </span>
@@ -169,26 +170,26 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={getSourceBadgeClasses(lead.source)}>
+                    <span className={`${getSourceBadgeClasses(lead.source)} dark:bg-opacity-20 dark:text-opacity-90`}>
                       {lead.source}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={getStatusBadgeClasses(lead.status)}>
+                    <span className={`${getStatusBadgeClasses(lead.status)} dark:bg-opacity-20 dark:text-opacity-90`}>
                       {lead.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button 
-                        className="text-indigo-600 hover:text-indigo-900"
+                        className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors duration-150"
                         onClick={() => handleEdit(lead)}
                         title="Editar"
                       >
                         <span className="material-icons text-sm">edit</span>
                       </button>
                       <button 
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-150"
                         onClick={() => onDelete(lead)}
                         title="Excluir"
                       >
@@ -211,17 +212,17 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
       
       {/* Pagination */}
       {leads.length > 0 && (
-        <div className="px-6 py-4 flex items-center justify-between border-t">
+        <div className="px-6 py-4 flex items-center justify-between border-t dark:border-gray-700">
           <div className="flex-1 flex justify-between sm:hidden">
             <button 
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-150"
               onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
               disabled={currentPage === 1}
             >
               Anterior
             </button>
             <button 
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-150"
               onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
               disabled={currentPage === totalPages}
             >
@@ -230,7 +231,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
           </div>
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 Mostrando <span className="font-medium">{indexOfFirstLead + 1}</span> a{" "}
                 <span className="font-medium">
                   {Math.min(indexOfLastLead, leads.length)}
@@ -241,7 +242,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
             <div>
               <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                 <button 
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-gray-800 transition-colors duration-150"
                   onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
                   disabled={currentPage === 1}
                 >
@@ -250,11 +251,11 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                 {displayPageNumbers.map((number, index) => (
                   <button
                     key={index}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium ${
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium transition-colors duration-150 ${
                       number === currentPage
-                        ? "bg-primary text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
+                        ? "bg-primary text-white border-primary dark:border-primary"
+                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-gray-800`}
                     onClick={() => number !== '...' && setCurrentPage(number as number)}
                     disabled={number === '...'}
                   >
@@ -262,7 +263,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                   </button>
                 ))}
                 <button 
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-gray-800 transition-colors duration-150"
                   onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
                   disabled={currentPage === totalPages}
                 >
