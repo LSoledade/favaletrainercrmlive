@@ -52,19 +52,19 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
   
   const getNavClasses = (path: string) => {
     const isActive = location === path;
-    const baseClasses = "flex items-center text-white transition-all duration-200 rounded-md my-1 mx-1 sm:mx-2";
+    const baseClasses = "flex items-center text-white transition-all duration-200 rounded-md my-1";
     return isActive 
-      ? `${baseClasses} bg-primary dark:glow ${expanded ? 'px-3 sm:px-5' : 'justify-center'} py-2 sm:py-3`
-      : `${baseClasses} hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 ${expanded ? 'px-3 sm:px-5' : 'justify-center'} py-2 sm:py-3`;
+      ? `${baseClasses} bg-primary dark:glow ${expanded ? 'px-3 sm:px-5 mx-2' : 'justify-center mx-1 w-10 h-10'} py-2 sm:py-3`
+      : `${baseClasses} hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 ${expanded ? 'px-3 sm:px-5 mx-2' : 'justify-center mx-1 w-10 h-10'} py-2 sm:py-3`;
   };
   
   return (
     <>
       {/* Mobile/Desktop sidebar */}
       <aside 
-        className={`${expanded ? 'w-64' : 'w-20'} bg-secondary dark:bg-[#0F0A19] dark:glow-border text-white lg:block flex-shrink-0 fixed lg:relative inset-y-0 left-0 transform ${
+        className={`${expanded ? 'w-64' : 'w-16'} bg-secondary dark:bg-[#0F0A19] dark:glow-border text-white lg:block flex-shrink-0 fixed lg:relative inset-y-0 left-0 transform ${
           open ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40 h-full overflow-y-auto`}
+        } lg:translate-x-0 transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40 h-full flex flex-col overflow-hidden`}
       >
         <div className="p-3 sm:p-4 flex items-center justify-between border-b border-secondary-light dark:border-primary/20">
           {expanded ? (
@@ -90,16 +90,17 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           )}
         </div>
         
-        <nav className="py-2 sm:py-4">
-          <ul className="space-y-1">
+        <nav className="py-2 sm:py-4 overflow-y-auto flex-grow">
+          <ul className={`space-y-1 ${!expanded ? 'flex flex-col items-center' : ''}`}>
             {navItems.map((item) => (
-              <li key={item.path}>
+              <li key={item.path} className={!expanded ? 'w-full flex justify-center' : ''}>
                 <Link 
                   href={item.path}
                   onClick={() => setOpen(false)}
                   className={getNavClasses(item.path)}
+                  title={!expanded ? item.label : undefined}
                 >
-                  <span className="material-icons text-base sm:text-lg mr-2 sm:mr-3">{item.icon}</span>
+                  <span className={`material-icons text-base sm:text-lg ${expanded ? 'mr-2 sm:mr-3' : ''}`}>{item.icon}</span>
                   {expanded && <span className="text-sm sm:text-base">{item.label}</span>}
                 </Link>
               </li>
@@ -109,13 +110,16 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
         
         {/* User Profile Section */}
         {user && (
-          <div className="mt-auto border-t border-secondary-light dark:border-primary/20 p-2 sm:p-3">
+          <div className="mt-auto border-t border-secondary-light dark:border-primary/20 p-2 sm:p-3 sticky bottom-0 bg-secondary dark:bg-[#0F0A19]">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className={`flex items-center w-full ${expanded ? 'justify-between' : 'justify-center'} text-white hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 rounded-md p-1.5 sm:p-2`}>
+                <button 
+                  className={`flex items-center w-full ${expanded ? 'justify-between' : 'justify-center'} text-white hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 rounded-md p-1.5 sm:p-2 transition-all duration-200`}
+                  title={!expanded ? "Perfil de usuário" : undefined}
+                >
                   <div className="flex items-center">
-                    <Avatar className="h-6 w-6 sm:h-8 sm:w-8 bg-primary-light">
-                      <AvatarFallback className="text-xs sm:text-sm font-medium text-white dark:text-white">
+                    <Avatar className={`${expanded ? 'h-6 w-6 sm:h-8 sm:w-8' : 'h-8 w-8 sm:h-9 sm:w-9 dark:border dark:border-primary/40 dark:shadow-glow-xs'} bg-primary-light transition-all duration-200`}>
+                      <AvatarFallback className="text-xs sm:text-sm font-medium text-white dark:text-white dark:glow-text-subtle">
                         {user.username.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
