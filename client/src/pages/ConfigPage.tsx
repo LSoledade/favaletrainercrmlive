@@ -83,8 +83,10 @@ export default function ConfigPage() {
   const currentUserId = user?.id || 0;
   
   // Buscar lista de usuários
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({ 
+  const { data: users = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery<User[]>({ 
     queryKey: ["/api/users"],
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Para garantir que os dados sejam sempre atualizados
   });
   
   const newUserForm = useForm<NewUserValues>({
@@ -170,7 +172,9 @@ export default function ConfigPage() {
       
       newUserForm.reset();
       setIsNewUserDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      // Invalidar a consulta e forçar uma nova busca de dados
+      await queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      await refetchUsers(); // Forçar busca imediata dos dados
     } catch (error) {
       toast({
         title: "Erro ao criar usuário",
@@ -193,7 +197,9 @@ export default function ConfigPage() {
         description: "O usuário foi excluído com sucesso.",
       });
       
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      // Invalidar a consulta e forçar uma nova busca de dados
+      await queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      await refetchUsers(); // Forçar busca imediata dos dados
     } catch (error) {
       toast({
         title: "Erro ao excluir usuário",
