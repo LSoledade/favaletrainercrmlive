@@ -34,7 +34,7 @@ export default function Layout({ children }: LayoutProps) {
       {!isMobile && (
         <button 
           onClick={() => setSidebarExpanded(!sidebarExpanded)}
-          className="fixed left-16 top-20 z-[9999] p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-700 transition-all duration-300 bg-secondary/90 dark:bg-[#0F0A19] border-2 border-gray-500 dark:border-primary/80 dark:shadow-glow dark:hover:shadow-glow-lg w-10 h-10 flex items-center justify-center hover:scale-110 shadow-lg"
+          className="fixed left-3 bottom-24 z-[9999] p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-700 transition-all duration-300 bg-secondary/90 dark:bg-[#0F0A19] border-2 border-gray-500 dark:border-primary/80 dark:shadow-glow dark:hover:shadow-glow-lg w-10 h-10 flex items-center justify-center hover:scale-110 shadow-lg"
           title="Alternar menu"
         >
           <span className="material-icons text-white text-base dark:text-primary dark:glow-text-sm font-bold">
