@@ -153,7 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Registrar evento de auditoria da operação em lote
       logAuditEvent(AuditEventType.LEAD_BATCH_IMPORT, req, { 
-        totalCount: validatedLeads.length,
+        totalCount: leads.length,
         successCount: results.success.length,
         errorCount: results.errors.length
       });
@@ -161,7 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Importação em lote concluída: ${results.success.length} sucesso, ${results.errors.length} erros`);
       res.status(200).json({
         message: `Importação concluída. ${results.success.length} leads importados com sucesso.`,
-        totalProcessed: validatedLeads.length,
+        totalProcessed: leads.length,
         successCount: results.success.length,
         errorCount: results.errors.length,
         results
