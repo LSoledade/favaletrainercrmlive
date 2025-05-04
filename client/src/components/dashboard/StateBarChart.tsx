@@ -15,9 +15,9 @@ export default function StateBarChart({ data }: StateBarChartProps) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white shadow-md rounded p-2 text-sm">
-          <p className="font-semibold">{label}</p>
-          <p>Leads: {payload[0].value}</p>
+        <div className="bg-white dark:bg-slate-800 shadow-md dark:shadow-black/30 rounded p-2 text-xs sm:text-sm border border-gray-100 dark:border-gray-700">
+          <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+          <p className="text-gray-600 dark:text-gray-300">Leads: {payload[0].value}</p>
         </div>
       );
     }
@@ -25,16 +25,20 @@ export default function StateBarChart({ data }: StateBarChartProps) {
   };
   
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={chartData}
-        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-      >
-        <XAxis dataKey="state" />
-        <YAxis tickFormatter={(value) => value.toString()} />
-        <Tooltip content={<CustomTooltip />} />
-        <Bar dataKey="count" fill="#E91E63" barSize={30} radius={[4, 4, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="w-full overflow-auto pb-2 h-full">
+      <div className="min-w-[320px] xs:min-w-[400px] sm:min-w-full h-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+          >
+            <XAxis dataKey="state" tick={{ fontSize: 12 }} />
+            <YAxis tickFormatter={(value) => value.toString()} tick={{ fontSize: 12 }} />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="count" fill="#E91E63" barSize={20} radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
