@@ -1,273 +1,404 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { addMinutes, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { CalendarIcon, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
-type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+// Schema para validação do formulário de sessão
+const sessionFormSchema = z.object({
+  date: z.date({
+    required_error: "Uma data de sessão é obrigatória.",
+  }),
+  startTime: z.string({
+    required_error: "O horário de início é obrigatório.",
+  }),
+  endTime: z.string({
+    required_error: "O horário de término é obrigatório.",
+  }),
+  location: z.string().min(1, "O local é obrigatório."),
+  source: z.enum(["Favale", "Pink"], {
+    required_error: "A origem é obrigatória.",
+  }),
+  studentId: z.string().min(1, "Um aluno deve ser selecionado."),
+  trainerId: z.string().min(1, "Um professor deve ser selecionado."),
+  notes: z.string().optional(),
+}).refine(data => {
+  // Combinar data e horário para iniciar e finalizar time
+  const startDateTime = new Date(`${format(data.date, 'yyyy-MM-dd')}T${data.startTime}`);
+  const endDateTime = new Date(`${format(data.date, 'yyyy-MM-dd')}T${data.endTime}`);
+  
+  // Verificar se o horário de término é depois do horário de início
+  return endDateTime > startDateTime;
+}, {
+  message: "O horário de término deve ser depois do horário de início.",
+  path: ["endTime"],
+});
 
-interface Session {
-  id: number;
-  startTime: Date;
-  endTime: Date;
-  location: string;
-  source: 'Favale' | 'Pink';
-  notes?: string;
-  status: SessionStatus;
-  studentId: string;
-  studentName: string;
-  trainerId: string;
-  trainerName: string;
-  calendarEventId?: string;
-}
+type SessionFormValues = z.infer<typeof sessionFormSchema>;
 
-interface SessionFormProps {
-  initialData?: Session;
+type TrainerOption = {
+  id: string;
+  name: string;
+};
+
+type StudentOption = {
+  id: string;
+  name: string;
+  source: string; // 'Favale' ou 'Pink'
+};
+
+type SessionFormProps = {
+  defaultValues?: SessionFormValues;
+  sessionId?: number;
   onSuccess: () => void;
-}
+};
 
-export function SessionForm({ initialData, onSuccess }: SessionFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function SessionForm({ defaultValues, sessionId, onSuccess }: SessionFormProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [trainers, setTrainers] = useState<TrainerOption[]>([]);
+  const [students, setStudents] = useState<StudentOption[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string>(defaultValues?.source || '');
   const { toast } = useToast();
+  
+  // Filtrar alunos baseado na origem selecionada (Favale ou Pink)
+  const filteredStudents = selectedSource
+    ? students.filter(student => student.source === selectedSource)
+    : students;
 
-  // Mock data de alunos e professores
-  const students = [
-    { id: '101', name: 'Carlos Oliveira' },
-    { id: '102', name: 'Maria Santos' },
-    { id: '103', name: 'João Pereira' },
-    { id: '104', name: 'Paula Ferreira' },
-  ];
-
-  const trainers = [
-    { id: '201', name: 'Ana Silva', specialties: ['Musculação', 'Funcional'] },
-    { id: '202', name: 'Pedro Costa', specialties: ['Cardio', 'Yoga'] },
-    { id: '203', name: 'Roberto Alves', specialties: ['CrossFit', 'Pilates'] },
-  ];
-
-  const locations = [
-    'Academia Central',
-    'Estúdio Zona Norte',
-    'Academia Sul',
-    'Espaço Fitness Leste',
-  ];
-
-  // Estado do formulário
-  const [formData, setFormData] = useState({
-    studentId: initialData?.studentId || '',
-    trainerId: initialData?.trainerId || '',
-    date: initialData ? new Date(initialData.startTime).toISOString().slice(0, 10) : '',
-    startTime: initialData ? new Date(initialData.startTime).toISOString().slice(11, 16) : '',
-    endTime: initialData ? new Date(initialData.endTime).toISOString().slice(11, 16) : '',
-    location: initialData?.location || '',
-    notes: initialData?.notes || '',
-    source: initialData?.source || 'Favale',
-    status: initialData?.status || 'scheduled',
+  // Inicializar formulário
+  const form = useForm<SessionFormValues>({
+    resolver: zodResolver(sessionFormSchema),
+    defaultValues: defaultValues || {
+      date: new Date(),
+      startTime: '09:00',
+      endTime: '10:00',
+      location: '',
+      source: undefined,
+      studentId: '',
+      trainerId: '',
+      notes: '',
+    },
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  // Mock data para treinadores e alunos - a ser substituído por chamadas à API
+  useEffect(() => {
+    // Simular carregamento de treinadores e alunos da API
+    setTrainers([
+      { id: '201', name: 'Ana Silva' },
+      { id: '202', name: 'Pedro Costa' },
+      { id: '203', name: 'Juliana Ferreira' },
+    ]);
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+    setStudents([
+      { id: '101', name: 'Carlos Oliveira', source: 'Favale' },
+      { id: '102', name: 'Maria Santos', source: 'Pink' },
+      { id: '103', name: 'João Pereira', source: 'Favale' },
+      { id: '104', name: 'Rita Mendes', source: 'Pink' },
+    ]);
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Atualizar origem quando mudar no formulário
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'source' && value.source) {
+        setSelectedSource(value.source as string);
+      }
+    });
     
-    // Validar formulário
-    if (!formData.studentId || !formData.trainerId || !formData.date || !formData.startTime || !formData.endTime || !formData.location) {
-      toast({
-        title: 'Erro no formulário',
-        description: 'Por favor, preencha todos os campos obrigatórios.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
+    return () => subscription.unsubscribe();
+  }, [form.watch]);
+
+  // Tratar envio do formulário
+  const onSubmit = async (values: SessionFormValues) => {
+    setIsLoading(true);
     try {
-      // Simular envio para API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Combinar data e horário para iniciar e finalizar time
+      const startDateTime = new Date(`${format(values.date, 'yyyy-MM-dd')}T${values.startTime}`);
+      const endDateTime = new Date(`${format(values.date, 'yyyy-MM-dd')}T${values.endTime}`);
       
-      // Em uma implementação real, aqui enviaria os dados para a API
-      console.log('Dados do formulário:', formData);
+      const sessionData = {
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        location: values.location,
+        source: values.source,
+        studentId: parseInt(values.studentId),
+        trainerId: parseInt(values.trainerId),
+        notes: values.notes || undefined,
+        status: 'agendado', // Status padrão para novas sessões
+      };
+      
+      // API call para criar ou atualizar sessão
+      // Neste ponto, você substitui isso por uma chamada real à API
+      console.log('Enviando dados para API:', sessionData);
+      
+      /* 
+      if (sessionId) {
+        // Atualizar sessão existente
+        await apiRequest(`/api/sessions/${sessionId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(sessionData),
+        });
+      } else {
+        // Criar nova sessão
+        await apiRequest('/api/sessions', {
+          method: 'POST',
+          body: JSON.stringify(sessionData),
+        });
+      }
+      */
+      
+      // Mostrando toast de sucesso simulado
+      toast({
+        title: sessionId ? 'Sessão atualizada' : 'Sessão agendada',
+        description: sessionId 
+          ? 'A sessão foi atualizada com sucesso.' 
+          : 'A sessão foi agendada com sucesso.',
+      });
       
       onSuccess();
     } catch (error) {
+      console.error('Erro ao salvar sessão:', error);
       toast({
-        title: 'Erro ao salvar',
-        description: 'Ocorreu um erro ao salvar a sessão.',
+        title: 'Erro',
+        description: 'Ocorreu um erro ao salvar a sessão. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="studentId">Aluno</Label>
-          <Select 
-            name="studentId" 
-            value={formData.studentId}
-            onValueChange={(value) => handleSelectChange('studentId', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o aluno" />
-            </SelectTrigger>
-            <SelectContent>
-              {students.map((student) => (
-                <SelectItem key={student.id} value={student.id}>
-                  {student.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="trainerId">Professor</Label>
-          <Select 
-            name="trainerId" 
-            value={formData.trainerId}
-            onValueChange={(value) => handleSelectChange('trainerId', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o professor" />
-            </SelectTrigger>
-            <SelectContent>
-              {trainers.map((trainer) => (
-                <SelectItem key={trainer.id} value={trainer.id}>
-                  {trainer.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="date">Data</Label>
-          <Input
-            id="date"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          {/* Data */}
+          <FormField
+            control={form.control}
             name="date"
-            type="date"
-            value={formData.date}
-            onChange={handleChange}
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Data</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP", { locale: ptBR })
+                        ) : (
+                          <span>Selecione uma data</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date < new Date(new Date().setHours(0, 0, 0, 0))
+                      }
+                      initialFocus
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-2">
-            <Label htmlFor="startTime">Hora Início</Label>
-            <Input
-              id="startTime"
-              name="startTime"
-              type="time"
-              value={formData.startTime}
-              onChange={handleChange}
-            />
-          </div>
+          {/* Origem (Favale ou Pink) */}
+          <FormField
+            control={form.control}
+            name="source"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Origem</FormLabel>
+                <Select 
+                  value={field.value} 
+                  onValueChange={field.onChange}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma origem" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Favale">Favale</SelectItem>
+                    <SelectItem value="Pink">Pink</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="endTime">Hora Fim</Label>
-            <Input
-              id="endTime"
-              name="endTime"
-              type="time"
-              value={formData.endTime}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
+          {/* Horário de Início */}
+          <FormField
+            control={form.control}
+            name="startTime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Horário de Início</FormLabel>
+                <FormControl>
+                  <Input type="time" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <div className="space-y-2">
-          <Label htmlFor="location">Local</Label>
-          <Select 
-            name="location" 
-            value={formData.location}
-            onValueChange={(value) => handleSelectChange('location', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o local" />
-            </SelectTrigger>
-            <SelectContent>
-              {locations.map((location) => (
-                <SelectItem key={location} value={location}>
-                  {location}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          {/* Horário de Término */}
+          <FormField
+            control={form.control}
+            name="endTime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Horário de Término</FormLabel>
+                <FormControl>
+                  <Input type="time" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <div className="space-y-2">
-          <Label>Categoria</Label>
-          <RadioGroup 
-            value={formData.source} 
-            onValueChange={(value) => handleSelectChange('source', value)}
-            className="flex space-x-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Favale" id="favale" />
-              <Label htmlFor="favale" className="text-blue-600 dark:text-blue-400">Favale</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Pink" id="pink" />
-              <Label htmlFor="pink" className="text-pink-600 dark:text-pink-400">Pink</Label>
-            </div>
-          </RadioGroup>
-        </div>
+          {/* Aluno */}
+          <FormField
+            control={form.control}
+            name="studentId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Aluno</FormLabel>
+                <Select 
+                  value={field.value} 
+                  onValueChange={field.onChange}
+                  disabled={!selectedSource || filteredStudents.length === 0}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um aluno" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {filteredStudents.map((student) => (
+                      <SelectItem key={student.id} value={student.id}>
+                        {student.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        {initialData && (
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select 
-              name="status" 
-              value={formData.status}
-              onValueChange={(value) => handleSelectChange('status', value as SessionStatus)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scheduled">Agendada</SelectItem>
-                <SelectItem value="completed">Concluída</SelectItem>
-                <SelectItem value="cancelled">Cancelada</SelectItem>
-                <SelectItem value="no-show">Não Compareceu</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+          {/* Professor */}
+          <FormField
+            control={form.control}
+            name="trainerId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Professor</FormLabel>
+                <Select 
+                  value={field.value} 
+                  onValueChange={field.onChange}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um professor" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {trainers.map((trainer) => (
+                      <SelectItem key={trainer.id} value={trainer.id}>
+                        {trainer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="notes">Observações</Label>
-          <Textarea
-            id="notes"
+          {/* Local */}
+          <FormField
+            control={form.control}
+            name="location"
+            render={({ field }) => (
+              <FormItem className="col-span-full">
+                <FormLabel>Local</FormLabel>
+                <FormControl>
+                  <Input placeholder="Endereço ou local da sessão" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Observações */}
+          <FormField
+            control={form.control}
             name="notes"
-            placeholder="Observações sobre a sessão..."
-            value={formData.notes}
-            onChange={handleChange}
-            rows={3}
+            render={({ field }) => (
+              <FormItem className="col-span-full">
+                <FormLabel>Observações</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Anotações sobre a sessão (opcional)" 
+                    {...field} 
+                    value={field.value || ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
-      </div>
 
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button type="button" variant="outline" onClick={onSuccess}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Salvando...' : initialData ? 'Atualizar' : 'Agendar'}
-        </Button>
-      </div>
-    </form>
+        <div className="flex justify-end space-x-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => onSuccess()}
+            disabled={isLoading}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {sessionId ? 'Atualizar' : 'Agendar'} Sessão
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }
