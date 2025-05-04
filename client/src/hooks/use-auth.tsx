@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Login realizado",
         description: "Bem-vindo de volta!",
       });
+      // Redirecionar para a página principal
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       toast({
