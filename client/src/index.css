@@ -7,6 +7,28 @@
 
 :root {
   --background: 0 0% 100%;
+
+/* Variáveis de tema para a sidebar */
+:root {
+  --sidebar-width: 16rem;
+  --sidebar-width-icon: 3rem;
+  --sidebar-background: hsl(var(--background));
+  --sidebar-foreground: hsl(var(--foreground));
+  --sidebar-accent: hsl(var(--primary) / 0.1);
+  --sidebar-accent-foreground: hsl(var(--primary));
+  --sidebar-border: hsl(var(--border));
+  --sidebar-ring: hsl(var(--ring));
+}
+
+.dark {
+  --sidebar-background: hsl(var(--background));
+  --sidebar-foreground: hsl(var(--foreground));
+  --sidebar-accent: hsl(var(--primary) / 0.2);
+  --sidebar-accent-foreground: hsl(var(--primary));
+  --sidebar-border: hsl(var(--border));
+  --sidebar-ring: hsl(var(--ring));
+}
+
   --foreground: 240 10% 3.9%;
   
   --muted: 240 4.8% 95.9%;

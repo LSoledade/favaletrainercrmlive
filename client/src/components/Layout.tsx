@@ -1,49 +1,114 @@
-import { ReactNode, useState, useEffect } from "react";
-import Sidebar from "./Sidebar";
+
+import { useState, useEffect } from "react";
+import { useTheme } from "@/context/ThemeContext";
+import { Outlet } from "react-router-dom";
 import Header from "./Header";
+import { 
+  Sidebar, 
+  SidebarContent, 
+  SidebarFooter, 
+  SidebarHeader, 
+  SidebarMenu, 
+  SidebarMenuButton, 
+  SidebarMenuItem, 
+  SidebarProvider, 
+  SidebarTrigger 
+} from "@/components/ui/sidebar";
+import { SidebarInset } from "./ui/sidebar";
+import { Settings, Home, Users, Calendar, Campaign } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
-interface LayoutProps {
-  children: ReactNode;
-}
-
-export default function Layout({ children }: LayoutProps) {
+export default function Layout() {
+  const { theme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  
-  useEffect(() => {
-    // Verificar se é mobile ao inicializar
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
-  }, []);
-  
+  const location = useLocation();
+
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background transition-colors duration-200">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-      
-      {/* Sidebar */}
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-      
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <Header setSidebarOpen={setSidebarOpen} />
-        <div className="flex-1 overflow-auto p-4 md:p-6 bg-slate-50 dark:bg-background transition-colors duration-200">
-          {children}
+    <div className={`min-h-screen bg-background ${theme}`}>
+      <SidebarProvider defaultOpen={true}>
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar variant="sidebar" collapsible="icon">
+            <SidebarHeader>
+              <div className="flex items-center p-2">
+                <div className="font-heading text-xl font-bold tracking-wider dark:text-primary-foreground">
+                  Favale<span className="text-primary">&Pink</span>
+                </div>
+              </div>
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link to="/">
+                    <SidebarMenuButton 
+                      isActive={location.pathname === "/"} 
+                      tooltip="Dashboard"
+                    >
+                      <Home className="mr-2 h-4 w-4" />
+                      <span>Dashboard</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link to="/leads">
+                    <SidebarMenuButton 
+                      isActive={location.pathname === "/leads"} 
+                      tooltip="Leads"
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>Leads</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link to="/agendamentos">
+                    <SidebarMenuButton 
+                      isActive={location.pathname === "/agendamentos"} 
+                      tooltip="Agendamentos"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <span>Agendamentos</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link to="/campanhas">
+                    <SidebarMenuButton 
+                      isActive={location.pathname === "/campanhas"} 
+                      tooltip="Campanhas"
+                    >
+                      <Campaign className="mr-2 h-4 w-4" />
+                      <span>Campanhas</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link to="/configuracoes">
+                    <SidebarMenuButton 
+                      isActive={location.pathname === "/configuracoes"} 
+                      tooltip="Configurações"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Configurações</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarContent>
+            <SidebarFooter>
+              <div className="px-3 py-2 text-xs text-muted-foreground">
+                © 2024 Favale & Pink
+              </div>
+            </SidebarFooter>
+          </Sidebar>
+          <SidebarInset>
+            <Header setSidebarOpen={setSidebarOpen} />
+            <div className="p-4 md:p-6 overflow-auto h-[calc(100vh-64px)]">
+              <Outlet />
+            </div>
+          </SidebarInset>
         </div>
-      </main>
+      </SidebarProvider>
     </div>
   );
 }
