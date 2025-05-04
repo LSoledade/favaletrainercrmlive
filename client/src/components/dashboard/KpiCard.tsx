@@ -8,6 +8,8 @@ interface KpiCardProps {
   iconColor: string;
 }
 
+import { Card } from "@/components/ui/card";
+
 export default function KpiCard({ 
   title, 
   value, 
@@ -17,11 +19,11 @@ export default function KpiCard({
   iconColor 
 }: KpiCardProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm dark:shadow-primary/5 p-4 sm:p-6 hover:shadow-md dark:hover:shadow-primary/10 transition-all duration-200">
+    <Card variant="glowLifted" className="p-4 sm:p-6">
       <div className="flex justify-between items-start">
         <div className="space-y-1 sm:space-y-2">
           <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
-          <p className="text-xl sm:text-2xl font-semibold tracking-tight dark:text-white">{value}</p>
+          <p className="text-xl sm:text-2xl font-semibold tracking-tight dark:text-white dark:glow-text-subtle">{value}</p>
 
           <div className={`flex flex-wrap items-center ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
             <span className="material-icons text-sm">
@@ -36,6 +38,6 @@ export default function KpiCard({
           <span className={`material-icons text-base sm:text-lg ${iconColor}`}>{icon}</span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
