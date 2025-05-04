@@ -79,6 +79,11 @@ export default function ConfigPage() {
   const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   
+  // Armazenar o ID do usuário atual para comparação
+  if (user && user.id) {
+    (window as any).currentUserId = user.id;
+  }
+  
   // Buscar lista de usuários
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({ 
     queryKey: ["/api/users"],
@@ -158,7 +163,7 @@ export default function ConfigPage() {
       setIsUpdating(true);
       const { confirmPassword, ...userData } = values;
       
-      await apiRequest("POST", "/api/register", userData);
+      await apiRequest("POST", "/api/users", userData);
       
       toast({
         title: "Usuário criado",
