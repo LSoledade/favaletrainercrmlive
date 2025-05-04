@@ -1,22 +1,31 @@
 import { useLocation, Link } from "wouter";
+import { useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
-import {
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarTrigger,
-  useSidebar
-} from "@/components/ui/sidebar";
 
-export default function CustomSidebar() {
+interface SidebarProps {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+
+export default function Sidebar({ open, setOpen }: SidebarProps) {
   const [location] = useLocation();
   const { theme } = useTheme();
-  const { state } = useSidebar();
-  const isExpanded = state === "expanded";
+  const [expanded, setExpanded] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    // Verificar se é mobile ao inicializar
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
   
   const navItems = [
     { path: "/", label: "Dashboard", icon: "dashboard" },
@@ -26,15 +35,25 @@ export default function CustomSidebar() {
     { path: "/configuracoes", label: "Configurações", icon: "settings" },
   ];
   
+  const getNavClasses = (path: string) => {
+    const isActive = location === path;
+    const baseClasses = "flex items-center text-white transition-all duration-200 rounded-md my-1 mx-2";
+    return isActive 
+      ? `${baseClasses} bg-primary dark:glow ${expanded ? 'px-5' : 'justify-center'} py-3`
+      : `${baseClasses} hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 ${expanded ? 'px-5' : 'justify-center'} py-3`;
+  };
+  
   return (
-    <Sidebar
-      className="bg-secondary dark:bg-[#0F0A19] dark:glow-border text-white border-r border-secondary-light dark:border-primary/40 z-30"
-      collapsible="icon"
-    >
-      <SidebarHeader className="border-b border-secondary-light dark:border-primary/20 mb-2">
-        <div className="flex items-center justify-between p-4">
-          {isExpanded ? (
-            <div className="font-heading text-xl font-bold tracking-wider dark:glow-text ml-2">
+    <>
+      {/* Desktop sidebar */}
+      <aside 
+        className={`${expanded ? 'w-64' : 'w-20'} bg-secondary dark:bg-[#0F0A19] dark:glow-border text-white lg:block flex-shrink-0 fixed lg:relative inset-y-0 left-0 transform ${
+          open ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0 transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40`}
+      >
+        <div className="p-4 flex items-center justify-between border-b border-secondary-light dark:border-primary/20">
+          {expanded ? (
+            <div className="font-heading text-xl font-bold tracking-wider dark:glow-text">
               Favale<span className="text-primary">&Pink</span>
             </div>
           ) : (
@@ -43,39 +62,36 @@ export default function CustomSidebar() {
             </div>
           )}
           
-          <SidebarTrigger className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-colors border border-secondary-light/30">
-            <span className="material-icons text-white text-sm">
-              {isExpanded ? "chevron_left" : "chevron_right"}
-            </span>
-          </SidebarTrigger>
+          {!isMobile && (
+            <button 
+              onClick={() => setExpanded(!expanded)}
+              className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-colors"
+              title={expanded ? "Recolher menu" : "Expandir menu"}
+            >
+              <span className="material-icons text-white text-sm">
+                {expanded ? "chevron_left" : "chevron_right"}
+              </span>
+            </button>
+          )}
         </div>
-      </SidebarHeader>
-      
-      <SidebarContent className="py-2">
-        <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.path} className="my-1">
-              <SidebarMenuButton
-                asChild
-                data-active={location === item.path}
-                className="bg-secondary dark:bg-[#0F0A19] hover:bg-secondary-light/70 text-white rounded-md min-h-10 my-1 mx-2
-                           data-[active=true]:bg-primary data-[active=true]:dark:glow"
-              >
-                <Link href={item.path} className="flex items-center gap-3">
-                  <span className="material-icons">{item.icon}</span>
-                  <span className="font-medium">{item.label}</span>
+        
+        <nav className="py-4">
+          <ul>
+            {navItems.map((item) => (
+              <li key={item.path}>
+                <Link 
+                  href={item.path}
+                  onClick={() => setOpen(false)}
+                  className={getNavClasses(item.path)}
+                >
+                  <span className="material-icons mr-3">{item.icon}</span>
+                  {expanded && <span>{item.label}</span>}
                 </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-      
-      <SidebarFooter className="border-t border-secondary-light dark:border-primary/20 mt-auto p-4">
-        <div className="text-xs text-center text-white/70">
-          © {new Date().getFullYear()} Favale&Pink
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+    </>
   );
 }

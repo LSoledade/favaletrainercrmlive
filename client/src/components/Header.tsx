@@ -1,8 +1,11 @@
 import { useLocation } from "wouter";
 import { useTheme } from "@/context/ThemeContext";
-import { useSidebar, SidebarTrigger } from "@/components/ui/sidebar";
 
-export default function Header() {
+interface HeaderProps {
+  setSidebarOpen: (open: boolean) => void;
+}
+
+export default function Header({ setSidebarOpen }: HeaderProps) {
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
   
@@ -23,16 +26,15 @@ export default function Header() {
     }
   };
   
-  const { isMobile } = useSidebar();
-  
   return (
     <header className="bg-background border-b border-border shadow-md h-16 flex items-center px-4 justify-between z-10 transition-colors duration-200">
       <div className="flex items-center">
-        {isMobile && (
-          <SidebarTrigger className="mr-4">
-            <span className="material-icons text-secondary dark:text-white">menu</span>
-          </SidebarTrigger>
-        )}
+        <button 
+          className="lg:hidden mr-4"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <span className="material-icons text-secondary dark:text-white">menu</span>
+        </button>
         <h1 className="font-heading text-secondary dark:text-white text-xl hidden sm:block dark:glow-text">
           {getPageTitle()}
         </h1>
