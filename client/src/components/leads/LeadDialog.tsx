@@ -26,7 +26,7 @@ export default function LeadDialog() {
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 dark:shadow-gray-900/20 dark:shadow-glow-md">
         <DialogHeader>
           <DialogTitle>
             {selectedLead ? "Editar Lead" : "Adicionar Novo Lead"}

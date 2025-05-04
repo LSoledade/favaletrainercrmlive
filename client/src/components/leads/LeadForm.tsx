@@ -132,7 +132,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Data de Entrada</label>
           <input 
             type="date" 
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${errors.entryDate ? "border-red-300" : ""}`}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus:ring-primary/60 ${errors.entryDate ? "border-red-300 dark:border-red-500/50" : ""}`}
             {...register("entryDate")}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -146,8 +146,8 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Nome</label>
           <input 
             type="text" 
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
-              errors.name ? "border-red-300" : ""
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus:ring-primary/60 ${
+              errors.name ? "border-red-300 dark:border-red-500/50" : ""
             }`}
             {...register("name")}
           />
@@ -159,8 +159,8 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">E-mail</label>
           <input 
             type="email" 
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
-              errors.email ? "border-red-300" : ""
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus:ring-primary/60 ${
+              errors.email ? "border-red-300 dark:border-red-500/50" : ""
             }`}
             {...register("email")}
           />
@@ -172,8 +172,8 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Telefone</label>
           <input 
             type="tel" 
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
-              errors.phone ? "border-red-300" : ""
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus:ring-primary/60 ${
+              errors.phone ? "border-red-300 dark:border-red-500/50" : ""
             }`}
             {...register("phone")}
           />
@@ -184,8 +184,8 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Estado</label>
           <select 
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
-              errors.state ? "border-red-300" : ""
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus:ring-primary/60 ${
+              errors.state ? "border-red-300 dark:border-red-500/50" : ""
             }`}
             {...register("state")}
           >
@@ -225,8 +225,8 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Campanha</label>
           <select 
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary ${
-              errors.campaign ? "border-red-300" : ""
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus:ring-primary/60 ${
+              errors.campaign ? "border-red-300 dark:border-red-500/50" : ""
             }`}
             {...register("campaign")}
           >
@@ -303,7 +303,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Observações</label>
         <textarea 
-          className="w-full border rounded-md px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full border rounded-md px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:focus:ring-primary/60"
           {...register("notes")}
         />
       </div>
