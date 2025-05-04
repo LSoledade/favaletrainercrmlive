@@ -427,37 +427,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get lead statistics
+  // Endpoints para sessões de treinamento
+  app.get('/api/sessions', async (req, res) => {
+    try {
+      const sessions = await storage.getSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error('Erro ao buscar sessões:', error);
+      res.status(500).json({ message: "Erro ao buscar sessões" });
+    }
+  });
+
+  app.get('/api/sessions/details', async (req, res) => {
+    try {
+      const sessions = await storage.getSessionsWithDetails();
+      res.json(sessions);
+    } catch (error) {
+      console.error('Erro ao buscar detalhes das sessões:', error);
+      res.status(500).json({ message: "Erro ao buscar detalhes das sessões" });
+    }
+  });
+
+  app.get('/api/sessions/daterange', async (req, res) => {
+    try {
+      const startDate = req.query.start ? new Date(req.query.start as string) : new Date(new Date().setDate(new Date().getDate() - 30));
+      const endDate = req.query.end ? new Date(req.query.end as string) : new Date(new Date().setDate(new Date().getDate() + 30));
+      
+      const sessions = await storage.getSessionsByDateRange(startDate, endDate);
+      res.json(sessions);
+    } catch (error) {
+      console.error('Erro ao buscar sessões por data:', error);
+      res.status(500).json({ message: "Erro ao buscar sessões por data" });
+    }
+  });
+
+  // Endpoints para treinadores
+  app.get('/api/trainers', async (req, res) => {
+    try {
+      const trainers = await storage.getTrainers();
+      res.json(trainers);
+    } catch (error) {
+      console.error('Erro ao buscar treinadores:', error);
+      res.status(500).json({ message: "Erro ao buscar treinadores" });
+    }
+  });
+
+  app.get('/api/trainers/active', async (req, res) => {
+    try {
+      const trainers = await storage.getActiveTrainers();
+      res.json(trainers);
+    } catch (error) {
+      console.error('Erro ao buscar treinadores ativos:', error);
+      res.status(500).json({ message: "Erro ao buscar treinadores ativos" });
+    }
+  });
+
+  // Endpoint para estudantes
+  app.get('/api/students', async (req, res) => {
+    try {
+      const students = await storage.getStudents();
+      res.json(students);
+    } catch (error) {
+      console.error('Erro ao buscar estudantes:', error);
+      res.status(500).json({ message: "Erro ao buscar estudantes" });
+    }
+  });
+
+  app.get('/api/students/withleads', async (req, res) => {
+    try {
+      const students = await storage.getStudentsWithLeadInfo();
+      res.json(students);
+    } catch (error) {
+      console.error('Erro ao buscar estudantes com info de leads:', error);
+      res.status(500).json({ message: "Erro ao buscar estudantes com info de leads" });
+    }
+  });
+
   app.get('/api/stats', async (req, res) => {
     try {
       const allLeads = await storage.getLeads();
+      const students = await storage.getStudents();
+      const activeSessions = await storage.getSessionsByStatus("Agendado");
+      const completedSessions = await storage.getSessionsByStatus("Concluído");
       const alunos = allLeads.filter(lead => lead.status === "Aluno");
       
       // Count leads by source
       const leadsBySource = {
         "Favale": allLeads.filter(lead => lead.source === "Favale").length,
-        "Pink": allLeads.filter(lead => lead.source === "Pink").length
+        "Pink": allLeads.filter(lead => lead.source === "Pink").length,
+        "Indicação": allLeads.filter(lead => lead.source === "Indicação").length,
+        "Instagram": allLeads.filter(lead => lead.source === "Instagram").length,
+        "Site": allLeads.filter(lead => lead.source === "Site").length,
+        "Outros": allLeads.filter(lead => !["Favale", "Pink", "Indicação", "Instagram", "Site"].includes(lead.source || "")).length
       };
       
       // Count leads by state
       const leadsByState: Record<string, number> = {};
       allLeads.forEach(lead => {
-        leadsByState[lead.state] = (leadsByState[lead.state] || 0) + 1;
+        if (lead.state) {
+          leadsByState[lead.state] = (leadsByState[lead.state] || 0) + 1;
+        }
       });
       
       // Count leads by campaign
       const leadsByCampaign: Record<string, number> = {};
       allLeads.forEach(lead => {
-        leadsByCampaign[lead.campaign] = (leadsByCampaign[lead.campaign] || 0) + 1;
+        if (lead.campaign) {
+          leadsByCampaign[lead.campaign] = (leadsByCampaign[lead.campaign] || 0) + 1;
+        }
       });
       
       // Calculate conversion rate
       const conversionRate = allLeads.length > 0 
         ? (alunos.length / allLeads.length) * 100 
         : 0;
+
+      // Calculate sessions per student
+      const sessionsPerStudent = students.length > 0
+        ? completedSessions.length / students.length
+        : 0;
+      
+      // Get trend data for monthly sessions
+      const now = new Date();
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(now.getMonth() - 6);
       
       const stats = {
         totalLeads: allLeads.length,
-        totalStudents: alunos.length,
+        totalStudents: students.length,
+        totalActiveSessions: activeSessions.length,
+        totalCompletedSessions: completedSessions.length,
+        sessionsPerStudent: sessionsPerStudent.toFixed(1),
         conversionRate: conversionRate.toFixed(1),
         leadsBySource,
         leadsByState,
@@ -467,6 +567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(stats);
     } catch (error) {
+      console.error('Erro ao buscar estatísticas:', error);
       res.status(500).json({ message: "Erro ao buscar estatísticas" });
     }
   });

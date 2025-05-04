@@ -1,12 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
-interface SourceData {
-  Favale: number;
-  Pink: number;
-}
-
 interface SourcePieChartProps {
-  data: SourceData;
+  data: Record<string, number>;
 }
 
 export default function SourcePieChart({ data }: SourcePieChartProps) {
@@ -14,10 +9,12 @@ export default function SourcePieChart({ data }: SourcePieChartProps) {
   const isBrowser = typeof window !== 'undefined';
   const isMobile = isBrowser ? window.innerWidth < 640 : false;
   // Format data for chart
-  const chartData = [
-    { name: 'Favale', value: data.Favale },
-    { name: 'Pink', value: data.Pink }
-  ];
+  const chartData = Object.entries(data)
+    .filter(([_, value]) => value > 0)
+    .map(([key, value]) => ({
+      name: key,
+      value: value
+    }));
   
   // Calculate percentages
   const total = chartData.reduce((acc, curr) => acc + curr.value, 0);
@@ -26,7 +23,8 @@ export default function SourcePieChart({ data }: SourcePieChartProps) {
     percentage: total > 0 ? Math.round((item.value / total) * 100) : 0
   }));
   
-  const COLORS = ['#E91E63', '#311B92'];
+  // Define colors for the sources
+  const COLORS = ['#E91E63', '#311B92', '#FF5722', '#009688', '#3F51B5', '#FFC107'];
   
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {

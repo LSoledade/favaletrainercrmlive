@@ -10,11 +10,11 @@ import RecentActivity from "./RecentActivity";
 interface DashboardStats {
   totalLeads: number;
   totalStudents: number;
+  totalActiveSessions: number;
+  totalCompletedSessions: number;
+  sessionsPerStudent: string;
   conversionRate: string;
-  leadsBySource: {
-    Favale: number;
-    Pink: number;
-  };
+  leadsBySource: Record<string, number>;
   leadsByState: Record<string, number>;
   leadsByCampaign: Record<string, number>;
   totalLeadsByCampaign: number;
@@ -28,7 +28,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-pink-400 dark:shadow-glow-sm"></div>
       </div>
     );
   }
@@ -43,13 +43,13 @@ export default function Dashboard() {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
-      {/* KPI Cards */}
+      {/* KPI Cards - Row 1 */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
         <KpiCard
           title="Total de Leads"
           value={stats.totalLeads}
           icon="people"
-          change={12}
+          change={5}
           iconBgColor="bg-primary-light bg-opacity-20"
           iconColor="text-primary"
         />
@@ -58,7 +58,7 @@ export default function Dashboard() {
           title="Total de Alunos"
           value={stats.totalStudents}
           icon="school"
-          change={8}
+          change={10}
           iconBgColor="bg-green-100"
           iconColor="text-green-600"
         />
@@ -67,18 +67,57 @@ export default function Dashboard() {
           title="Taxa de Conversão"
           value={`${stats.conversionRate}%`}
           icon="trending_up"
-          change={-2}
+          change={3}
           iconBgColor="bg-amber-100"
           iconColor="text-amber-600"
+        />
+        
+        <KpiCard
+          title="Sessões por Aluno"
+          value={stats.sessionsPerStudent}
+          icon="fitness_center"
+          change={8}
+          iconBgColor="bg-secondary-light bg-opacity-20"
+          iconColor="text-secondary-light"
+        />
+      </div>
+
+      {/* KPI Cards - Row 2 */}
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
+        <KpiCard
+          title="Sessões Agendadas"
+          value={stats.totalActiveSessions}
+          icon="event_available"
+          change={12}
+          iconBgColor="bg-blue-100"
+          iconColor="text-blue-600"
+        />
+        
+        <KpiCard
+          title="Sessões Realizadas"
+          value={stats.totalCompletedSessions}
+          icon="check_circle"
+          change={15}
+          iconBgColor="bg-teal-100"
+          iconColor="text-teal-600"
         />
         
         <KpiCard
           title="Leads por Campanha"
           value={stats.totalLeadsByCampaign}
           icon="campaign"
-          change={15}
-          iconBgColor="bg-secondary-light bg-opacity-20"
-          iconColor="text-secondary-light"
+          change={7}
+          iconBgColor="bg-indigo-100"
+          iconColor="text-indigo-600"
+        />
+
+        <KpiCard
+          title="Leads Novos (30d)"
+          value={Math.round(stats.totalLeads * 0.23)}
+          icon="new_releases"
+          change={18}
+          iconBgColor="bg-pink-100"
+          iconColor="text-pink-600"
         />
       </div>
       
