@@ -1,5 +1,17 @@
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { LogOut, User } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void;
@@ -8,6 +20,7 @@ interface HeaderProps {
 export default function Header({ setSidebarOpen }: HeaderProps) {
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { user, logoutMutation } = useAuth();
   
   const getPageTitle = () => {
     switch (location) {
@@ -19,7 +32,7 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
         return "Agendamentos";
       case "/campanhas":
         return "Campanhas";
-      case "/configuracoes":
+      case "/config":
         return "Configurações";
       default:
         return "Favale&Pink";
@@ -66,12 +79,42 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
             </span>
           </button>
           
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center mr-2">
-              <span className="material-icons text-sm">person</span>
-            </div>
-            <span className="text-sm font-medium hidden sm:block">Administrador</span>
-          </div>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="flex items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full py-1 px-2">
+                  <Avatar className="h-8 w-8 mr-2 bg-primary-light">
+                    <AvatarFallback className="text-sm font-medium text-white">
+                      {user.username.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium hidden sm:block">{user.username}</span>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <Link href="/config">
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Perfil e Configurações</span>
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => logoutMutation.mutate()}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link href="/auth">
+              <Button size="sm" variant="outline" className="gap-2">
+                <User className="h-4 w-4" />
+                <span>Entrar</span>
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>

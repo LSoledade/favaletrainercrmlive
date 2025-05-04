@@ -1,6 +1,17 @@
 import { useLocation, Link } from "wouter";
 import { useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { LogOut, User } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SidebarProps {
   open: boolean;
@@ -10,6 +21,7 @@ interface SidebarProps {
 export default function Sidebar({ open, setOpen }: SidebarProps) {
   const [location] = useLocation();
   const { theme } = useTheme();
+  const { user, logoutMutation } = useAuth();
   const [expanded, setExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   
@@ -32,7 +44,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     { path: "/leads", label: "Leads", icon: "people" },
     { path: "/agendamentos", label: "Agendamentos", icon: "calendar_today" },
     { path: "/campanhas", label: "Campanhas", icon: "campaign" },
-    { path: "/configuracoes", label: "Configurações", icon: "settings" },
+    { path: "/config", label: "Configurações", icon: "settings" },
   ];
   
   const getNavClasses = (path: string) => {
@@ -91,6 +103,46 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
             ))}
           </ul>
         </nav>
+        
+        {/* User Profile Section */}
+        {user && (
+          <div className="mt-auto border-t border-secondary-light dark:border-primary/20 p-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className={`flex items-center w-full ${expanded ? 'justify-between' : 'justify-center'} text-white hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 rounded-md p-2`}>
+                  <div className="flex items-center">
+                    <Avatar className="h-8 w-8 bg-primary-light">
+                      <AvatarFallback className="text-sm font-medium text-white dark:text-white">
+                        {user.username.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {expanded && (
+                      <span className="ml-3 truncate">{user.username}</span>
+                    )}
+                  </div>
+                  {expanded && (
+                    <span className="material-icons text-sm">expand_more</span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <Link href="/config" onClick={() => setOpen(false)}>
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Perfil e Configurações</span>
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => logoutMutation.mutate()}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </aside>
     </>
   );
