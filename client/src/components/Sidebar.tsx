@@ -66,13 +66,13 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           open ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40 h-full flex flex-col overflow-hidden`}
       >
-        <div className="p-3 sm:p-4 flex items-center justify-between border-b border-secondary-light dark:border-primary/20">
+        <div className="p-3 sm:p-4 flex items-center justify-between border-b border-secondary-light dark:border-primary/20 relative">
           {expanded ? (
             <div className="font-heading text-lg sm:text-xl font-bold tracking-wider dark:glow-text">
               Favale<span className="text-primary">&Pink</span>
             </div>
           ) : (
-            <div className="font-heading text-lg sm:text-xl font-bold tracking-wider text-center mx-auto dark:glow-text">
+            <div className="font-heading text-lg sm:text-xl font-bold tracking-wider text-center w-full dark:glow-text">
               <span className="text-primary">F&P</span>
             </div>
           )}
@@ -80,7 +80,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           {!isMobile && (
             <button 
               onClick={() => setExpanded(!expanded)}
-              className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-colors"
+              className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-all duration-300 absolute -right-3 top-4 bg-secondary dark:bg-[#0F0A19] dark:border dark:border-primary/30 dark:shadow-glow-xs dark:hover:shadow-glow-sm z-50 w-6 h-6 flex items-center justify-center"
               title={expanded ? "Recolher menu" : "Expandir menu"}
             >
               <span className="material-icons text-white text-sm">
