@@ -1,7 +1,9 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { Lead } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface Activity {
   id: string;
@@ -19,15 +21,12 @@ export default function RecentActivity() {
     queryKey: ["/api/leads"],
   });
 
-  // Generate activities based on leads
-  // In a real application, you would have a dedicated API for activities
   const generateActivities = (leads: Lead[]): Activity[] => {
     const sortedLeads = [...leads].sort((a, b) => {
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 
     const activities: Activity[] = sortedLeads.slice(0, 5).map((lead, index) => {
-      // Create different types of activities based on the lead data and index
       const types: ("new" | "converted" | "updated" | "deleted")[] = ["new", "converted", "updated", "deleted"];
       const type = lead.status === "Aluno" ? "converted" : types[index % types.length];
 
@@ -78,7 +77,6 @@ export default function RecentActivity() {
       };
     });
 
-    // Add a campaign activity for variety
     activities.splice(2, 0, {
       id: "activity-campaign",
       type: "campaign",
@@ -96,31 +94,37 @@ export default function RecentActivity() {
   const activities = leads ? generateActivities(leads) : [];
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md dark:shadow-primary/5 p-5">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-lg shadow-md dark:shadow-primary/5 p-5">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-heading text-lg font-medium dark:text-white">Atividades Recentes</h3>
-        <button className="text-gray-400 hover:text-secondary dark:text-gray-300 dark:hover:text-pink-400">
-          <span className="material-icons">more_vert</span>
-        </button>
+        <Tooltip content="Mais ações">
+          <button className="text-gray-400 hover:text-secondary transition-colors dark:text-gray-300 dark:hover:text-pink-400">
+            <span className="material-icons">more_vert</span>
+          </button>
+        </Tooltip>
       </div>
 
-      <div className="overflow-y-auto max-h-64">
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent">
         {isLoading ? (
           <div className="flex justify-center py-4">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary dark:border-pink-400"></div>
           </div>
         ) : activities.length > 0 ? (
-          activities.map((activity) => (
-            <div key={activity.id} className="flex mb-4 items-start dark:text-white">
-              <div className={`${activity.iconBgColor} rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0 dark:glow-xs`}>
-                <span className={`material-icons text-sm ${activity.iconColor}`}>{activity.icon}</span>
+          <div className="space-y-4">
+            {activities.map((activity) => (
+              <div key={activity.id} className="flex items-start group hover:bg-gray-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors">
+                <div className={`${activity.iconBgColor} rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0 dark:glow-xs transition-transform group-hover:scale-110`}>
+                  <span className={`material-icons text-sm ${activity.iconColor}`}>{activity.icon}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <Tooltip content={activity.title}>
+                    <p className="text-sm dark:text-white truncate">{activity.title}</p>
+                  </Tooltip>
+                  <p className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{activity.time}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm dark:text-white">{activity.title}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-300">{activity.time}</p>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         ) : (
           <p className="text-center text-gray-500 dark:text-gray-300 py-4">Nenhuma atividade recente</p>
         )}
