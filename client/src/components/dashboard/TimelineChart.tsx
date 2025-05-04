@@ -17,10 +17,10 @@ export default function TimelineChart() {
   ];
   
   return (
-    <div className="w-full h-full">
-      <div className="flex justify-end mb-4">
+    <div className="w-full h-full flex flex-col">
+      <div className="flex justify-end mb-2 sm:mb-4">
         <select 
-          className="text-sm border rounded px-2 py-1 text-gray-700"
+          className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-300"
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
         >
@@ -30,33 +30,37 @@ export default function TimelineChart() {
         </select>
       </div>
       
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={data}
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line 
-            type="monotone" 
-            dataKey="novosLeads" 
-            name="Novos Leads" 
-            stroke="#E91E63" 
-            strokeWidth={2} 
-            activeDot={{ r: 8 }} 
-          />
-          <Line 
-            type="monotone" 
-            dataKey="convertidos" 
-            name="Convertidos" 
-            stroke="#311B92" 
-            strokeWidth={2} 
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div className="w-full overflow-auto pb-2 flex-1">
+        <div className="min-w-[320px] xs:min-w-[400px] sm:min-w-full h-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={data}
+              margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="novosLeads" 
+                name="Novos Leads" 
+                stroke="#E91E63" 
+                strokeWidth={2} 
+                activeDot={{ r: 8 }} 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="convertidos" 
+                name="Convertidos" 
+                stroke="#311B92" 
+                strokeWidth={2} 
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }

@@ -229,3 +229,24 @@
     transform: translateY(0);
   }
 }
+
+/* Classes responsivas personalizadas */
+.mobile-chart-container {
+  @apply w-full overflow-auto pb-2;
+}
+
+.mobile-chart-content {
+  @apply min-w-[320px] xs:min-w-[400px] sm:min-w-full h-full;
+}
+
+.mobile-text-xs {
+  @apply text-[10px] xs:text-xs sm:text-sm;
+}
+
+.mobile-padding {
+  @apply p-2 xs:p-3 sm:p-4 md:p-6;
+}
+
+.mobile-margin {
+  @apply m-2 xs:m-3 sm:m-4 md:m-6;
+}
