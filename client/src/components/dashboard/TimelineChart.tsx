@@ -1,26 +1,209 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useQuery } from "@tanstack/react-query";
+
+interface LeadTimeData {
+  name: string;
+  novosLeads: number;
+  convertidos: number;
+  sessoes: number;
+}
 
 export default function TimelineChart() {
   const [timeRange, setTimeRange] = useState('7d');
+  const [darkMode, setDarkMode] = useState(false);
+  const [chartData, setChartData] = useState<LeadTimeData[]>([]);
   
-  // This would normally be fetched from the API based on the selected time range
-  // For now, we'll just use some static data for demonstration
-  const data = [
-    { name: 'Dom', novosLeads: 120, convertidos: 20 },
-    { name: 'Seg', novosLeads: 160, convertidos: 30 },
-    { name: 'Ter', novosLeads: 140, convertidos: 25 },
-    { name: 'Qua', novosLeads: 180, convertidos: 35 },
-    { name: 'Qui', novosLeads: 200, convertidos: 40 },
-    { name: 'Sex', novosLeads: 220, convertidos: 50 },
-    { name: 'Sáb', novosLeads: 190, convertidos: 45 },
-  ];
+  // Dados de leads
+  const { data: leads } = useQuery<any[]>({
+    queryKey: ["/api/leads"],
+    enabled: true,
+  });
+  
+  // Dados de sessões
+  const { data: sessions } = useQuery<any[]>({
+    queryKey: ["/api/sessions"],
+    enabled: true,
+  });
+
+  // Detectar tema escuro
+  useEffect(() => {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    setDarkMode(isDarkMode);
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const isDark = document.documentElement.classList.contains('dark');
+          setDarkMode(isDark);
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
+  
+  // Calcular dados para o gráfico com base nos dados reais
+  useEffect(() => {
+    if (!leads || !sessions) return;
+    
+    // Preparar datas para o período selecionado
+    const today = new Date();
+    const dates: Date[] = [];
+    let days = 7;
+    
+    if (timeRange === '30d') {
+      days = 30;
+    } else if (timeRange === 'year') {
+      days = 365;
+    }
+    
+    // Gerar array de datas para o período
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      dates.push(date);
+    }
+    
+    // Formatar os dados de acordo com o período escolhido
+    const generatedData: LeadTimeData[] = [];
+    
+    if (timeRange === 'year') {
+      // Dados mensais para o ano
+      const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      const monthData: Record<string, LeadTimeData> = {};
+      
+      months.forEach(month => {
+        monthData[month] = { name: month, novosLeads: 0, convertidos: 0, sessoes: 0 };
+      });
+      
+      // Contar leads por mês
+      leads.forEach(lead => {
+        const date = new Date(lead.entryDate);
+        if (date.getFullYear() === today.getFullYear()) {
+          const month = months[date.getMonth()];
+          monthData[month].novosLeads++;
+          
+          if (lead.status === 'Aluno') {
+            monthData[month].convertidos++;
+          }
+        }
+      });
+      
+      // Contar sessões por mês
+      sessions.forEach(session => {
+        const date = new Date(session.startTime);
+        if (date.getFullYear() === today.getFullYear()) {
+          const month = months[date.getMonth()];
+          monthData[month].sessoes++;
+        }
+      });
+      
+      // Converter para array
+      months.forEach(month => {
+        generatedData.push(monthData[month]);
+      });
+    } else {
+      // Dados diários para 7d ou 30d
+      const dateFormat = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' });
+      const dailyData: Record<string, LeadTimeData> = {};
+      
+      dates.forEach(date => {
+        const dayName = dateFormat.format(date).slice(0, 3);
+        const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        dailyData[dateKey] = { 
+          name: dayName, 
+          novosLeads: 0, 
+          convertidos: 0,
+          sessoes: 0 
+        };
+      });
+      
+      // Contar leads por dia
+      leads.forEach(lead => {
+        const leadDate = new Date(lead.entryDate);
+        const dateKey = leadDate.toISOString().split('T')[0];
+        
+        if (dailyData[dateKey]) {
+          dailyData[dateKey].novosLeads++;
+          
+          if (lead.status === 'Aluno') {
+            dailyData[dateKey].convertidos++;
+          }
+        }
+      });
+      
+      // Contar sessões por dia
+      sessions.forEach(session => {
+        const sessionDate = new Date(session.startTime);
+        const dateKey = sessionDate.toISOString().split('T')[0];
+        
+        if (dailyData[dateKey]) {
+          dailyData[dateKey].sessoes++;
+        }
+      });
+      
+      // Converter para array mantendo a ordem das datas
+      dates.forEach(date => {
+        const dateKey = date.toISOString().split('T')[0];
+        if (dailyData[dateKey]) {
+          generatedData.push(dailyData[dateKey]);
+        }
+      });
+    }
+    
+    setChartData(generatedData);
+  }, [leads, sessions, timeRange]);
+  
+  // Custom tooltip para melhor apresentação
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white dark:bg-slate-800 shadow-md dark:shadow-primary/20 rounded p-2 text-xs sm:text-sm border border-gray-100 dark:border-gray-700">
+          <p className="font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} style={{ color: entry.color }} className="text-gray-600 dark:text-gray-300">
+              {entry.name}: {entry.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+  
+  // Se estiver carregando ou não houver dados
+  if (!chartData || chartData.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col">
+        <div className="flex justify-end mb-2 sm:mb-4">
+          <select 
+            className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-primary"
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+          >
+            <option value="7d">Últimos 7 dias</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="year">Este ano</option>
+          </select>
+        </div>
+        
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-gray-500 dark:text-gray-400 text-sm">
+            Carregando dados...
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex justify-end mb-2 sm:mb-4">
         <select 
-          className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-300"
+          className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-200"
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
         >
@@ -34,21 +217,41 @@ export default function TimelineChart() {
         <div className="min-w-[320px] xs:min-w-[400px] sm:min-w-full h-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
-              data={data}
+              data={chartData}
               margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                vertical={false} 
+                stroke={darkMode ? '#374151' : '#e5e7eb'}
+              />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={{ stroke: darkMode ? '#374151' : '#e5e7eb' }} 
+                stroke={darkMode ? '#6B7280' : '#9CA3AF'}
+              />
+              <YAxis 
+                tick={{ fontSize: 12 }} 
+                tickLine={false}
+                axisLine={{ stroke: darkMode ? '#374151' : '#e5e7eb' }}
+                stroke={darkMode ? '#6B7280' : '#9CA3AF'}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ fontSize: 12, paddingTop: 10 }}
+                iconType="circle"
+              />
               <Line 
                 type="monotone" 
                 dataKey="novosLeads" 
                 name="Novos Leads" 
                 stroke="#E91E63" 
                 strokeWidth={2} 
-                activeDot={{ r: 8 }} 
+                dot={false}
+                activeDot={{ r: 6, className: darkMode ? 'drop-shadow-glow' : '' }}
+                className={darkMode ? 'drop-shadow-glow' : ''}
               />
               <Line 
                 type="monotone" 
@@ -56,6 +259,18 @@ export default function TimelineChart() {
                 name="Convertidos" 
                 stroke="#311B92" 
                 strokeWidth={2} 
+                dot={false}
+                activeDot={{ r: 6, className: darkMode ? 'drop-shadow-glow-secondary' : '' }}
+                className={darkMode ? 'drop-shadow-glow-secondary' : ''}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="sessoes" 
+                name="Sessões" 
+                stroke="#009688" 
+                strokeWidth={2} 
+                dot={false}
+                activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>
