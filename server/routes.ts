@@ -110,7 +110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "IDs de leads são obrigatórios" });
       }
       
-      const validationResult = insertLeadSchema.partial().safeParse(updates);
+      const validationResult = leadValidationSchema.partial().safeParse(updates);
       
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
@@ -123,10 +123,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Se entryDate for uma string, converter para Date
       if (dataToUpdate.entryDate && typeof dataToUpdate.entryDate === 'string') {
-        dataToUpdate = {
-          ...dataToUpdate,
-          entryDate: new Date(dataToUpdate.entryDate)
-        };
+        try {
+          dataToUpdate = {
+            ...dataToUpdate,
+            entryDate: new Date(dataToUpdate.entryDate)
+          };
+        } catch (e) {
+          console.error('Erro ao converter data:', e);
+          return res.status(400).json({ message: "Formato de data inválido" });
+        }
       }
       
       console.log('Dados para atualização em lote:', dataToUpdate);
@@ -257,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Atualizando lead:', req.body);
       
       // Validar os dados recebidos
-      const validationResult = insertLeadSchema.partial().safeParse(req.body);
+      const validationResult = leadValidationSchema.partial().safeParse(req.body);
       
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
@@ -270,10 +275,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Se entryDate for uma string, converter para Date
       if (dataToUpdate.entryDate && typeof dataToUpdate.entryDate === 'string') {
-        dataToUpdate = {
-          ...dataToUpdate,
-          entryDate: new Date(dataToUpdate.entryDate)
-        };
+        try {
+          dataToUpdate = {
+            ...dataToUpdate,
+            entryDate: new Date(dataToUpdate.entryDate)
+          };
+        } catch (e) {
+          console.error('Erro ao converter data:', e);
+          return res.status(400).json({ message: "Formato de data inválido" });
+        }
       }
       
       console.log('Dados para atualização:', dataToUpdate);

@@ -42,9 +42,12 @@ export const baseInsertLeadSchema = createInsertSchema(leads).omit({
   updatedAt: true,
 });
 
-// Schema usado para inserção no banco de dados, garante que entryDate é Date
+// Schema usado para inserção no banco de dados, aceita Date ou string ISO
 export const insertLeadSchema = baseInsertLeadSchema.extend({
-  entryDate: z.date().optional(),
+  entryDate: z.union([
+    z.string(),
+    z.date()
+  ]).optional(),
 });
 
 export const leadValidationSchema = insertLeadSchema.extend({
