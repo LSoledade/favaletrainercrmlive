@@ -86,10 +86,12 @@
   /* Efeitos neon aprimorados para o dark mode */
   --glow-primary: 0 0 20px hsla(340, 90%, 65%, 0.5);
   --glow-primary-strong: 0 0 30px hsla(340, 90%, 65%, 0.7);
+  --glow-primary-intense: 0 0 40px hsla(340, 90%, 70%, 0.8);
   --glow-xs: 0 0 10px hsla(340, 90%, 65%, 0.4);
   --glow-focus: 0 0 0 3px hsla(340, 90%, 65%, 0.25);
   --glow-subtle: 0 0 6px hsla(340, 90%, 65%, 0.2);
   --glow-border: 0 0 4px hsla(340, 90%, 65%, 0.3);
+  --glow-text: 0 0 3px hsla(340, 90%, 65%, 0.85);
 }
 
 @layer base {
@@ -126,6 +128,20 @@
   
   .dark .glow-text-subtle {
     text-shadow: var(--glow-subtle);
+  }
+  
+  .dark .glow-text-intense {
+    text-shadow: var(--glow-text);
+  }
+  
+  .dark .glow-title {
+    text-shadow: var(--glow-primary-strong);
+  }
+  
+  .dark .glow-value {
+    font-weight: 600;
+    text-shadow: var(--glow-primary);
+    letter-spacing: 0.02em;
   }
   
   .dark .glow-border {
@@ -184,6 +200,37 @@
     @apply border-primary/50;
     box-shadow: var(--glow-xs);
     transform: translateY(-2px);
+  }
+  
+  /* Card com glow mais intenso */
+  .dark .glow-card-intense {
+    @apply border-primary/40 bg-card/90;
+    box-shadow: var(--glow-primary);
+    transition: all 0.3s ease;
+  }
+  
+  .dark .glow-card-intense:hover {
+    @apply border-primary/60;
+    box-shadow: var(--glow-primary-strong);
+    transform: translateY(-3px);
+  }
+  
+  /* Card pulsante */
+  .dark .glow-card-pulse {
+    @apply border-primary/30 bg-card/95;
+    animation: pulse 3s infinite ease-in-out;
+  }
+  
+  @keyframes pulse {
+    0% {
+      box-shadow: var(--glow-subtle);
+    }
+    50% {
+      box-shadow: var(--glow-primary);
+    }
+    100% {
+      box-shadow: var(--glow-subtle);
+    }
   }
   
   /* Focus styles */
