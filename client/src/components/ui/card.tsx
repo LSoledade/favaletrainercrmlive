@@ -12,6 +12,10 @@ const cardVariants = cva(
         glow: "shadow-sm hover:shadow-md dark:glow-card",
         lifted: "shadow-sm hover:shadow-md hover:-translate-y-1",
         glowLifted: "shadow-sm hover:shadow-md hover:-translate-y-1 dark:glow-card",
+        glowIntense: "shadow-sm hover:shadow-md dark:glow-card-intense",
+        glowIntenseLifted: "shadow-sm hover:shadow-md hover:-translate-y-2 dark:glow-card-intense",
+        glowPulse: "shadow-sm dark:glow-card-pulse",
+        highlight: "shadow-md border-primary/30 dark:border-primary/40 dark:glow-card-intense",
       },
     },
     defaultVariants: {
