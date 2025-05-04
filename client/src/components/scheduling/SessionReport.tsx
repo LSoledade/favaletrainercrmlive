@@ -19,19 +19,54 @@ export function SessionReport({ onClose }: SessionReportProps) {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>(format(new Date(new Date().setMonth(new Date().getMonth() - 1)), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [reportData, setReportData] = useState<any>(null);
+  interface Student {
+    id: string;
+    name: string;
+  }
+
+  interface Session {
+    id: number;
+    startTime: Date;
+    endTime: Date;
+    location: string;
+    source: 'Favale' | 'Pink';
+    notes?: string;
+    status: 'completed' | 'cancelled' | 'scheduled' | 'no-show';
+    studentId: string;
+    studentName: string;
+    trainerId: string;
+    trainerName: string;
+    value: number;
+  }
+
+  interface TrainerData {
+    trainerName: string;
+    sessions: number;
+    totalValue: number;
+  }
+
+  interface ReportData {
+    student: Student;
+    period: { startDate: Date; endDate: Date };
+    sessions: Session[];
+    totalSessions: number;
+    totalValue: number;
+    sessionsByTrainer: TrainerData[];
+  }
+
+  const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   // Mock data - deve ser substituído por chamadas à API real
-  const students = [
+  const students: Student[] = [
     { id: '101', name: 'Carlos Oliveira' },
     { id: '102', name: 'Maria Santos' },
     { id: '103', name: 'João Pereira' },
     { id: '104', name: 'Paula Ferreira' },
   ];
 
-  const sessions = [
+  const sessions: Session[] = [
     {
       id: 1,
       startTime: new Date(2025, 4, 2, 9, 0),
@@ -132,7 +167,15 @@ export function SessionReport({ onClose }: SessionReportProps) {
       const totalValue = filteredSessions.reduce((acc, session) => acc + session.value, 0);
 
       // Agrupar por professor
-      const sessionsByTrainer = filteredSessions.reduce((acc, session) => {
+      interface TrainerSummary {
+        [trainerId: string]: {
+          trainerName: string;
+          sessions: number;
+          totalValue: number;
+        };
+      }
+      
+      const sessionsByTrainer = filteredSessions.reduce<TrainerSummary>((acc, session) => {
         if (!acc[session.trainerId]) {
           acc[session.trainerId] = {
             trainerName: session.trainerName,
@@ -146,6 +189,16 @@ export function SessionReport({ onClose }: SessionReportProps) {
       }, {});
 
       const student = students.find(s => s.id === selectedStudentId);
+      
+      if (!student) {
+        toast({
+          title: 'Erro',
+          description: 'Aluno não encontrado',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
 
       setReportData({
         student,
@@ -279,7 +332,7 @@ export function SessionReport({ onClose }: SessionReportProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reportData.sessionsByTrainer.map((trainerData: any, index: number) => (
+                  {reportData.sessionsByTrainer.map((trainerData: TrainerData, index: number) => (
                     <TableRow key={index}>
                       <TableCell>{trainerData.trainerName}</TableCell>
                       <TableCell>{trainerData.sessions}</TableCell>
@@ -309,7 +362,7 @@ export function SessionReport({ onClose }: SessionReportProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reportData.sessions.map((session: any) => (
+                  {reportData.sessions.map((session: Session) => (
                     <TableRow key={session.id}>
                       <TableCell>{format(new Date(session.startTime), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                       <TableCell>
