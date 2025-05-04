@@ -273,7 +273,7 @@ export function SessionReport() {
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
                     <SelectItem value="Favale">Favale</SelectItem>
                     <SelectItem value="Pink">Pink</SelectItem>
                   </SelectContent>
@@ -350,11 +350,12 @@ export function SessionReport() {
               
               <div>
                 <Label>Período</Label>
-                <Select onValueChange={setPeriodPreset}>
+                <Select defaultValue="select" onValueChange={setPeriodPreset}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecionar" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="select">Selecionar período</SelectItem>
                     <SelectItem value="current-month">Mês Atual</SelectItem>
                     <SelectItem value="last-month">Mês Anterior</SelectItem>
                     <SelectItem value="last-3-months">Últimos 3 Meses</SelectItem>

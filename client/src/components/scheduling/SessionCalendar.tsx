@@ -136,11 +136,13 @@ export function SessionCalendar() {
               }}
               classNames={{
                 day_today: "bg-primary text-primary-foreground",
-                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                day: (date) => {
-                  const customClass = getDayClass(date);
-                  return customClass;
-                }
+                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
+              }}
+              styles={{
+                day: (date) => ({
+                  borderLeft: getDayClass(date).includes('border-l-blue-500') ? '4px solid #3b82f6' : undefined,
+                  borderRight: getDayClass(date).includes('border-r-pink-500') ? '4px solid #ec4899' : undefined
+                })
               }}
             />
             <div className="flex flex-col space-y-2 mt-4">
