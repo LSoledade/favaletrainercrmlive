@@ -83,6 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Logout realizado",
         description: "Você saiu da sua conta.",
       });
+      // Redirecionar o usuário para a página de login
+      window.location.href = '/auth';
     },
     onError: (error: Error) => {
       toast({
