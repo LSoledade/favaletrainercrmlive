@@ -112,7 +112,12 @@ export default function AuditLogViewer() {
 
   // Obter tipos de eventos únicos para o filtro
   const eventTypes = logs 
-    ? [...new Set<string>(logs.map(log => log.type))]
+    ? logs.reduce<string[]>((types, log) => {
+        if (!types.includes(log.type)) {
+          types.push(log.type);
+        }
+        return types;
+      }, [])
     : [];
 
   // Filtrar logs

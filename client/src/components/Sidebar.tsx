@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Shield } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,13 +39,19 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     };
   }, []);
   
-  const navItems = [
+  // Itens de navegação padrão
+  let navItems = [
     { path: "/", label: "Dashboard", icon: "dashboard" },
     { path: "/leads", label: "Leads", icon: "people" },
     { path: "/agendamentos", label: "Agendamentos", icon: "calendar_today" },
     { path: "/campanhas", label: "Campanhas", icon: "campaign" },
     { path: "/config", label: "Configurações", icon: "settings" },
   ];
+  
+  // Adicionar item de menu de segurança apenas para administradores
+  if (user?.role === 'admin') {
+    navItems.push({ path: "/security", label: "Segurança", icon: "security" });
+  }
   
   const getNavClasses = (path: string) => {
     const isActive = location === path;
@@ -134,6 +140,14 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                     <span className="text-sm">Perfil e Configurações</span>
                   </DropdownMenuItem>
                 </Link>
+                {user.role === 'admin' && (
+                  <Link href="/security" onClick={() => setOpen(false)}>
+                    <DropdownMenuItem>
+                      <Shield className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="text-sm">Segurança</span>
+                    </DropdownMenuItem>
+                  </Link>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logoutMutation.mutate()}>
                   <LogOut className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
