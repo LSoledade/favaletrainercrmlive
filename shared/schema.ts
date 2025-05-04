@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -17,6 +17,66 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// Tabela de treinadores/professores
+export const trainers = pgTable("trainers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone"),
+  specialties: text("specialties").array(),
+  calendarId: text("calendar_id"), // ID do calendário no Google Calendar
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertTrainerSchema = createInsertSchema(trainers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const trainerValidationSchema = insertTrainerSchema.extend({
+  name: z.string().min(1, "O nome é obrigatório"),
+  email: z.string().min(1, "O e-mail é obrigatório").email("E-mail inválido"),
+  phone: z.string().optional(),
+  specialties: z.array(z.string()).optional(),
+  calendarId: z.string().optional(),
+  active: z.boolean().optional(),
+});
+
+export type InsertTrainer = z.infer<typeof insertTrainerSchema>;
+export type Trainer = typeof trainers.$inferSelect;
+
+// Tabela de alunos (expandindo leads com status "Aluno")
+export const students = pgTable("students", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").references(() => leads.id), // Referência ao lead correspondente
+  address: text("address"),
+  preferences: text("preferences"),
+  source: text("source").notNull(), // "Favale" ou "Pink"
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertStudentSchema = createInsertSchema(students).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const studentValidationSchema = insertStudentSchema.extend({
+  leadId: z.number().int().positive("ID do lead inválido"),
+  address: z.string().optional(),
+  preferences: z.string().optional(),
+  source: z.string().min(1, "A origem é obrigatória"),
+  active: z.boolean().optional(),
+});
+
+export type InsertStudent = z.infer<typeof insertStudentSchema>;
+export type Student = typeof students.$inferSelect;
 
 // Lead schema
 export const leads = pgTable("leads", {
@@ -68,3 +128,82 @@ export const leadValidationSchema = insertLeadSchema.extend({
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = typeof leads.$inferSelect;
+
+// Tabela de sessões de treinamento
+export const sessions = pgTable("sessions", {
+  id: serial("id").primaryKey(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  studentId: integer("student_id").references(() => students.id).notNull(),
+  trainerId: integer("trainer_id").references(() => trainers.id).notNull(),
+  location: text("location").notNull(), // Endereço do treino
+  notes: text("notes"),
+  status: text("status").default("agendado").notNull(), // agendado, concluído, cancelado, remarcado
+  source: text("source").notNull(), // "Favale" ou "Pink"
+  googleEventId: text("google_event_id"), // ID do evento no Google Calendar
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSessionSchema = createInsertSchema(sessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const sessionBaseValidationSchema = insertSessionSchema.extend({
+  startTime: z.union([
+    z.string().refine(value => !isNaN(Date.parse(value)), {
+      message: "Horário de início precisa ser uma data válida"
+    }),
+    z.date()
+  ]),
+  endTime: z.union([
+    z.string().refine(value => !isNaN(Date.parse(value)), {
+      message: "Horário de término precisa ser uma data válida"
+    }),
+    z.date()
+  ]),
+  studentId: z.number().int().positive("ID do aluno inválido"),
+  trainerId: z.number().int().positive("ID do professor inválido"),
+  location: z.string().min(1, "O local é obrigatório"),
+  notes: z.string().optional(),
+  status: z.string().min(1, "O status é obrigatório"),
+  source: z.string().min(1, "A origem é obrigatória"),
+  googleEventId: z.string().optional(),
+});
+
+// Validação adicional para a criação de sessões
+export const sessionValidationSchema = sessionBaseValidationSchema.refine(
+  data => {
+    // Verifica se a data de término é posterior à data de início
+    const startTime = new Date(data.startTime instanceof Date ? data.startTime : data.startTime);
+    const endTime = new Date(data.endTime instanceof Date ? data.endTime : data.endTime);
+    return endTime > startTime;
+  },
+  {
+    message: "O horário de término deve ser posterior ao horário de início",
+    path: ["endTime"],
+  }
+);
+
+export type InsertSession = z.infer<typeof insertSessionSchema>;
+export type Session = typeof sessions.$inferSelect;
+
+// Tabela de histórico de alterações em sessões
+export const sessionHistory = pgTable("session_history", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").references(() => sessions.id).notNull(),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  changeType: text("change_type").notNull(), // created, updated, cancelled, rescheduled
+  userId: integer("user_id").references(() => users.id).notNull(), // Quem fez a alteração
+  oldValue: jsonb("old_value"), // Valor anterior (para campos alterados)
+  newValue: jsonb("new_value"), // Novo valor
+});
+
+export const insertSessionHistorySchema = createInsertSchema(sessionHistory).omit({
+  id: true,
+});
+
+export type InsertSessionHistory = z.infer<typeof insertSessionHistorySchema>;
+export type SessionHistory = typeof sessionHistory.$inferSelect;
