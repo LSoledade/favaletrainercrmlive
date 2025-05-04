@@ -65,17 +65,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new lead
   app.post('/api/leads', async (req, res) => {
     try {
+      console.log('Recebendo dados para criar lead:', req.body);
       const validationResult = leadValidationSchema.safeParse(req.body);
       
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
+        console.error('Erro de validação:', validationError.message);
         return res.status(400).json({ message: validationError.message });
       }
       
+      console.log('Dados validados:', validationResult.data);
       const newLead = await storage.createLead(validationResult.data);
       res.status(201).json(newLead);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao criar lead" });
+      console.error('Erro ao criar lead:', error);
+      res.status(500).json({ message: "Erro ao criar lead", details: String(error) });
     }
   });
 

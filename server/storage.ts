@@ -57,14 +57,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLead(insertLead: InsertLead): Promise<Lead> {
-    const [lead] = await db
-      .insert(leads)
-      .values({
+    try {
+      console.log('Inserindo lead no banco:', {
         ...insertLead,
         notes: insertLead.notes || null,
-      })
-      .returning();
-    return lead;
+      });
+      
+      const [lead] = await db
+        .insert(leads)
+        .values({
+          ...insertLead,
+          notes: insertLead.notes || null,
+        })
+        .returning();
+      
+      console.log('Lead criado com sucesso:', lead);
+      return lead;
+    } catch (error) {
+      console.error('Erro ao inserir lead no banco:', error);
+      throw error;
+    }
   }
 
   async updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead | undefined> {
