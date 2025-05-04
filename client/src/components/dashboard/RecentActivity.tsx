@@ -94,7 +94,7 @@ export default function RecentActivity() {
   const activities = leads ? generateActivities(leads) : [];
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-lg shadow-md dark:shadow-primary/5 p-5">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-lg shadow-md dark:shadow-primary/5 p-5 transition-all duration-200">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-heading text-lg font-medium dark:text-white">Atividades Recentes</h3>
         <Tooltip content="Mais ações">

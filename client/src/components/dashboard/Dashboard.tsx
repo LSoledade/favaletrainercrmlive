@@ -98,9 +98,7 @@ export default function Dashboard() {
           <TimelineChart />
         </ChartCard>
         
-        <ChartCard title="Atividades Recentes" className="lg:col-span-1">
-          <RecentActivity />
-        </ChartCard>
+        <RecentActivity className="lg:col-span-1" />
       </div>
     </div>
   );
