@@ -134,17 +134,12 @@ export function SessionCalendar() {
                   isSameDay(new Date(session.startTime), date)
                 )
               }}
-              components={{
-                Day: ({ day, ...props }) => {
-                  const customClass = getDayClass(day);
-                  return (
-                    <button 
-                      {...props} 
-                      className={`${props.className} ${customClass}`}
-                    >
-                      {day.getDate()}
-                    </button>
-                  );
+              classNames={{
+                day_today: "bg-primary text-primary-foreground",
+                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                day: (date) => {
+                  const customClass = getDayClass(date);
+                  return customClass;
                 }
               }}
             />

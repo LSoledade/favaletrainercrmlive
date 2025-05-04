@@ -1,7 +1,4 @@
-import { useState } from 'react';
 import { SessionManagement } from '@/components/scheduling/SessionManagement';
-import { SessionReport } from '@/components/scheduling/SessionReport';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SessionsPage() {
@@ -15,20 +12,7 @@ export default function SessionsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="sessions">
-            <TabsList className="mb-4">
-              <TabsTrigger value="sessions">Agendamentos</TabsTrigger>
-              <TabsTrigger value="report">Relatórios</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="sessions">
-              <SessionManagement />
-            </TabsContent>
-            
-            <TabsContent value="report">
-              <SessionReport />
-            </TabsContent>
-          </Tabs>
+          <SessionManagement />
         </CardContent>
       </Card>
     </div>
