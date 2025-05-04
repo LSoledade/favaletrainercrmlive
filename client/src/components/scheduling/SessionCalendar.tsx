@@ -116,13 +116,12 @@ export function SessionCalendar() {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="md:col-span-1">
-        <Card>
-          <CardHeader>
-            <CardTitle>Calendário</CardTitle>
-          </CardHeader>
-          <CardContent>
+    <div>
+      <div className="flex flex-col space-y-4">
+        {/* Container principal do calendário e detalhes */}
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Coluna do calendário */}
+          <div className="lg:w-[350px]">
             <CalendarComponent
               mode="single"
               selected={date}
@@ -172,72 +171,70 @@ export function SessionCalendar() {
                 <span className="text-sm">Ambos</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <div className="mt-4">
-          <Button onClick={handleAddSession} className="w-full">
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Sessão
-          </Button>
-        </div>
-      </div>
-      
-      <div className="md:col-span-2">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>
+            <div className="mt-4">
+              <Button onClick={handleAddSession} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Sessão
+              </Button>
+            </div>
+          </div>
+          
+          {/* Coluna de detalhes da data selecionada */}
+          <div className="flex-1">
+            <div className="border rounded-md h-full p-4">
+              <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center">
                   <CalendarIcon className="h-5 w-5 mr-2" />
-                  {format(date, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  <h3 className="text-lg font-medium">
+                    {format(date, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  </h3>
                 </div>
-              </CardTitle>
-              <Badge variant="outline">
-                {sessionsForSelectedDay.length} sessões
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {sessionsForSelectedDay.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <p>Não há sessões para esta data.</p>
-                <Button variant="outline" onClick={handleAddSession} className="mt-2">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agendar Sessão
-                </Button>
+                <Badge variant="outline">
+                  {sessionsForSelectedDay.length} sessões
+                </Badge>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {sessionsForSelectedDay.map((session) => (
-                  <div key={session.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium">
-                          {format(new Date(session.startTime), 'HH:mm', { locale: ptBR })} - 
-                          {format(new Date(session.endTime), 'HH:mm', { locale: ptBR })}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {session.studentName} com {session.trainerName}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {session.location}
-                        </p>
+              
+              {sessionsForSelectedDay.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <p>Não há sessões para esta data.</p>
+                  <Button variant="outline" onClick={handleAddSession} className="mt-2">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Agendar Sessão
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {sessionsForSelectedDay.map((session) => (
+                    <div key={session.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium">
+                            {format(new Date(session.startTime), 'HH:mm', { locale: ptBR })} - 
+                            {format(new Date(session.endTime), 'HH:mm', { locale: ptBR })}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {session.studentName} com {session.trainerName}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {session.location}
+                          </p>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={session.source === 'Favale' ? 
+                            'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' : 
+                            'bg-pink-50 text-pink-700 border-pink-300 dark:bg-pink-950 dark:text-pink-300 dark:border-pink-800'}
+                        >
+                          {session.source}
+                        </Badge>
                       </div>
-                      <Badge 
-                        variant="outline" 
-                        className={session.source === 'Favale' ? 
-                          'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' : 
-                          'bg-pink-50 text-pink-700 border-pink-300 dark:bg-pink-950 dark:text-pink-300 dark:border-pink-800'}
-                      >
-                        {session.source}
-                      </Badge>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
