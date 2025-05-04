@@ -16,14 +16,28 @@ import {
 interface SidebarProps {
   open: boolean;
   setOpen: (open: boolean) => void;
-  isMobile?: boolean;
 }
 
-export default function Sidebar({ open, setOpen, isMobile = false }: SidebarProps) {
+export default function Sidebar({ open, setOpen }: SidebarProps) {
   const [location] = useLocation();
   const { theme } = useTheme();
   const { user, logoutMutation } = useAuth();
   const [expanded, setExpanded] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    // Verificar se é mobile ao inicializar
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
   
   // Itens de navegação padrão
   let navItems = [
@@ -48,9 +62,9 @@ export default function Sidebar({ open, setOpen, isMobile = false }: SidebarProp
     <>
       {/* Mobile/Desktop sidebar */}
       <aside 
-        className={`${expanded ? '' : ''} bg-secondary dark:bg-[#0F0A19] dark:glow-border text-white lg:block flex-shrink-0 fixed lg:relative inset-y-0 left-0 transform ${
-          isMobile && !open ? "-translate-x-full" : "translate-x-0"
-        } transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40 h-full flex flex-col overflow-hidden w-full`}
+        className={`${expanded ? 'w-64' : 'w-16'} bg-secondary dark:bg-[#0F0A19] dark:glow-border text-white lg:block flex-shrink-0 fixed lg:relative inset-y-0 left-0 transform ${
+          open ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0 transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40 h-full flex flex-col overflow-hidden`}
       >
         <div className="p-3 sm:p-4 flex items-center justify-between border-b border-secondary-light dark:border-primary/20 relative">
           {expanded ? (
