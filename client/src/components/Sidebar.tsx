@@ -16,13 +16,13 @@ import {
 interface SidebarProps {
   open: boolean;
   setOpen: (open: boolean) => void;
+  expanded?: boolean;
 }
 
-export default function Sidebar({ open, setOpen }: SidebarProps) {
+export default function Sidebar({ open, setOpen, expanded = true }: SidebarProps) {
   const [location] = useLocation();
   const { theme } = useTheme();
   const { user, logoutMutation } = useAuth();
-  const [expanded, setExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   
   useEffect(() => {
@@ -74,20 +74,6 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           ) : (
             <div className="font-heading text-lg sm:text-xl font-bold tracking-wider text-center w-full dark:glow-text">
               <span className="text-primary">F&P</span>
-            </div>
-          )}
-          
-          {!isMobile && (
-            <div className={`${expanded ? 'absolute right-2 top-4' : 'fixed lg:left-[4.2rem] left-[4.2rem] top-20'} z-[9999] transition-all duration-300`}>
-              <button 
-                onClick={() => setExpanded(!expanded)}
-                className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-700 transition-all duration-300 bg-secondary/90 dark:bg-[#0F0A19] border dark:border-2 border-gray-500 dark:border-primary/80 dark:shadow-glow dark:hover:shadow-glow-lg w-10 h-10 flex items-center justify-center hover:scale-110 shadow-md"
-                title={expanded ? "Recolher menu" : "Expandir menu"}
-              >
-                <span className="material-icons text-white text-base dark:text-primary dark:glow-text-sm font-bold">
-                  {expanded ? "chevron_left" : "menu"}
-                </span>
-              </button>
             </div>
           )}
         </div>
