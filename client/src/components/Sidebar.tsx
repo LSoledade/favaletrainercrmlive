@@ -48,10 +48,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
     { path: "/config", label: "Configurações", icon: "settings" },
   ];
   
-  // Adicionar item de menu de segurança apenas para administradores
-  if (user?.role === 'admin') {
-    navItems.push({ path: "/security", label: "Segurança", icon: "security" });
-  }
+  // Comentário removido - a seção de segurança agora está dentro da página de configurações
   
   const getNavClasses = (path: string) => {
     const isActive = location === path;
@@ -141,7 +138,9 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                   </DropdownMenuItem>
                 </Link>
                 {user.role === 'admin' && (
-                  <Link href="/security" onClick={() => setOpen(false)}>
+                  <Link href="/config" onClick={() => {
+                    setOpen(false);
+                  }}>
                     <DropdownMenuItem>
                       <Shield className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="text-sm">Segurança</span>

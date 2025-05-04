@@ -20,11 +20,12 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Shield } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, 
          DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import AuditLogViewer from "@/components/admin/AuditLogViewer";
 
 const userProfileSchema = z.object({
   username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
@@ -253,6 +254,17 @@ export default function ConfigPage() {
               >
                 Usuários
               </TabsTrigger>
+              {user?.role === "admin" && (
+                <TabsTrigger
+                  value="security"
+                  className="w-full justify-start text-left px-3 py-2 data-[state=active]:bg-muted"
+                >
+                  <div className="flex items-center gap-1">
+                    <Shield className="h-4 w-4" />
+                    <span>Segurança</span>
+                  </div>
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
         </aside>
@@ -652,6 +664,50 @@ export default function ConfigPage() {
           )}
 
           {/* Configurações do Sistema */}
+          {/* Segurança e auditoria */}
+          {activeTab === "security" && user?.role === "admin" && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <CardTitle>Segurança e Privacidade</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Monitore e audite ações no sistema para garantir a segurança dos dados
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md">
+                      <h3 className="text-lg font-medium mb-2">Criptografia</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Senhas armazenadas com criptografia forte (scrypt) e proteção contra ataques
+                      </p>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md">
+                      <h3 className="text-lg font-medium mb-2">Auditoria</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Registro detalhado de ações sensíveis para rastreabilidade e segurança
+                      </p>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md">
+                      <h3 className="text-lg font-medium mb-2">Controle de Acesso</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Acesso baseado em perfis com isolamento de recursos e permissões
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6">
+                    <h3 className="text-xl font-medium mb-4">Logs de Auditoria</h3>
+                    <AuditLogViewer />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {activeTab === "system" && (
             <Card>
               <CardHeader>

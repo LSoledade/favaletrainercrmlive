@@ -73,7 +73,7 @@ export default function AuditLogViewer() {
   // Filtro de logs
   const filterLog = (log: AuditLog) => {
     // Filtrar por tipo de evento
-    if (eventType && log.type !== eventType) {
+    if (eventType && eventType !== 'all' && log.type !== eventType) {
       return false;
     }
     
@@ -162,7 +162,7 @@ export default function AuditLogViewer() {
               <SelectValue placeholder="Tipo de Evento" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os Eventos</SelectItem>
+              <SelectItem value="all">Todos os Eventos</SelectItem>
               {eventTypes.map(type => (
                 <SelectItem key={type} value={type}>
                   {formatEventType(type)}
