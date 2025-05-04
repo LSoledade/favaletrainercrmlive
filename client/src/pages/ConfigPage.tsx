@@ -79,10 +79,8 @@ export default function ConfigPage() {
   const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   
-  // Armazenar o usuário atual para comparação
-  if (user) {
-    (window as any).currentUser = user;
-  }
+  // O ID do usuário atual para comparação
+  const currentUserId = user?.id || 0;
   
   // Buscar lista de usuários
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({ 
@@ -625,7 +623,7 @@ export default function ConfigPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => deleteUser(user.id)}
-                                  disabled={user.id === (window.currentUser?.id || 0)} // Não permite excluir o próprio usuário
+                                  disabled={user.id === currentUserId} // Não permite excluir o próprio usuário
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>

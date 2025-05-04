@@ -20,11 +20,17 @@ export async function apiRequest<T = any>(
   });
 
   await throwIfResNotOk(res);
-  // For HEAD or methods that shouldn't return data
-  if (method === 'HEAD' || res.status === 204) {
+  // Para métodos ou rotas específicas que não retornam JSON
+  if (method === 'HEAD' || res.status === 204 || url === '/api/logout') {
     return {} as T;
   }
-  return res.json();
+  
+  try {
+    return await res.json();
+  } catch (error) {
+    console.warn('Resposta não é um JSON válido:', error);
+    return {} as T;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
