@@ -121,21 +121,7 @@ export function SessionCalendar() {
                 mode="single"
                 selected={date}
                 onSelect={setDate}
-                components={{
-                  Day: ({ day, activeMonth }) => {
-                    const isOutsideMonth = day.getMonth() !== activeMonth?.getMonth();
-                    return (
-                      <div 
-                        className={cn(
-                          'h-9 w-9 p-0 relative',
-                          isOutsideMonth && 'text-muted-foreground opacity-50'
-                        )}
-                      >
-                        {renderDay(day)}
-                      </div>
-                    );
-                  }
-                }}
+                className="rounded-md border"
                 className="rounded-md border"
               />
             </CardContent>

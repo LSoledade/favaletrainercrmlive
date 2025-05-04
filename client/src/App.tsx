@@ -7,6 +7,8 @@ import DashboardPage from "@/pages/DashboardPage";
 import LeadsPage from "@/pages/LeadsPage";
 import AuthPage from "@/pages/AuthPage";
 import ConfigPage from "@/pages/ConfigPage";
+import SessionsPage from "@/pages/SessionsPage";
+import CalendarPage from "@/pages/CalendarPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LeadProvider } from "@/context/LeadContext";
@@ -17,6 +19,8 @@ function Router() {
     <Switch>
       <ProtectedRoute path="/" component={DashboardPage} />
       <ProtectedRoute path="/leads" component={LeadsPage} />
+      <ProtectedRoute path="/agendamentos" component={SessionsPage} />
+      <ProtectedRoute path="/calendario" component={CalendarPage} />
       <ProtectedRoute path="/config" component={ConfigPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
