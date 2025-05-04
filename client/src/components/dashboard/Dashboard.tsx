@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import KpiCard from "./KpiCard";
 import ChartCard from "./ChartCard";
@@ -26,7 +27,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="w-full p-12 flex justify-center">
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
@@ -34,16 +35,16 @@ export default function Dashboard() {
 
   if (error || !stats) {
     return (
-      <div className="bg-red-50 p-4 rounded-md text-red-600">
+      <div className="m-6 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg text-red-600 dark:text-red-400">
         <p>Erro ao carregar estatísticas do dashboard.</p>
       </div>
     );
   }
 
   return (
-    <div className="mb-8">
+    <div className="p-6 space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <KpiCard
           title="Total de Leads"
           value={stats.totalLeads}
@@ -82,22 +83,24 @@ export default function Dashboard() {
       </div>
       
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <ChartCard title="Distribuição por Origem">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <ChartCard title="Distribuição por Origem" className="lg:col-span-1">
           <SourcePieChart data={stats.leadsBySource} />
         </ChartCard>
         
-        <ChartCard title="Leads por Estado">
+        <ChartCard title="Leads por Estado" className="lg:col-span-2">
           <StateBarChart data={stats.leadsByState} />
         </ChartCard>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <ChartCard title="Leads ao Longo do Tempo" className="lg:col-span-2">
           <TimelineChart />
         </ChartCard>
         
-        <RecentActivity />
+        <ChartCard title="Atividades Recentes" className="lg:col-span-1">
+          <RecentActivity />
+        </ChartCard>
       </div>
     </div>
   );
