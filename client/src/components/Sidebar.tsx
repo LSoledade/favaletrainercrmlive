@@ -78,14 +78,14 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
           )}
           
           {!isMobile && (
-            <div className={`${expanded ? 'absolute right-2 top-4' : 'fixed lg:left-[4.2rem] left-[4.2rem] top-4'} z-50 transition-all duration-300`}>
+            <div className={`${expanded ? 'absolute right-2 top-4' : 'fixed lg:left-[4.2rem] left-[4.2rem] top-20'} z-[9999] transition-all duration-300`}>
               <button 
                 onClick={() => setExpanded(!expanded)}
-                className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-all duration-300 bg-secondary dark:bg-[#0F0A19] dark:border-2 dark:border-primary/60 dark:shadow-glow-sm dark:hover:shadow-glow w-8 h-8 flex items-center justify-center hover:scale-110"
+                className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-700 transition-all duration-300 bg-secondary/90 dark:bg-[#0F0A19] border dark:border-2 border-gray-500 dark:border-primary/80 dark:shadow-glow dark:hover:shadow-glow-lg w-10 h-10 flex items-center justify-center hover:scale-110 shadow-md"
                 title={expanded ? "Recolher menu" : "Expandir menu"}
               >
-                <span className="material-icons text-white text-sm dark:text-primary dark:glow-text-xs">
-                  {expanded ? "chevron_left" : "chevron_right"}
+                <span className="material-icons text-white text-base dark:text-primary dark:glow-text-sm font-bold">
+                  {expanded ? "chevron_left" : "menu"}
                 </span>
               </button>
             </div>
