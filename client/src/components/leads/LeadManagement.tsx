@@ -572,6 +572,18 @@ export default function LeadManagement() {
           }
           console.log('Resultado da importação em lote:', result);
           
+          // Atualizar a lista de leads após a importação bem-sucedida
+          try {
+            // Primeiro, invalidamos a consulta
+            await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+            
+            // Em seguida, disparamos manualmente uma nova consulta com await para garantir que seja concluída
+            await queryClient.fetchQuery({ queryKey: ["/api/leads"] });
+            console.log('Dados atualizados com sucesso após importação');
+          } catch (e) {
+            console.error('Erro ao atualizar dados após importação:', e);
+          }
+          
           setImportProgress(100);
           
           // Show results
@@ -799,7 +811,16 @@ export default function LeadManagement() {
       console.log('Resultado da importação em lote:', result);
       
       // Atualizar a lista de leads após a importação bem-sucedida
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      try {
+        // Primeiro, invalidamos a consulta
+        await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+        
+        // Em seguida, disparamos manualmente uma nova consulta com await para garantir que seja concluída
+        await queryClient.fetchQuery({ queryKey: ["/api/leads"] });
+        console.log('Dados atualizados com sucesso após importação');  
+      } catch (e) {
+        console.error('Erro ao atualizar dados após importação:', e);
+      }
       
       // Show results
       setImportProgress(100);
