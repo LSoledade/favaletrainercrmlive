@@ -80,14 +80,14 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
   
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex justify-center transition-colors duration-200">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-primary-light"></div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-gray-900/30 p-6 flex justify-center items-center transition-all duration-200 min-h-[300px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700 border-t-primary dark:border-t-primary-light dark:shadow-glow-xs"></div>
       </div>
     );
   }
   
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transition-colors duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-gray-900/30 overflow-hidden transition-all duration-200 hover:shadow-lg dark:hover:shadow-gray-900/40">
       <div className="overflow-x-auto">
         <table className="min-w-full">
           <thead>
@@ -200,8 +200,8 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                 </tr>
               ))
             ) : (
-              <tr>
-                <td colSpan={10} className="px-6 py-4 text-center text-sm text-gray-500">
+              <tr className="transition-colors duration-200">
+                <td colSpan={10} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">
                   Nenhum lead encontrado
                 </td>
               </tr>
