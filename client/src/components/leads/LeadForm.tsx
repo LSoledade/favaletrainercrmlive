@@ -251,7 +251,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
                 className="text-primary"
                 {...register("source")}
               />
-              <span className="ml-2 text-sm">Favale</span>
+              <span className="ml-2 text-sm text-gray-700 dark:text-gray-200">Favale</span>
             </label>
             <label className="inline-flex items-center">
               <input 
@@ -260,7 +260,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
                 className="text-primary"
                 {...register("source")}
               />
-              <span className="ml-2 text-sm">Pink</span>
+              <span className="ml-2 text-sm text-gray-700 dark:text-gray-200">Pink</span>
             </label>
           </div>
           {errors.source && (
@@ -277,7 +277,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
                 className="text-primary"
                 {...register("status")}
               />
-              <span className="ml-2 text-sm">Lead</span>
+              <span className="ml-2 text-sm text-gray-700 dark:text-gray-200">Lead</span>
             </label>
             <label className="inline-flex items-center">
               <input 
@@ -286,7 +286,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
                 className="text-primary"
                 {...register("status")}
               />
-              <span className="ml-2 text-sm">Aluno</span>
+              <span className="ml-2 text-sm text-gray-700 dark:text-gray-200">Aluno</span>
             </label>
           </div>
           {errors.status && (
