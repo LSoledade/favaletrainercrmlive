@@ -201,30 +201,37 @@ export default function LeadManagement() {
           
           switch(header) {
             case 'nome':
+            case 'name':
               leadData.name = value;
               break;
             case 'email':
               leadData.email = value;
               break;
             case 'telefone':
+            case 'phone':
               leadData.phone = value;
               break;
             case 'estado':
+            case 'state':
               leadData.state = value;
               break;
             case 'campanha':
+            case 'campaign':
               leadData.campaign = value;
               break;
             case 'origem':
+            case 'fonte':
+            case 'source':
               leadData.source = value;
               break;
             case 'status':
               leadData.status = value || "Lead";
               break;
             case 'tags':
-              leadData.tags = value ? value.split(';').map(tag => tag.trim()) : [];
+              leadData.tags = value ? value.split(/[,;]/).map(tag => tag.trim()) : [];
               break;
             case 'data_entrada':
+            case 'data de entrada':
               try {
                 leadData.entryDate = value ? new Date(value).toISOString() : new Date().toISOString();
               } catch (e) {
@@ -232,6 +239,7 @@ export default function LeadManagement() {
               }
               break;
             case 'observacoes':
+            case 'observações':
               leadData.notes = value;
               break;
           }
@@ -390,6 +398,7 @@ export default function LeadManagement() {
                   leadData.tags = value ? value.split(';').map(tag => tag.trim()) : [];
                   break;
                 case 'data_entrada':
+                case 'data de entrada':
                   try {
                     // Tenta converter a data de entrada para formato ISO
                     if (value) {
@@ -429,6 +438,7 @@ export default function LeadManagement() {
                   }
                   break;
                 case 'observacoes':
+                case 'observações':
                   leadData.notes = value;
                   break;
               }
