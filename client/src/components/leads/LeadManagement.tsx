@@ -60,6 +60,8 @@ export default function LeadManagement() {
     state: string;
     startDate: string;
     endDate: string;
+    tag: string;
+    dateRange: string;
   };
 
   const [filters, setFilters] = useState<FilterState>({
@@ -68,8 +70,75 @@ export default function LeadManagement() {
     campaign: "",
     state: "",
     startDate: "",
-    endDate: ""
+    endDate: "",
+    tag: "",
+    dateRange: ""
   });
+  
+  // Função que retorna todas as tags únicas dos leads
+  const getUniqueTags = () => {
+    if (!leads) return [];
+    
+    // Obter todas as tags
+    const allTags = leads.flatMap(lead => lead.tags || []);
+    
+    // Criar um objeto para rastrear tags únicas
+    const uniqueTagsObj: Record<string, boolean> = {};
+    allTags.forEach(tag => {
+      if (tag.trim() !== "") {
+        uniqueTagsObj[tag] = true;
+      }
+    });
+    
+    // Converter de volta para array e ordenar
+    return Object.keys(uniqueTagsObj).sort();
+  };
+  
+  // Função para configurar data inicial e final com base no período selecionado
+  const handleDateRangeChange = (range: string) => {
+    const today = new Date();
+    let startDate = "";
+    let endDate = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    
+    switch(range) {
+      case "today":
+        startDate = today.toISOString().split('T')[0];
+        break;
+      case "last7days":
+        const last7Days = new Date(today);
+        last7Days.setDate(today.getDate() - 7);
+        startDate = last7Days.toISOString().split('T')[0];
+        break;
+      case "last30days":
+        const last30Days = new Date(today);
+        last30Days.setDate(today.getDate() - 30);
+        startDate = last30Days.toISOString().split('T')[0];
+        break;
+      case "thisMonth":
+        const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDate = thisMonth.toISOString().split('T')[0];
+        break;
+      case "lastMonth":
+        const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        startDate = lastMonth.toISOString().split('T')[0];
+        endDate = lastDayLastMonth.toISOString().split('T')[0];
+        break;
+      case "thisYear":
+        const thisYear = new Date(today.getFullYear(), 0, 1);
+        startDate = thisYear.toISOString().split('T')[0];
+        break;
+      case "custom":
+        // Mantém as datas atuais para entrada manual
+        return;
+      default:
+        // Limpa as datas
+        startDate = "";
+        endDate = "";
+    }
+    
+    setFilters(prev => ({ ...prev, startDate, endDate, dateRange: range }));
+  };
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -362,6 +431,9 @@ export default function LeadManagement() {
     // Advanced filters
     const matchesState = filters.state === "" || lead.state === filters.state;
     
+    // Tag filter
+    const matchesTag = filters.tag === "" || (lead.tags && lead.tags.includes(filters.tag));
+    
     // Date filters
     let matchesDateRange = true;
     if (filters.startDate && filters.endDate) {
@@ -384,7 +456,8 @@ export default function LeadManagement() {
       matchesDateRange = leadDate < endDate;
     }
     
-    return matchesSearch && matchesSource && matchesStatus && matchesCampaign && matchesState && matchesDateRange;
+    return matchesSearch && matchesSource && matchesStatus && matchesCampaign && 
+           matchesState && matchesDateRange && matchesTag;
   });
 
   // Check if there are active filters
@@ -394,7 +467,9 @@ export default function LeadManagement() {
     filters.campaign,
     filters.state,
     filters.startDate,
-    filters.endDate
+    filters.endDate,
+    filters.tag,
+    filters.dateRange
   ].some(filter => filter !== "");
   
   // Count active filters
@@ -403,7 +478,8 @@ export default function LeadManagement() {
     filters.status,
     filters.campaign,
     filters.state,
-    (filters.startDate || filters.endDate) ? 1 : 0, // Count date range as one filter
+    filters.tag,
+    (filters.startDate || filters.endDate || filters.dateRange) ? 1 : 0, // Count date range as one filter
   ].filter(Boolean).length;
 
   if (error) {
@@ -568,10 +644,51 @@ export default function LeadManagement() {
                 </div>
               </div>
               
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tag</label>
+                <select 
+                  className="w-full border dark:border-gray-700 rounded-md px-3 py-2 text-sm dark:bg-gray-800 dark:text-white transition-colors duration-200"
+                  value={filters.tag || ""}
+                  onChange={(e) => setFilters({...filters, tag: e.target.value})}
+                >
+                  <option value="">Todas</option>
+                  {getUniqueTags().map((tag, index) => (
+                    <option key={index} value={tag}>{tag}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Período</label>
+                <select 
+                  className="w-full border dark:border-gray-700 rounded-md px-3 py-2 text-sm dark:bg-gray-800 dark:text-white transition-colors duration-200"
+                  value={filters.dateRange || ""}
+                  onChange={(e) => handleDateRangeChange(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  <option value="today">Hoje</option>
+                  <option value="last7days">Últimos 7 dias</option>
+                  <option value="last30days">Últimos 30 dias</option>
+                  <option value="thisMonth">Este mês</option>
+                  <option value="lastMonth">Mês passado</option>
+                  <option value="thisYear">Este ano</option>
+                  <option value="custom">Período personalizado</option>
+                </select>
+              </div>
+              
               <div className="flex items-end">
                 <button 
                   className="w-full bg-primary text-white rounded-md px-4 py-2 text-sm flex items-center justify-center hover:bg-primary/90 dark:glow-button-xs transition-all duration-200"
-                  onClick={() => setFilters({ source: "", status: "", campaign: "", state: "", startDate: "", endDate: "" })}
+                  onClick={() => setFilters({ 
+                    source: "", 
+                    status: "", 
+                    campaign: "", 
+                    state: "", 
+                    startDate: "", 
+                    endDate: "",
+                    tag: "",
+                    dateRange: ""
+                  })}
                 >
                   <span className="material-icons text-sm mr-1">clear</span>
                   Limpar Filtros
