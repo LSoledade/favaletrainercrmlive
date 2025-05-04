@@ -494,9 +494,6 @@ export default function LeadManagement() {
     <div>
       {/* Header with actions */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6">
-        <h2 className="font-heading text-2xl font-semibold text-secondary dark:text-white dark:glow-text mb-4 md:mb-0">
-          Gerenciamento de Leads
-        </h2>
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <button 
             className={`${hasActiveFilters 
