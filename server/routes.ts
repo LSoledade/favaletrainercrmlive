@@ -100,6 +100,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Importação em lote (batch) de leads
+  app.post('/api/leads/batch/import', async (req, res) => {
+    try {
+      console.log(`Recebendo solicitação de importação em lote de ${req.body.leads?.length || 0} leads`);
+      const { leads } = req.body;
+      
+      if (!Array.isArray(leads) || leads.length === 0) {
+        return res.status(400).json({ message: "Nenhum lead válido fornecido para importação" });
+      }
+      
+      // Criar um schema para validar o array inteiro
+      const batchLeadSchema = leadValidationSchema.array();
+      const validationResult = batchLeadSchema.safeParse(leads);
+      
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        console.error('Erro de validação na importação em lote:', validationError.message);
+        return res.status(400).json({ message: validationError.message });
+      }
+      
+      const validatedLeads = validationResult.data;
+      console.log(`Iniciando importação em lote de ${validatedLeads.length} leads`); 
+      
+      // Processar todos os leads de uma vez
+      const results = { 
+        success: [], 
+        errors: [] 
+      };
+      
+      for (let i = 0; i < validatedLeads.length; i++) {
+        try {
+          const leadData = validatedLeads[i];
+          
+          // Converter qualquer string de data para objeto Date
+          if (typeof leadData.entryDate === 'string') {
+            leadData.entryDate = new Date(leadData.entryDate);
+          }
+          
+          const lead = await storage.createLead(leadData);
+          results.success.push({
+            index: i,
+            id: lead.id,
+            email: lead.email
+          });
+        } catch (error) {
+          console.error(`Erro ao processar lead #${i}:`, error);
+          results.errors.push({
+            index: i,
+            error: error instanceof Error ? error.message : 'Erro desconhecido',
+            data: validatedLeads[i]
+          });
+        }
+      }
+      
+      // Registrar evento de auditoria da operação em lote
+      logAuditEvent(AuditEventType.LEAD_BATCH_IMPORT, req, { 
+        totalCount: validatedLeads.length,
+        successCount: results.success.length,
+        errorCount: results.errors.length
+      });
+      
+      console.log(`Importação em lote concluída: ${results.success.length} sucesso, ${results.errors.length} erros`);
+      res.status(200).json({
+        message: `Importação concluída. ${results.success.length} leads importados com sucesso.`,
+        totalProcessed: validatedLeads.length,
+        successCount: results.success.length,
+        errorCount: results.errors.length,
+        results
+      });
+    } catch (error) {
+      console.error('Erro na importação em lote:', error);
+      res.status(500).json({ message: "Falha na importação em lote", details: String(error) });
+    }
+  });
+  
   // Batch operations for leads
   app.post('/api/leads/batch/update', async (req, res) => {
     try {

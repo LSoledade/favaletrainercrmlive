@@ -538,27 +538,43 @@ export default function LeadManagement() {
           return;
         }
         
-        // Create each lead
-        let successCount = 0;
-        let errorCount = 0;
-        
-        for (const lead of leadsToImport) {
-          try {
-            await createLead(lead);
-            successCount++;
-          } catch (error) {
-            console.error('Erro ao criar lead:', error);
-            errorCount++;
+        // Enviar leads em lote para a API
+        try {
+          setImportProgress(70);
+          const response = await fetch('/api/leads/batch/import', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ leads: leadsToImport })
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro na importação em lote: ${errorText}`);
           }
+          
+          const result = await response.json();
+          console.log('Resultado da importação em lote:', result);
+          
+          setImportProgress(100);
+          
+          // Show results
+          setImportDialogOpen(false);
+          toast({
+            title: "Importação concluída",
+            description: `${result.successCount} leads importados com sucesso.${result.errorCount > 0 ? ` ${result.errorCount} leads com erro.` : ''}`,
+            variant: result.successCount > 0 ? "default" : "destructive",
+          });
+        } catch (error) {
+          console.error('Erro ao importar leads em lote:', error);
+          
+          toast({
+            title: "Erro na importação",
+            description: error instanceof Error ? error.message : "Ocorreu um erro ao importar os leads.",
+            variant: "destructive",
+          });
         }
-        
-        // Show results
-        setImportDialogOpen(false);
-        toast({
-          title: "Importação concluída",
-          description: `${successCount} leads importados com sucesso.${errorCount > 0 ? ` ${errorCount} leads com erro.` : ''}`,
-          variant: successCount > 0 ? "default" : "destructive",
-        });
         
       } catch (error) {
         console.error('Erro ao processar arquivo:', error);
@@ -736,22 +752,22 @@ export default function LeadManagement() {
     try {
       setImportProgress(60);
       
-      // Create each lead with progress updates
-      let successCount = 0;
-      let errorCount = 0;
-      const totalLeads = parsedLeads.length;
+      // Enviar leads em lote para a API
+      const response = await fetch('/api/leads/batch/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ leads: parsedLeads })
+      });
       
-      for (let i = 0; i < parsedLeads.length; i++) {
-        try {
-          await createLead(parsedLeads[i]);
-          successCount++;
-          // Update progress from 60% to 95%
-          setImportProgress(60 + Math.floor((i + 1) / totalLeads * 35));
-        } catch (error) {
-          console.error('Erro ao criar lead:', error);
-          errorCount++;
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro na importação em lote: ${errorText}`);
       }
+      
+      const result = await response.json();
+      console.log('Resultado da importação em lote:', result);
       
       // Show results
       setImportProgress(100);
@@ -762,15 +778,15 @@ export default function LeadManagement() {
       
       toast({
         title: "Importação concluída",
-        description: `${successCount} leads importados com sucesso.${errorCount > 0 ? ` ${errorCount} leads com erro.` : ''}`,
-        variant: successCount > 0 ? "default" : "destructive",
+        description: `${result.successCount} leads importados com sucesso.${result.errorCount > 0 ? ` ${result.errorCount} leads com erro.` : ''}`,
+        variant: result.successCount > 0 ? "default" : "destructive",
       });
       
     } catch (error) {
       console.error('Erro ao processar importação:', error);
       toast({
         title: "Erro na importação",
-        description: "Ocorreu um erro ao importar os leads.",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao importar os leads.",
         variant: "destructive",
       });
     } finally {
