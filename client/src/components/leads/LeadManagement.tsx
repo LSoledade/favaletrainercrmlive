@@ -340,8 +340,30 @@ export default function LeadManagement() {
           .split(',')
           .map(header => header.trim().toLowerCase());
         
-        const requiredHeaders = ['nome', 'email'];
-        const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
+        // Map para normalização de cabeçalhos
+        const headerMap: Record<string, string[]> = {
+          'nome': ['nome', 'name', 'Nome'],
+          'email': ['email', 'Email'],
+          'telefone': ['telefone', 'phone', 'Telefone'],
+          'estado': ['estado', 'state', 'Estado'],
+          'status': ['status', 'Status'],
+          'fonte': ['fonte', 'source', 'origem', 'Fonte'],
+          'campanha': ['campanha', 'campaign', 'Campanha'],
+          'tags': ['tags', 'Tags'],
+          'data_entrada': ['data_entrada', 'data de entrada', 'data', 'Data de Entrada'],
+          'observacoes': ['observacoes', 'observações', 'notas', 'notes', 'Observações']
+        };
+        
+        // Verificar se os cabeçalhos necessários estão presentes usando o mapa
+        const requiredFields = ['nome', 'email'];
+        const missingHeaders = [];
+        
+        for (const required of requiredFields) {
+          const possibleHeaders = headerMap[required];
+          if (!possibleHeaders.some(h => headers.includes(h))) {
+            missingHeaders.push(required);
+          }
+        }
         
         if (missingHeaders.length > 0) {
           toast({
@@ -359,8 +381,43 @@ export default function LeadManagement() {
         for (let i = 1; i < rows.length; i++) {
           if (!rows[i].trim()) continue;
           
-          const values = rows[i].split(',');
-          if (values.length !== headers.length) {
+          // Process each row - tratamento especial para campos com vírgulas dentro de aspas
+          const row = rows[i];
+          const values: string[] = [];
+          let insideQuotes = false;
+          let currentValue = "";
+          
+          for (let j = 0; j < row.length; j++) {
+            const char = row[j];
+            
+            if (char === '"') {
+              insideQuotes = !insideQuotes;
+              // Mantém aspas apenas para processamento posterior
+              currentValue += char;
+            } else if (char === ',' && !insideQuotes) {
+              values.push(currentValue);
+              currentValue = "";
+            } else {
+              currentValue += char;
+            }
+          }
+          
+          // Adicionar o último valor
+          values.push(currentValue);
+          
+          // Limpar aspas externas e espaços em branco
+          const cleanValues = values.map(val => {
+            let cleaned = val.trim();
+            if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+              cleaned = cleaned.substring(1, cleaned.length - 1);
+            }
+            return cleaned;
+          });
+          
+          console.log('Linha processada:', cleanValues);
+          
+          if (cleanValues.length !== headers.length) {
+            console.error(`Linha ${i} tem ${cleanValues.length} valores, mas esperava ${headers.length}`);
             errorRows.push(i);
             continue;
           }
@@ -369,10 +426,19 @@ export default function LeadManagement() {
           try {
             const leadData: Record<string, any> = {};
             
+            // Criar um mapa inverso para encontrar o campo de destino com base no header
+            const reverseHeaderMap: Record<string, string> = {};
+            Object.entries(headerMap).forEach(([key, values]) => {
+              values.forEach(value => {
+                reverseHeaderMap[value] = key;
+              });
+            });
+
             headers.forEach((header, index) => {
-              const value = values[index]?.trim() || "";
+              const value = cleanValues[index] || "";
+              const normalizedHeader = reverseHeaderMap[header] || header;
               
-              switch(header) {
+              switch(normalizedHeader) {
                 case 'nome':
                   leadData.name = value;
                   break;
@@ -388,17 +454,16 @@ export default function LeadManagement() {
                 case 'campanha':
                   leadData.campaign = value;
                   break;
-                case 'origem':
+                case 'fonte':
                   leadData.source = value;
                   break;
                 case 'status':
                   leadData.status = value || "Lead";
                   break;
                 case 'tags':
-                  leadData.tags = value ? value.split(';').map(tag => tag.trim()) : [];
+                  leadData.tags = value ? value.split(/[,;]/).map(tag => tag.trim()) : [];
                   break;
                 case 'data_entrada':
-                case 'data de entrada':
                   try {
                     // Tenta converter a data de entrada para formato ISO
                     if (value) {
