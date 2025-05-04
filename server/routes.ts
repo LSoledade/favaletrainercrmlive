@@ -6,6 +6,7 @@ import { fromZodError } from "zod-validation-error";
 import { setupAuth } from "./auth";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import { logAuditEvent, AuditEventType, getRecentAuditLogs } from "./audit-log";
 
 const scryptAsync = promisify(scrypt);
 
@@ -130,6 +131,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Dados para atualização em lote:', dataToUpdate);
       const count = await storage.updateLeadsInBatch(ids, dataToUpdate);
+      
+      // Registrar evento de atualização em lote
+      logAuditEvent(AuditEventType.LEAD_BATCH_UPDATE, req, {
+        leadIds: ids,
+        updatedFields: Object.keys(dataToUpdate),
+        updateCount: count,
+        statusChange: dataToUpdate.status ? `Para ${dataToUpdate.status}` : undefined
+      });
+      
       res.json({ updatedCount: count });
     } catch (error) {
       console.error('Erro ao atualizar leads em lote:', error);
@@ -145,9 +155,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "IDs de leads são obrigatórios" });
       }
       
+      // Tenta obter informações sobre os leads a serem excluídos para o log de auditoria
+      const leadsInfo = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            return await storage.getLead(id);
+          } catch (e) {
+            return null;
+          }
+        })
+      );
+      
       const count = await storage.deleteLeadsInBatch(ids);
+      
+      // Registrar evento de exclusão em lote
+      logAuditEvent(AuditEventType.LEAD_BATCH_DELETE, req, {
+        leadIds: ids,
+        deleteCount: count,
+        leadNames: leadsInfo.filter(Boolean).map(lead => lead?.name).join(', ')
+      });
+      
       res.json({ deletedCount: count });
     } catch (error) {
+      console.error('Erro ao excluir leads em lote:', error);
       res.status(500).json({ message: "Erro ao excluir leads em lote" });
     }
   });
@@ -204,6 +234,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Dados convertidos para inserção:', leadToInsert);
       const newLead = await storage.createLead(leadToInsert);
+      
+      // Registrar evento de criação de lead
+      logAuditEvent(AuditEventType.LEAD_CREATED, req, {
+        leadId: newLead.id,
+        name: newLead.name,
+        source: newLead.source,
+        status: newLead.status
+      });
+      
       res.status(201).json(newLead);
     } catch (error) {
       console.error('Erro ao criar lead:', error);
@@ -244,6 +283,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead não encontrado" });
       }
       
+      // Registrar evento de atualização de lead
+      logAuditEvent(AuditEventType.LEAD_UPDATED, req, {
+        leadId: updatedLead.id,
+        name: updatedLead.name,
+        updatedFields: Object.keys(dataToUpdate),
+        statusChange: dataToUpdate.status ? `${updatedLead.status !== dataToUpdate.status ? 'De ' + updatedLead.status + ' para ' + dataToUpdate.status : 'Sem alteração'}` : undefined
+      });
+      
       res.json(updatedLead);
     } catch (error) {
       console.error('Erro ao atualizar lead:', error);
@@ -255,15 +302,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/leads/:id', async (req, res) => {
     try {
       const leadId = parseInt(req.params.id);
+      
+      // Obter informações do lead antes de excluir (para o log de auditoria)
+      const leadToDelete = await storage.getLead(leadId);
+      
+      if (!leadToDelete) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
       const success = await storage.deleteLead(leadId);
       
       if (!success) {
         return res.status(404).json({ message: "Lead não encontrado" });
       }
       
+      // Registrar evento de exclusão de lead
+      logAuditEvent(AuditEventType.LEAD_DELETED, req, {
+        leadId: leadId,
+        name: leadToDelete.name,
+        email: leadToDelete.email,
+        source: leadToDelete.source,
+        status: leadToDelete.status
+      });
+      
       res.status(204).send();
     } catch (error) {
+      console.error('Erro ao deletar lead:', error);
       res.status(500).json({ message: "Erro ao deletar lead" });
+    }
+  });
+  
+  // Endpoint para obter logs de auditoria (somente administradores)
+  app.get('/api/audit-logs', isAdmin, async (req, res) => {
+    try {
+      const count = parseInt(req.query.count?.toString() || '100');
+      const logs = await getRecentAuditLogs(count);
+      res.json(logs);
+    } catch (error) {
+      console.error('Erro ao buscar logs de auditoria:', error);
+      res.status(500).json({ message: "Erro ao buscar logs de auditoria" });
     }
   });
   
