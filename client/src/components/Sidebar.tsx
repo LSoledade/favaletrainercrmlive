@@ -1,10 +1,10 @@
 import { useLocation, Link } from "wouter";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/hooks/use-auth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User, Shield } from "lucide-react";
-import {
+import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,159 +12,191 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarFooter,
+  SidebarSeparator,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
+  LayoutDashboard,
+  Users,
+  CalendarDays,
+  Calendar,
+  Settings,
+  LogOut,
+  User,
+  Shield,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
 
 interface SidebarProps {
   open: boolean;
   setOpen: (open: boolean) => void;
 }
 
-export default function Sidebar({ open, setOpen }: SidebarProps) {
+export default function AppSidebar({ open, setOpen }: SidebarProps) {
   const [location] = useLocation();
   const { theme } = useTheme();
   const { user, logoutMutation } = useAuth();
-  const [expanded, setExpanded] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobileDevice = useIsMobile();
   
-  useEffect(() => {
-    // Verificar se é mobile ao inicializar
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
-  }, []);
-  
-  // Itens de navegação padrão
-  let navItems = [
-    { path: "/", label: "Dashboard", icon: "dashboard" },
-    { path: "/leads", label: "Leads", icon: "people" },
-    { path: "/agendamentos", label: "Agendamentos", icon: "calendar_today" },
-    { path: "/calendario", label: "Calendário", icon: "event" },
-    { path: "/config", label: "Configurações", icon: "settings" },
+  // Mapping de ícones baseado no Lucide React
+  // ao invés de usar os ícones do Material Design
+  const navItems = [
+    { path: "/", label: "Dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
+    { path: "/leads", label: "Leads", icon: <Users className="h-5 w-5" /> },
+    { path: "/agendamentos", label: "Agendamentos", icon: <CalendarDays className="h-5 w-5" /> },
+    { path: "/calendario", label: "Calendário", icon: <Calendar className="h-5 w-5" /> },
+    { path: "/config", label: "Configurações", icon: <Settings className="h-5 w-5" /> },
   ];
   
-  // Comentário removido - a seção de segurança agora está dentro da página de configurações
-  
-  const getNavClasses = (path: string) => {
-    const isActive = location === path;
-    const baseClasses = "flex items-center text-white transition-all duration-200 rounded-md my-1 mx-1 sm:mx-2";
-    return isActive 
-      ? `${baseClasses} bg-primary dark:glow ${expanded ? 'px-3 sm:px-5' : 'justify-center'} py-2 sm:py-3`
-      : `${baseClasses} hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 ${expanded ? 'px-3 sm:px-5' : 'justify-center'} py-2 sm:py-3`;
+  // Hook personalizado do Shadcn UI Sidebar
+  const SidebarContent = () => {
+    const { state, toggleSidebar } = useSidebar();
+    const isExpanded = state === "expanded";
+    
+    useEffect(() => {
+      // Sincronizar o estado do sidebar mobile do Shadcn com o estado do app
+      if (isMobileDevice) {
+        document.documentElement.classList.toggle('overflow-hidden', open);
+      }
+    }, [open]);
+    
+    return (
+      <ShadcnSidebar 
+        className={`${isExpanded ? 'w-64' : 'w-auto'} ${theme === 'dark' ? 'bg-[#0F0A19] text-white' : 'bg-secondary text-white'} z-30 border-r ${theme === 'dark' ? 'border-primary/40 dark:glow-border' : 'border-secondary-light'}`}
+        collapsible="icon"
+      >
+        <SidebarHeader className="py-4 px-3">
+          <div className="flex items-center justify-between w-full">
+            {isExpanded ? (
+              <div className="font-heading text-xl font-bold tracking-wider dark:glow-text">
+                Favale<span className="text-primary">&Pink</span>
+              </div>
+            ) : (
+              <div className="font-heading text-xl font-bold tracking-wider text-center mx-auto dark:glow-text">
+                <span className="text-primary">F&P</span>
+              </div>
+            )}
+            
+            {!isMobileDevice && (
+              <SidebarTrigger 
+                className={`${isExpanded ? 'flex' : 'hidden'} p-1.5 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-colors ml-2`}
+              >
+                {isExpanded ? <ChevronLeft className="h-4 w-4 text-white" /> : <ChevronRight className="h-4 w-4 text-white" />}
+              </SidebarTrigger>
+            )}
+          </div>
+        </SidebarHeader>
+        
+        <SidebarSeparator className="bg-secondary-light dark:bg-primary/20" />
+        
+        <div className="px-2 py-2 min-h-0 flex-1 flex flex-col overflow-y-auto overflow-x-hidden">
+          <SidebarMenu>
+            {navItems.map((item) => {
+              const isActive = location === item.path;
+              return (
+                <Link 
+                  key={item.path} 
+                  href={item.path} 
+                  onClick={() => isMobileDevice && setOpen(false)}
+                >
+                  <SidebarMenuItem 
+                    className={`${isActive ? 'bg-primary dark:glow' : 'hover:bg-secondary-light/50 dark:hover:bg-gray-800/50'} text-white gap-3 my-1 py-2.5 rounded-md transition-all duration-200`}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </SidebarMenuItem>
+                </Link>
+              );
+            })}
+          </SidebarMenu>
+        </div>
+        
+        {user && (
+          <SidebarFooter className="mt-auto p-0">
+            <SidebarSeparator className="bg-secondary-light dark:bg-primary/20" />
+            <div className="p-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className={`flex items-center w-full ${isExpanded ? 'justify-between' : 'justify-center'} text-white hover:bg-secondary-light/50 dark:hover:bg-gray-800/50 rounded-md p-2.5`}>
+                    <div className="flex items-center">
+                      <Avatar className="h-8 w-8 bg-primary-light">
+                        <AvatarFallback className="text-sm font-medium text-white">
+                          {user.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isExpanded && (
+                        <span className="ml-3 truncate">{user.username}</span>
+                      )}
+                    </div>
+                    {isExpanded && (
+                      <ChevronRight className="h-4 w-4 text-white" />
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <Link href="/config" onClick={() => setOpen(false)}>
+                    <DropdownMenuItem>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Perfil e Configurações</span>
+                    </DropdownMenuItem>
+                  </Link>
+                  {user.role === 'admin' && (
+                    <Link href="/config" onClick={() => setOpen(false)}>
+                      <DropdownMenuItem>
+                        <Shield className="mr-2 h-4 w-4" />
+                        <span>Segurança</span>
+                      </DropdownMenuItem>
+                    </Link>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => logoutMutation.mutate()}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </SidebarFooter>
+        )}
+      </ShadcnSidebar>
+    );
   };
   
   return (
     <>
-      {/* Mobile/Desktop sidebar */}
-      <aside 
-        className={`${expanded ? 'w-64' : 'w-20'} bg-secondary dark:bg-[#0F0A19] dark:glow-border text-white lg:block flex-shrink-0 fixed lg:relative inset-y-0 left-0 transform ${
-          open ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-all duration-300 ease-in-out z-30 border-r border-secondary-light dark:border-primary/40 h-full overflow-y-auto`}
-      >
-        <div className="p-3 sm:p-4 flex items-center justify-between border-b border-secondary-light dark:border-primary/20">
-          {expanded ? (
-            <div className="font-heading text-lg sm:text-xl font-bold tracking-wider dark:glow-text">
-              Favale<span className="text-primary">&Pink</span>
-            </div>
-          ) : (
-            <div className="font-heading text-lg sm:text-xl font-bold tracking-wider text-center mx-auto dark:glow-text">
-              <span className="text-primary">F&P</span>
-            </div>
-          )}
-          
-          {!isMobile && (
-            <button 
-              onClick={() => setExpanded(!expanded)}
-              className="p-1 rounded-full hover:bg-secondary-light dark:hover:bg-gray-800 transition-colors"
-              title={expanded ? "Recolher menu" : "Expandir menu"}
-            >
-              <span className="material-icons text-white text-sm">
-                {expanded ? "chevron_left" : "chevron_right"}
-              </span>
-            </button>
-          )}
-        </div>
-        
-        <nav className="py-2 sm:py-4">
-          <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.path}>
-                <Link 
-                  href={item.path}
-                  onClick={() => setOpen(false)}
-                  className={getNavClasses(item.path)}
-                >
-                  <span className="material-icons text-base sm:text-lg mr-2 sm:mr-3">{item.icon}</span>
-                  {expanded && <span className="text-sm sm:text-base">{item.label}</span>}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        
-        {/* User Profile Section */}
-        {user && (
-          <div className="mt-auto border-t border-secondary-light dark:border-primary/20 p-2 sm:p-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className={`flex items-center w-full ${expanded ? 'justify-between' : 'justify-center'} text-white hover:bg-secondary-light hover:bg-opacity-70 dark:hover:bg-opacity-30 rounded-md p-1.5 sm:p-2`}>
-                  <div className="flex items-center">
-                    <Avatar className="h-6 w-6 sm:h-8 sm:w-8 bg-primary-light">
-                      <AvatarFallback className="text-xs sm:text-sm font-medium text-white dark:text-white">
-                        {user.username.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    {expanded && (
-                      <span className="ml-2 sm:ml-3 truncate text-sm sm:text-base">{user.username}</span>
-                    )}
-                  </div>
-                  {expanded && (
-                    <span className="material-icons text-xs sm:text-sm">expand_more</span>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 sm:w-56">
-                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <Link href="/config" onClick={() => setOpen(false)}>
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="text-sm">Perfil e Configurações</span>
-                  </DropdownMenuItem>
-                </Link>
-                {user.role === 'admin' && (
-                  <Link href="/config" onClick={() => {
-                    setOpen(false);
-                  }}>
-                    <DropdownMenuItem>
-                      <Shield className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="text-sm">Segurança</span>
-                    </DropdownMenuItem>
-                  </Link>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => logoutMutation.mutate()}>
-                  <LogOut className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="text-sm">Sair</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      {/* Mobile sidebar using Shadcn Sheet component */}
+      {isMobileDevice ? (
+        <>
+          <div 
+            className={`fixed inset-0 bg-black/40 z-20 lg:hidden transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+          <div 
+            className={`fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
+          >
+            <SidebarProvider>
+              <SidebarContent />
+            </SidebarProvider>
           </div>
-        )}
-      </aside>
-      
-      {/* Background overlay for mobile sidebar */}
-      {open && isMobile && (
-        <div 
-          className="fixed inset-0 bg-black/40 z-20 lg:hidden" 
-          onClick={() => setOpen(false)}
-          aria-hidden="true"
-        />
+        </>
+      ) : (
+        // Desktop sidebar
+        <SidebarProvider>
+          <SidebarContent />
+        </SidebarProvider>
       )}
     </>
   );

@@ -1,5 +1,5 @@
 import { ReactNode, useState, useEffect } from "react";
-import Sidebar from "./Sidebar";
+import AppSidebar from "./Sidebar";
 import Header from "./Header";
 
 interface LayoutProps {
@@ -27,7 +27,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background transition-colors duration-200">
       {/* Sidebar */}
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+      <AppSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
       
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
