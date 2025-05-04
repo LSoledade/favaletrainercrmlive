@@ -1,8 +1,9 @@
-import { useState, useRef, ChangeEvent } from "react";
+import { useState, useRef, ChangeEvent, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Lead, InsertLead } from "@shared/schema";
 import { useLeadContext } from "@/context/LeadContext";
 import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
 import LeadTable from "./LeadTable";
 import LeadDialog from "./LeadDialog";
 import { 
@@ -145,9 +146,123 @@ export default function LeadManagement() {
   const [batchStatusValue, setBatchStatusValue] = useState("");
   const [batchSourceValue, setBatchSourceValue] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportFormat, setExportFormat] = useState<"csv" | "json" | "excel">("csv");
   const csvLinkRef = useRef<HTMLAnchorElement>(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [parsedLeads, setParsedLeads] = useState<InsertLead[]>([]);
 
+  // Parse CSV content and extract lead data
+  const parseCSV = (content: string) => {
+    const rows = content.split('\n');
+    
+    if (rows.length < 2) {
+      throw new Error("O arquivo não contém dados válidos.");
+    }
+    
+    // Extract headers and normalize them
+    const headers = rows[0]
+      .split(',')
+      .map(header => header.trim().toLowerCase());
+    
+    const requiredHeaders = ['nome', 'email'];
+    const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
+    
+    if (missingHeaders.length > 0) {
+      throw new Error(`O arquivo não contém os cabeçalhos obrigatórios: ${missingHeaders.join(', ')}.`);
+    }
+    
+    // Process each row
+    const leadsToImport: InsertLead[] = [];
+    const errorRows: number[] = [];
+    const parsedRows: any[] = [];
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
+      
+      const values = rows[i].split(',');
+      if (values.length !== headers.length) {
+        errorRows.push(i);
+        continue;
+      }
+      
+      // Create lead object from CSV row
+      try {
+        const leadData: Record<string, any> = {};
+        const rowData: Record<string, any> = {};
+        
+        headers.forEach((header, index) => {
+          const value = values[index]?.trim() || "";
+          rowData[header] = value;
+          
+          switch(header) {
+            case 'nome':
+              leadData.name = value;
+              break;
+            case 'email':
+              leadData.email = value;
+              break;
+            case 'telefone':
+              leadData.phone = value;
+              break;
+            case 'estado':
+              leadData.state = value;
+              break;
+            case 'campanha':
+              leadData.campaign = value;
+              break;
+            case 'origem':
+              leadData.source = value;
+              break;
+            case 'status':
+              leadData.status = value || "Lead";
+              break;
+            case 'tags':
+              leadData.tags = value ? value.split(';').map(tag => tag.trim()) : [];
+              break;
+            case 'data_entrada':
+              try {
+                leadData.entryDate = value ? new Date(value).toISOString() : new Date().toISOString();
+              } catch (e) {
+                leadData.entryDate = new Date().toISOString();
+              }
+              break;
+            case 'observacoes':
+              leadData.notes = value;
+              break;
+          }
+        });
+        
+        // Validate required fields
+        if (!leadData.name || !leadData.email) {
+          errorRows.push(i);
+          continue;
+        }
+        
+        // Set defaults for missing fields
+        if (!leadData.status) leadData.status = "Lead";
+        if (!leadData.source) leadData.source = "Favale";
+        if (!leadData.tags) leadData.tags = [];
+        if (!leadData.entryDate) leadData.entryDate = new Date().toISOString();
+        
+        leadsToImport.push(leadData as InsertLead);
+        parsedRows.push(rowData);
+      } catch (error) {
+        console.error(`Erro ao processar linha ${i}:`, error);
+        errorRows.push(i);
+      }
+    }
+    
+    if (leadsToImport.length === 0) {
+      throw new Error("Nenhum lead válido encontrado no arquivo.");
+    }
+    
+    return { leadsToImport, errorRows, parsedRows };
+  };
+  
   const handleNewLead = () => {
     setSelectedLead(null);
     setIsDialogOpen(true);
@@ -359,62 +474,213 @@ export default function LeadManagement() {
     e.target.value = ''; // Reset the input
   };
   
-  const handleExportLeads = () => {
+  const handleExportLeads = async () => {
     if (!filteredLeads || filteredLeads.length === 0) return;
     
     setExportLoading(true);
+    setExportProgress(10);
     
     try {
-      // Define CSV headers
+      // Define headers
       const headers = [
         'ID', 'Nome', 'Email', 'Telefone', 'Estado', 'Status', 
         'Fonte', 'Campanha', 'Tags', 'Data de Entrada', 'Observações'
       ];
       
-      // Map leads to CSV rows
-      const csvRows = filteredLeads.map(lead => {
-        const values = [
-          lead.id,
-          lead.name,
-          lead.email,
-          lead.phone,
-          lead.state,
-          lead.status,
-          lead.source,
-          lead.campaign,
-          lead.tags.join(', '),
-          new Date(lead.entryDate).toLocaleDateString('pt-BR'),
-          lead.notes
-        ];
+      setExportProgress(25);
+      
+      // Process data based on format
+      let blob: Blob;
+      let filename: string;
+      
+      if (exportFormat === 'json') {
+        // Create JSON export
+        const jsonData = filteredLeads.map(lead => ({
+          id: lead.id,
+          nome: lead.name,
+          email: lead.email,
+          telefone: lead.phone,
+          estado: lead.state,
+          status: lead.status,
+          fonte: lead.source,
+          campanha: lead.campaign,
+          tags: lead.tags.join(', '),
+          data_entrada: new Date(lead.entryDate).toLocaleDateString('pt-BR'),
+          observacoes: lead.notes
+        }));
         
-        // Escape values that might contain commas
-        return values.map(value => 
-          typeof value === 'string' && (value.includes(',') || value.includes('"'))
-            ? `"${value.replace(/"/g, '""')}"`
-            : value
-        ).join(',');
-      });
+        setExportProgress(50);
+        const jsonContent = JSON.stringify(jsonData, null, 2);
+        blob = new Blob([jsonContent], { type: 'application/json' });
+        filename = `leads_${new Date().toISOString().slice(0, 10)}.json`;
+      } 
+      else if (exportFormat === 'excel') {
+        // Create Excel-compatible CSV (UTF-8 with BOM)
+        setExportProgress(40);
+        
+        // Map leads to CSV rows
+        const csvRows = filteredLeads.map(lead => {
+          const values = [
+            lead.id,
+            lead.name,
+            lead.email,
+            lead.phone,
+            lead.state,
+            lead.status,
+            lead.source,
+            lead.campaign,
+            lead.tags.join('; '), // Use semicolon for tags in Excel format
+            new Date(lead.entryDate).toLocaleDateString('pt-BR'),
+            lead.notes
+          ];
+          
+          // Escape values that might contain separators
+          return values.map(value => 
+            typeof value === 'string' && (value.includes(';') || value.includes('"'))
+              ? `"${value.replace(/"/g, '""')}"`
+              : value
+          ).join(';'); // Use semicolon as separator for Excel
+        });
+        
+        setExportProgress(60);
+        // Add BOM for Excel UTF-8 compatibility
+        const BOM = '\uFEFF';
+        const csvContent = BOM + [headers.join(';'), ...csvRows].join('\n');
+        blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        filename = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
+      } 
+      else {
+        // Default CSV format
+        setExportProgress(40);
+        
+        // Map leads to CSV rows
+        const csvRows = filteredLeads.map(lead => {
+          const values = [
+            lead.id,
+            lead.name,
+            lead.email,
+            lead.phone,
+            lead.state,
+            lead.status,
+            lead.source,
+            lead.campaign,
+            lead.tags.join(', '),
+            new Date(lead.entryDate).toLocaleDateString('pt-BR'),
+            lead.notes
+          ];
+          
+          // Escape values that might contain commas
+          return values.map(value => 
+            typeof value === 'string' && (value.includes(',') || value.includes('"'))
+              ? `"${value.replace(/"/g, '""')}"`
+              : value
+          ).join(',');
+        });
+        
+        setExportProgress(60);
+        const csvContent = [headers.join(','), ...csvRows].join('\n');
+        blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        filename = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
+      }
       
-      // Combine headers and rows
-      const csvContent = [headers.join(','), ...csvRows].join('\n');
+      setExportProgress(80);
       
-      // Create a Blob and generate a download link
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      // Create download link
       const url = URL.createObjectURL(blob);
       
       if (csvLinkRef.current) {
         csvLinkRef.current.href = url;
-        csvLinkRef.current.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
+        csvLinkRef.current.download = filename;
         csvLinkRef.current.click();
       }
       
+      setExportProgress(100);
+      
+      // Show toast notification
+      toast({
+        title: "Exportação concluída",
+        description: `${filteredLeads.length} leads exportados com sucesso no formato ${exportFormat.toUpperCase()}.`,
+        variant: "default",
+      });
+      
     } catch (error) {
       console.error('Erro ao exportar leads:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Ocorreu um erro ao exportar os leads.",
+        variant: "destructive",
+      });
     } finally {
       setExportLoading(false);
+      // Reset progress after a short delay to allow for animation
+      setTimeout(() => setExportProgress(0), 1000);
     }
   };
 
+  const confirmImport = async () => {
+    if (parsedLeads.length === 0) return;
+    
+    try {
+      setImportProgress(60);
+      
+      // Create each lead with progress updates
+      let successCount = 0;
+      let errorCount = 0;
+      const totalLeads = parsedLeads.length;
+      
+      for (let i = 0; i < parsedLeads.length; i++) {
+        try {
+          await createLead(parsedLeads[i]);
+          successCount++;
+          // Update progress from 60% to 95%
+          setImportProgress(60 + Math.floor((i + 1) / totalLeads * 35));
+        } catch (error) {
+          console.error('Erro ao criar lead:', error);
+          errorCount++;
+        }
+      }
+      
+      // Show results
+      setImportProgress(100);
+      setImportDialogOpen(false);
+      setShowPreview(false);
+      setPreviewData([]);
+      setParsedLeads([]);
+      
+      toast({
+        title: "Importação concluída",
+        description: `${successCount} leads importados com sucesso.${errorCount > 0 ? ` ${errorCount} leads com erro.` : ''}`,
+        variant: successCount > 0 ? "default" : "destructive",
+      });
+      
+    } catch (error) {
+      console.error('Erro ao processar importação:', error);
+      toast({
+        title: "Erro na importação",
+        description: "Ocorreu um erro ao importar os leads.",
+        variant: "destructive",
+      });
+    } finally {
+      setImportLoading(false);
+      setImportProgress(0);
+    }
+  };
+  
+  // Reset progress and data when dialog closes
+  useEffect(() => {
+    if (!importDialogOpen) {
+      setImportProgress(0);
+      setImportLoading(false);
+      
+      // Only reset preview data if not in the middle of import
+      if (!importLoading) {
+        setShowPreview(false);
+        setPreviewData([]);
+        setParsedLeads([]);
+      }
+    }
+  }, [importDialogOpen, importLoading]);
+  
   // Filtered leads processing
   const filteredLeads = leads?.filter(lead => {
     // Search term filter
@@ -519,14 +785,31 @@ export default function LeadManagement() {
               </span>
             )}
           </button>
-          <button 
-            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
-            onClick={handleExportLeads}
-            disabled={exportLoading || !filteredLeads || filteredLeads.length === 0}
-          >
-            <span className="material-icons text-sm mr-1 text-primary-400 dark:text-pink-400">{exportLoading ? 'hourglass_empty' : 'file_download'}</span>
-            {exportLoading ? 'Exportando...' : 'Exportar'}
-          </button>
+          <div className="flex items-center space-x-2">
+            <Select
+              value={exportFormat}
+              onValueChange={(value) => setExportFormat(value as "csv" | "json" | "excel")}
+            >
+              <SelectTrigger className="w-32 h-9 text-xs border-gray-300 dark:border-gray-700">
+                <SelectValue placeholder="Formato" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="csv">CSV</SelectItem>
+                <SelectItem value="excel">Excel CSV</SelectItem>
+                <SelectItem value="json">JSON</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <button 
+              className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
+              onClick={handleExportLeads}
+              disabled={exportLoading || !filteredLeads || filteredLeads.length === 0}
+            >
+              <span className="material-icons text-sm mr-1 text-primary-400 dark:text-pink-400">{exportLoading ? 'hourglass_empty' : 'file_download'}</span>
+              {exportLoading ? 'Exportando...' : 'Exportar'}
+            </button>
+          </div>
+          
           <button 
             className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
             onClick={() => setImportDialogOpen(true)}
@@ -535,6 +818,20 @@ export default function LeadManagement() {
             Importar
           </button>
           <a ref={csvLinkRef} style={{ display: 'none' }} />
+          
+          {exportProgress > 0 && (
+            <div className="fixed bottom-5 right-5 bg-white dark:bg-gray-800 shadow-lg rounded-lg p-4 w-80 z-50 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Exportando leads</span>
+                <span className="text-sm">{exportProgress}%</span>
+              </div>
+              <Progress value={exportProgress} className="h-2" />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                {exportProgress < 50 ? 'Preparando dados...' : 
+                 exportProgress < 100 ? 'Gerando arquivo...' : 'Download concluído!'}
+              </p>
+            </div>
+          )}
           <button 
             className="bg-primary text-white rounded-md px-4 py-2 text-sm flex items-center hover:bg-primary/90 dark:glow-button-sm transition-all duration-200"
             onClick={handleNewLead}
