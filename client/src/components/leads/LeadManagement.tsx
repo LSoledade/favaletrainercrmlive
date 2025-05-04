@@ -148,6 +148,7 @@ export default function LeadManagement() {
   const [exportLoading, setExportLoading] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportFormat, setExportFormat] = useState<"csv" | "json" | "excel">("csv");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const csvLinkRef = useRef<HTMLAnchorElement>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -603,6 +604,11 @@ export default function LeadManagement() {
         variant: "default",
       });
       
+      // Close dialog after successful export
+      setTimeout(() => {
+        setExportDialogOpen(false);
+      }, 1500);
+      
     } catch (error) {
       console.error('Erro ao exportar leads:', error);
       toast({
@@ -785,30 +791,14 @@ export default function LeadManagement() {
               </span>
             )}
           </button>
-          <div className="flex items-center space-x-2">
-            <Select
-              value={exportFormat}
-              onValueChange={(value) => setExportFormat(value as "csv" | "json" | "excel")}
-            >
-              <SelectTrigger className="w-32 h-9 text-xs border-gray-300 dark:border-gray-700">
-                <SelectValue placeholder="Formato" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="csv">CSV</SelectItem>
-                <SelectItem value="excel">Excel CSV</SelectItem>
-                <SelectItem value="json">JSON</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <button 
-              className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
-              onClick={handleExportLeads}
-              disabled={exportLoading || !filteredLeads || filteredLeads.length === 0}
-            >
-              <span className="material-icons text-sm mr-1 text-primary-400 dark:text-pink-400">{exportLoading ? 'hourglass_empty' : 'file_download'}</span>
-              {exportLoading ? 'Exportando...' : 'Exportar'}
-            </button>
-          </div>
+          <button 
+            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
+            onClick={() => setExportDialogOpen(true)}
+            disabled={!filteredLeads || filteredLeads.length === 0}
+          >
+            <span className="material-icons text-sm mr-1 text-primary-400 dark:text-pink-400">file_download</span>
+            Exportar
+          </button>
           
           <button 
             className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"
@@ -819,19 +809,7 @@ export default function LeadManagement() {
           </button>
           <a ref={csvLinkRef} style={{ display: 'none' }} />
           
-          {exportProgress > 0 && (
-            <div className="fixed bottom-5 right-5 bg-white dark:bg-gray-800 shadow-lg rounded-lg p-4 w-80 z-50 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Exportando leads</span>
-                <span className="text-sm">{exportProgress}%</span>
-              </div>
-              <Progress value={exportProgress} className="h-2" />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {exportProgress < 50 ? 'Preparando dados...' : 
-                 exportProgress < 100 ? 'Gerando arquivo...' : 'Download concluído!'}
-              </p>
-            </div>
-          )}
+
           <button 
             className="bg-primary text-white rounded-md px-4 py-2 text-sm flex items-center hover:bg-primary/90 dark:glow-button-sm transition-all duration-200"
             onClick={handleNewLead}
@@ -1066,62 +1044,203 @@ export default function LeadManagement() {
       {/* Lead Dialog */}
       <LeadDialog />
       
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar Leads</DialogTitle>
+            <DialogDescription>
+              Selecione o formato para exportar {filteredLeads?.length || 0} leads.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="my-6 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Formato de exportação</label>
+              <Select
+                value={exportFormat}
+                onValueChange={(value) => setExportFormat(value as "csv" | "json" | "excel")}
+              >
+                <SelectTrigger className="w-full h-10">
+                  <SelectValue placeholder="Formato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">CSV</SelectItem>
+                  <SelectItem value="excel">Excel CSV (compatível)</SelectItem>
+                  <SelectItem value="json">JSON</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {exportFormat === "csv" && "Formato padrão CSV, fácil de importar em qualquer sistema."}
+                {exportFormat === "excel" && "Formato otimizado para importação no Excel, com suporte a caracteres especiais."}
+                {exportFormat === "json" && "Formato estruturado para uso em sistemas e aplicações."}
+              </p>
+            </div>
+            
+            {exportLoading && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {exportProgress < 50 ? 'Preparando dados...' : 
+                    exportProgress < 100 ? 'Gerando arquivo...' : 'Download concluído!'}
+                  </span>
+                  <span className="text-sm font-medium">{exportProgress}%</span>
+                </div>
+                <Progress value={exportProgress} className="h-2" />
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <button
+              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800"
+              onClick={() => setExportDialogOpen(false)}
+              disabled={exportLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              className="px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+              onClick={handleExportLeads}
+              disabled={exportLoading || !filteredLeads || filteredLeads.length === 0}
+            >
+              {exportLoading ? 'Exportando...' : 'Exportar agora'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Import Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Importar Leads</DialogTitle>
             <DialogDescription>
               Importe leads a partir de um arquivo CSV. O arquivo deve seguir o seguinte formato:
             </DialogDescription>
           </DialogHeader>
-          <div className="my-4">
-            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border dark:border-gray-700 mb-4 overflow-x-auto">
-              <code className="text-xs">
-                <span className="text-blue-600 dark:text-blue-400">nome</span>,
-                <span className="text-blue-600 dark:text-blue-400">email</span>,
-                <span className="text-blue-600 dark:text-blue-400">telefone</span>,
-                <span className="text-blue-600 dark:text-blue-400">estado</span>,
-                <span className="text-blue-600 dark:text-blue-400">campanha</span>,
-                <span className="text-blue-600 dark:text-blue-400">origem</span>,
-                <span className="text-blue-600 dark:text-blue-400">status</span>,
-                <span className="text-blue-600 dark:text-blue-400">tags</span>,
-                <span className="text-blue-600 dark:text-blue-400">data_entrada</span>,
-                <span className="text-blue-600 dark:text-blue-400">observacoes</span>
-              </code>
+          
+          {importLoading && (
+            <div className="my-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {importProgress < 60 ? 'Processando arquivo...' : 
+                   importProgress < 100 ? 'Importando leads...' : 'Concluído!'}
+                </span>
+                <span className="text-sm font-medium">{importProgress}%</span>
+              </div>
+              <Progress value={importProgress} className="h-2" />
             </div>
-            
-            <ul className="space-y-2 text-sm">
-              <li><span className="font-medium">nome</span>: Nome completo do lead (obrigatório)</li>
-              <li><span className="font-medium">email</span>: Email do lead (obrigatório)</li>
-              <li><span className="font-medium">telefone</span>: Número de telefone</li>
-              <li><span className="font-medium">estado</span>: Sigla do estado (ex: SP, RJ)</li>
-              <li><span className="font-medium">campanha</span>: Canal de origem (Instagram, Facebook, Email, Site, Indicação)</li>
-              <li><span className="font-medium">origem</span>: Deve ser "Favale" ou "Pink"</li>
-              <li><span className="font-medium">status</span>: Deve ser "Lead" ou "Aluno"</li>
-              <li><span className="font-medium">tags</span>: Lista de tags separadas por ponto-e-vírgula (ex: "tag1;tag2;tag3")</li>
-              <li><span className="font-medium">data_entrada</span>: Data no formato YYYY-MM-DD (ex: 2023-01-31)</li>
-              <li><span className="font-medium">observacoes</span>: Notas adicionais</li>
-            </ul>
-            
-            <div className="mt-6">
-              <input 
-                type="file" 
-                accept=".csv" 
-                ref={fileInputRef} 
-                className="hidden" 
-                onChange={handleFileUpload}
-              />
-              <button 
-                className="w-full py-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors duration-200"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <span className="material-icons text-3xl text-gray-400 mb-2">upload_file</span>
-                <span className="text-gray-600 dark:text-gray-300">Clique para selecionar um arquivo CSV</span>
-                <span className="text-gray-400 text-sm mt-1">ou arraste e solte aqui</span>
-              </button>
+          )}
+          
+          {!showPreview ? (
+            <div className="my-4">
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border dark:border-gray-700 mb-4 overflow-x-auto">
+                <code className="text-xs">
+                  <span className="text-blue-600 dark:text-blue-400">nome</span>,
+                  <span className="text-blue-600 dark:text-blue-400">email</span>,
+                  <span className="text-blue-600 dark:text-blue-400">telefone</span>,
+                  <span className="text-blue-600 dark:text-blue-400">estado</span>,
+                  <span className="text-blue-600 dark:text-blue-400">campanha</span>,
+                  <span className="text-blue-600 dark:text-blue-400">origem</span>,
+                  <span className="text-blue-600 dark:text-blue-400">status</span>,
+                  <span className="text-blue-600 dark:text-blue-400">tags</span>,
+                  <span className="text-blue-600 dark:text-blue-400">data_entrada</span>,
+                  <span className="text-blue-600 dark:text-blue-400">observacoes</span>
+                </code>
+              </div>
+              
+              <ul className="space-y-2 text-sm mb-4">
+                <li><span className="font-medium">nome</span>: Nome completo do lead (obrigatório)</li>
+                <li><span className="font-medium">email</span>: Email do lead (obrigatório)</li>
+                <li><span className="font-medium">telefone</span>: Número de telefone</li>
+                <li><span className="font-medium">estado</span>: Sigla do estado (ex: SP, RJ)</li>
+                <li><span className="font-medium">campanha</span>: Canal de origem (Instagram, Facebook, Email, Site, Indicação)</li>
+                <li><span className="font-medium">origem</span>: Deve ser "Favale" ou "Pink"</li>
+                <li><span className="font-medium">status</span>: Deve ser "Lead" ou "Aluno"</li>
+                <li><span className="font-medium">tags</span>: Lista de tags separadas por ponto-e-vírgula (ex: "tag1;tag2;tag3")</li>
+                <li><span className="font-medium">data_entrada</span>: Data no formato DD/MM/YYYY (ex: 31/01/2023)</li>
+                <li><span className="font-medium">observacoes</span>: Notas adicionais</li>
+              </ul>
+              
+              <div className="mb-4">
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                />
+                <button 
+                  className="w-full py-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors duration-200"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importLoading}
+                >
+                  <span className="material-icons text-3xl text-gray-400 mb-2">upload_file</span>
+                  <span className="text-gray-600 dark:text-gray-300">Clique para selecionar um arquivo CSV</span>
+                  <span className="text-gray-400 text-sm mt-1">ou arraste e solte aqui</span>
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="my-4">
+              <h3 className="text-lg font-medium mb-2">Pré-visualização ({previewData.length} leads)</h3>
+              
+              <div className="border dark:border-gray-700 rounded-lg overflow-hidden mb-4">
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        {previewData.length > 0 && Object.keys(previewData[0]).map((header, index) => (
+                          <th key={index} className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                      {previewData.slice(0, 5).map((row, rowIndex) => (
+                        <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}>
+                          {Object.values(row).map((cell: any, cellIndex) => (
+                            <td key={cellIndex} className="px-3 py-2 text-xs text-gray-800 dark:text-gray-200">
+                              {typeof cell === 'string' && cell.length > 30 ? `${cell.substring(0, 30)}...` : cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {previewData.length > 5 && (
+                  <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400">
+                    Mostrando 5 de {previewData.length} leads
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <button
+                  className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800"
+                  onClick={() => {
+                    setShowPreview(false);
+                    setPreviewData([]);
+                    setParsedLeads([]);
+                  }}
+                  disabled={importLoading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-md disabled:opacity-50"
+                  onClick={confirmImport}
+                  disabled={importLoading || parsedLeads.length === 0}
+                >
+                  {importLoading ? 'Importando...' : `Importar ${parsedLeads.length} leads`}
+                </button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
