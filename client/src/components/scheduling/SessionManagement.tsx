@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SessionTable } from './SessionTable';
 import { SessionForm } from './SessionForm';
-import { SessionCalendar } from './SessionCalendar';
 import { SessionReport } from './SessionReport';
-import { Plus } from 'lucide-react';
+import { Plus, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'wouter';
 
 type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show';
 
@@ -113,46 +113,35 @@ export function SessionManagement() {
       </div>
       
       <TabsContent value="sessions" className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
-          {/* Calendário - ocupa 3 colunas em telas grandes */}
-          <div className="lg:col-span-3">
-            <Card>
-              <CardHeader>
-                <CardTitle>Calendário de Sessões</CardTitle>
-                <CardDescription>
-                  Visualize as sessões agendadas no calendário. Clique em uma data para ver detalhes.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SessionCalendar />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Lista de sessões - ocupa 4 colunas em telas grandes */}
-          <div className="lg:col-span-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sessões Agendadas</CardTitle>
-                <CardDescription>
-                  Todas as sessões agendadas, concluídas e canceladas.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center items-center h-32">
-                    <p>Carregando sessões...</p>
-                  </div>
-                ) : (
-                  <SessionTable 
-                    sessions={sessions} 
-                    onRefresh={refreshSessions} 
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </div>
+        <div className="flex justify-end mb-2">
+          <Link href="/calendario">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Ver Calendário Completo
+            </Button>
+          </Link>
         </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Sessões Agendadas</CardTitle>
+            <CardDescription>
+              Todas as sessões agendadas, concluídas e canceladas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <p>Carregando sessões...</p>
+              </div>
+            ) : (
+              <SessionTable 
+                sessions={sessions} 
+                onRefresh={refreshSessions} 
+              />
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
       
       <TabsContent value="reports" className="space-y-4">
