@@ -391,8 +391,40 @@ export default function LeadManagement() {
                   break;
                 case 'data_entrada':
                   try {
-                    leadData.entryDate = value ? new Date(value).toISOString() : new Date().toISOString();
+                    // Tenta converter a data de entrada para formato ISO
+                    if (value) {
+                      // Tenta lidar com formatos de data comuns (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD)
+                      const dateParts = value.split(/[\/\-]/);
+                      
+                      // Se tem 3 partes, tente determinar o formato correto
+                      if (dateParts.length === 3) {
+                        // Se o primeiro tem 4 dígitos, assume YYYY-MM-DD
+                        if (dateParts[0].length === 4) {
+                          leadData.entryDate = new Date(value).toISOString();
+                        }
+                        // Se o primeiro tem 2 dígitos, assume DD/MM/YYYY (comum no Brasil)
+                        else if (dateParts[0].length === 2 && dateParts[1].length === 2) {
+                          const isoDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+                          leadData.entryDate = new Date(isoDate).toISOString();
+                        } else {
+                          // Tenta o formato padrão
+                          leadData.entryDate = new Date(value).toISOString();
+                        }
+                      } else {
+                        // Se não tem 3 partes, tenta o formato padrão
+                        leadData.entryDate = new Date(value).toISOString();
+                      }
+                      
+                      // Verifica se a data é válida
+                      if (isNaN(new Date(leadData.entryDate).getTime())) {
+                        throw new Error('Data inválida');
+                      }
+                    } else {
+                      // Se não tem valor, usa a data atual
+                      leadData.entryDate = new Date().toISOString();
+                    }
                   } catch (e) {
+                    console.error('Erro ao processar data:', e);
                     leadData.entryDate = new Date().toISOString();
                   }
                   break;
