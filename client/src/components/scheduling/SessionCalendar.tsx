@@ -122,7 +122,6 @@ export function SessionCalendar() {
                 selected={date}
                 onSelect={setDate}
                 className="rounded-md border"
-                className="rounded-md border"
               />
             </CardContent>
           </Card>

@@ -17,6 +17,9 @@ export function SessionManagement() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const { toast } = useToast();
 
+  // Define o tipo da sessão
+  type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+  
   // Mock data - a ser substituído por chamadas de API reais
   const sessions = [
     {
@@ -26,7 +29,7 @@ export function SessionManagement() {
       location: 'Academia Central',
       source: 'Favale' as const,
       notes: 'Foco em treinamento de força',
-      status: 'scheduled' as const,
+      status: 'scheduled' as SessionStatus,
       studentId: '101',
       studentName: 'Carlos Oliveira',
       trainerId: '201',
@@ -40,7 +43,7 @@ export function SessionManagement() {
       location: 'Estúdio Zona Norte',
       source: 'Pink' as const,
       notes: 'Treino de cardio e flexibilidade',
-      status: 'scheduled' as const,
+      status: 'scheduled' as SessionStatus,
       studentId: '102',
       studentName: 'Maria Santos',
       trainerId: '202', 
@@ -52,7 +55,7 @@ export function SessionManagement() {
       endTime: new Date(2025, 4, 1, 11, 0),
       location: 'Academia Sul',
       source: 'Favale' as const,
-      status: 'completed' as const,
+      status: 'completed' as SessionStatus,
       studentId: '103',
       studentName: 'João Pereira',
       trainerId: '201',
@@ -65,7 +68,7 @@ export function SessionManagement() {
       endTime: new Date(2025, 4, 1, 15, 0),
       location: 'Espaço Fitness Leste',
       source: 'Pink' as const,
-      status: 'cancelled' as const,
+      status: 'cancelled' as SessionStatus,
       studentId: '104',
       studentName: 'Paula Ferreira',
       trainerId: '203',
@@ -174,7 +177,7 @@ export function SessionManagement() {
             
             <TabsContent value="cancelled">
               <SessionTable 
-                sessions={filteredSessions.filter(s => s.status === 'cancelled' || s.status === 'no-show')}
+                sessions={filteredSessions.filter(s => s.status === 'cancelled')}
                 onViewSession={handleViewSession}
                 onEditSession={handleEditSession}
               />
