@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Lead, WhatsappMessage } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Paperclip, Send, Image, Mic, AlertCircle } from 'lucide-react';
+import { Paperclip, Send, Image, Mic, AlertCircle, MoreVertical, ChevronLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface WhatsappChatProps {
   lead: Lead;
@@ -84,38 +87,79 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+    <div className="flex flex-col h-full bg-background rounded-lg overflow-hidden border">
       {/* Cabeçalho do chat */}
-      <div className="p-4 bg-primary text-white flex items-center justify-between">
+      <div className="p-4 border-b flex items-center justify-between">
         <div className="flex items-center">
-          <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center mr-3">
-            <span className="text-white font-bold">{lead.name.charAt(0)}</span>
-          </div>
+          {onClose && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 mr-2 md:hidden"
+              onClick={onClose}
+            >
+              <ChevronLeft size={16} />
+            </Button>
+          )}
+          <Avatar className="h-10 w-10 mr-3">
+            <AvatarFallback className="bg-primary-light text-white font-semibold">
+              {lead.name.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
           <div>
-            <h3 className="font-medium">{lead.name}</h3>
-            <p className="text-xs opacity-80">{lead.phone}</p>
+            <h3 className="font-medium text-sm">{lead.name}</h3>
+            <p className="text-xs text-muted-foreground">{lead.phone || 'Sem telefone'}</p>
           </div>
         </div>
-        {onClose && (
-          <button 
-            onClick={onClose}
-            className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        )}
+        <div className="flex items-center space-x-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical size={16} className="text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Mais opções</p>
+              </TooltipContent>
+            </Tooltip>
+            {onClose && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 hidden md:flex"
+                    onClick={onClose}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Fechar</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Área de mensagens */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.05\' fill-rule=\'evenodd\'%3E%3Cpath d=\'M0 20L20 0h20L0 40z\'/%3E%3Cpath d=\'M20 40L40 20 40 40z\'/%3E%3C/g%3E%3C/svg%3E")' }}>
+      <div 
+        className="flex-1 overflow-y-auto p-4 space-y-3" 
+        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.05\' fill-rule=\'evenodd\'%3E%3Cpath d=\'M0 20L20 0h20L0 40z\'/%3E%3Cpath d=\'M20 40L40 20 40 40z\'/%3E%3C/g%3E%3C/svg%3E")' }}
+      >
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500 text-center">
-              Nenhuma mensagem ainda.<br />
-              Envie uma mensagem para iniciar a conversa.
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="bg-muted rounded-full p-4 mb-3">
+              <AlertCircle className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="font-medium mb-1">Nenhuma mensagem ainda</h3>
+            <p className="text-sm text-muted-foreground">
+              Envie uma mensagem para iniciar a conversa com {lead.name}.
             </p>
           </div>
         ) : (
@@ -125,9 +169,9 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
               className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
             >
               <div 
-                className={`max-w-xs md:max-w-md rounded-lg p-3 ${msg.direction === 'outgoing' ? 'bg-primary/90 text-white rounded-br-none' : 'bg-white dark:bg-gray-700 rounded-bl-none'}`}
+                className={`max-w-xs md:max-w-md rounded-lg p-3 ${msg.direction === 'outgoing' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'}`}
               >
-                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                <p className="whitespace-pre-wrap break-words text-sm">{msg.content}</p>
                 <div className="text-xs opacity-80 text-right mt-1 flex justify-end items-center">
                   {formatTime(msg.timestamp)}
                   {msg.direction === 'outgoing' && (
@@ -150,47 +194,89 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
       </div>
 
       {/* Input para nova mensagem */}
-      <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-gray-900 border-t dark:border-gray-700 flex items-end">
-        <button 
-          type="button"
-          className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 mr-1 transition-colors"
-          onClick={() => setAttaching(!attaching)}
-        >
-          <Paperclip size={20} />
-        </button>
+      <form onSubmit={handleSendMessage} className="p-3 border-t flex items-end">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 mr-1"
+                onClick={() => setAttaching(!attaching)}
+              >
+                <Paperclip size={18} className="text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Anexar arquivo</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         
         {attaching && (
           <div className="flex space-x-1">
-            <button type="button" className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-              <Image size={20} />
-            </button>
-            <button type="button" className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-              <Mic size={20} />
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9">
+                    <Image size={18} className="text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Enviar imagem</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9">
+                    <Mic size={18} className="text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Enviar áudio</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
         
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Digite uma mensagem"
-          className="flex-1 p-2 border dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100 mr-2 max-h-32 min-h-[40px] resize-none"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              if (message.trim()) {
-                handleSendMessage(e);
+        <div className="flex-1 mr-2">
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Digite uma mensagem"
+            className="w-full p-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary resize-none min-h-[40px] max-h-32 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (message.trim()) {
+                  handleSendMessage(e);
+                }
               }
-            }
-          }}
-        />
-        <button 
-          type="submit" 
-          className="p-2 bg-primary text-white rounded-full hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          disabled={!message.trim() || sendMessageMutation.isPending}
-        >
-          <Send size={20} />
-        </button>
+            }}
+          />
+        </div>
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                type="submit" 
+                className="h-9 w-9 p-0 rounded-full"
+                disabled={!message.trim() || sendMessageMutation.isPending}
+              >
+                <Send size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Enviar mensagem</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </form>
     </div>
   );
