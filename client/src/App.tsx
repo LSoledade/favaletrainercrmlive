@@ -9,6 +9,7 @@ import AuthPage from "@/pages/AuthPage";
 import ConfigPage from "@/pages/ConfigPage";
 import SessionsPage from "@/pages/SessionsPage";
 import CalendarPage from "@/pages/CalendarPage";
+import WhatsappPage from "@/pages/WhatsappPage";
 import ReportPage from "@/pages/ReportPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/context/ThemeContext";
