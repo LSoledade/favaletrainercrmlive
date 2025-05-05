@@ -5,6 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 interface WhatsappConnectionStatus {
   status: 'connected' | 'disconnected' | 'checking' | 'error';
   message?: string;
+  details?: {
+    name?: string;
+    phone?: string;
+    quality?: string;
+    [key: string]: any;
+  };
 }
 
 interface WhatsappContextProps {
@@ -23,7 +29,16 @@ export function WhatsappProvider({ children }: { children: ReactNode }) {
   const [selectedLeadForWhatsapp, setSelectedLeadForWhatsapp] = useState<Lead | null>(null);
 
   // Consulta do status da conexão WhatsApp
-  const { data: statusData, refetch: refetchStatus, isLoading: isStatusLoading } = useQuery<{ status: 'connected' | 'disconnected'; message: string }>({
+  const { data: statusData, refetch: refetchStatus, isLoading: isStatusLoading } = useQuery<{
+    status: 'connected' | 'disconnected' | 'error';
+    message: string;
+    details?: {
+      name?: string;
+      phone?: string;
+      quality?: string;
+      [key: string]: any;
+    };
+  }>({
     queryKey: ['/api/whatsapp/status'],
     retry: 1,
     refetchOnWindowFocus: false,
@@ -34,7 +49,11 @@ export function WhatsappProvider({ children }: { children: ReactNode }) {
   const connectionStatus: WhatsappConnectionStatus = isStatusLoading
     ? { status: 'checking' }
     : statusData
-      ? { status: statusData.status, message: statusData.message }
+      ? { 
+          status: statusData.status, 
+          message: statusData.message,
+          details: statusData.details
+        }
       : { status: 'error', message: 'Não foi possível verificar a conexão' };
 
   // Atualizar manualmente o status da conexão

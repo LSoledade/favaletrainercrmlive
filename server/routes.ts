@@ -8,6 +8,7 @@ import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { logAuditEvent, AuditEventType, getRecentAuditLogs } from "./audit-log";
 import { sendWhatsAppMessage, sendWhatsAppTemplate, checkWhatsAppConnection } from "./whatsapp-service";
+import { log } from "./vite";
 
 const scryptAsync = promisify(scrypt);
 
@@ -877,12 +878,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const connectionStatus = await checkWhatsAppConnection();
       
       if (connectionStatus.success) {
-        res.json({ status: 'connected', message: 'Conexão com a API do WhatsApp está funcionando corretamente' });
+        res.json({ 
+          status: 'connected', 
+          message: 'Conexão com a API do WhatsApp está funcionando corretamente',
+          details: connectionStatus.details || {}
+        });
       } else {
-        res.status(503).json({ status: 'disconnected', message: connectionStatus.error || 'Falha na conexão com a API do WhatsApp' });
+        console.warn(`Falha na verificação da conexão WhatsApp: ${connectionStatus.error}`);
+        res.status(503).json({ 
+          status: 'disconnected', 
+          message: connectionStatus.error || 'Falha na conexão com a API do WhatsApp',
+          details: connectionStatus.details || {}
+        });
       }
     } catch (error) {
-      console.error('Erro ao verificar status da API:', error);
+      console.error(`Erro ao verificar status da API: ${JSON.stringify(error)}`);
       res.status(500).json({ status: 'error', message: 'Erro ao verificar conexão com a API do WhatsApp' });
     }
   });

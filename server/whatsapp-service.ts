@@ -38,18 +38,20 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
   success: boolean;
   messageId?: string;
   error?: string;
+  details?: any;
 }> {
   if (!WHATSAPP_API_TOKEN) {
     log('WhatsApp API token não configurado', 'error');
     return { success: false, error: 'WhatsApp API token não configurado' };
   }
 
-  if (!lead.phone) {
-    return { success: false, error: 'Lead não possui número de telefone' };
+  // Formatar o número de telefone
+  const phoneNumber = formatPhoneNumber(lead.phone);
+  if (!phoneNumber) {
+    return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
   }
-
-  // Formatar o número de telefone (remover caracteres não numéricos)
-  const phoneNumber = lead.phone.replace(/\D/g, '');
+  
+  log(`Enviando mensagem WhatsApp para ${lead.name} (${phoneNumber})`, 'info');
   
   try {
     const response = await axios.post<WhatsAppAPIResponse>(
@@ -65,25 +67,41 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`
-        }
+        },
+        timeout: 10000 // 10 segundos de timeout
       }
     );
 
     if (response.data.messages && response.data.messages.length > 0) {
       const messageId = response.data.messages[0].id;
-      return { success: true, messageId };
+      log(`Mensagem enviada com sucesso. ID: ${messageId}`, 'info');
+      return { success: true, messageId, details: response.data };
     }
     
-    return { success: true };
+    log(`Mensagem enviada, mas sem ID retornado`, 'warn');
+    return { success: true, details: response.data };
   } catch (error) {
     log(`Erro ao enviar mensagem WhatsApp: ${JSON.stringify(error)}`, 'error');
     let errorMessage = 'Erro desconhecido ao enviar mensagem';
+    let details = null;
     
-    if (axios.isAxiosError(error) && error.response?.data?.error) {
-      errorMessage = error.response.data.error.message || errorMessage;
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        // A requisição foi feita e o servidor respondeu com um status de erro
+        errorMessage = error.response.data?.error?.message || 
+                       error.response.data?.message || 
+                       `Erro ${error.response.status}: ${error.message}`;
+        details = error.response.data;
+      } else if (error.request) {
+        // A requisição foi feita mas não recebeu resposta
+        errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
+      } else {
+        // Algo aconteceu na configuração da requisição que causou o erro
+        errorMessage = `Erro na configuração da requisição: ${error.message}`;
+      }
     }
     
-    return { success: false, error: errorMessage };
+    return { success: false, error: errorMessage, details };
   }
 }
 
@@ -95,17 +113,20 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
   success: boolean;
   messageId?: string;
   error?: string;
+  details?: any;
 }> {
   if (!WHATSAPP_API_TOKEN) {
+    log('WhatsApp API token não configurado', 'error');
     return { success: false, error: 'WhatsApp API token não configurado' };
   }
 
-  if (!lead.phone) {
-    return { success: false, error: 'Lead não possui número de telefone' };
+  // Formatar o número de telefone
+  const phoneNumber = formatPhoneNumber(lead.phone);
+  if (!phoneNumber) {
+    return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
   }
-
-  // Formatar o número de telefone (remover caracteres não numéricos)
-  const phoneNumber = lead.phone.replace(/\D/g, '');
+  
+  log(`Enviando template WhatsApp "${templateName}" para ${lead.name} (${phoneNumber})`, 'info');
   
   try {
     const response = await axios.post<WhatsAppAPIResponse>(
@@ -126,25 +147,41 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`
-        }
+        },
+        timeout: 10000 // 10 segundos de timeout
       }
     );
 
     if (response.data.messages && response.data.messages.length > 0) {
       const messageId = response.data.messages[0].id;
-      return { success: true, messageId };
+      log(`Template enviado com sucesso. ID: ${messageId}`, 'info');
+      return { success: true, messageId, details: response.data };
     }
     
-    return { success: true };
+    log(`Template enviado, mas sem ID retornado`, 'warn');
+    return { success: true, details: response.data };
   } catch (error) {
     log(`Erro ao enviar template WhatsApp: ${JSON.stringify(error)}`, 'error');
     let errorMessage = 'Erro desconhecido ao enviar mensagem';
+    let details = null;
     
-    if (axios.isAxiosError(error) && error.response?.data?.error) {
-      errorMessage = error.response.data.error.message || errorMessage;
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        // A requisição foi feita e o servidor respondeu com um status de erro
+        errorMessage = error.response.data?.error?.message || 
+                       error.response.data?.message || 
+                       `Erro ${error.response.status}: ${error.message}`;
+        details = error.response.data;
+      } else if (error.request) {
+        // A requisição foi feita mas não recebeu resposta
+        errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
+      } else {
+        // Algo aconteceu na configuração da requisição que causou o erro
+        errorMessage = `Erro na configuração da requisição: ${error.message}`;
+      }
     }
     
-    return { success: false, error: errorMessage };
+    return { success: false, error: errorMessage, details };
   }
 }
 
@@ -154,31 +191,96 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
 export async function checkWhatsAppConnection(): Promise<{
   success: boolean;
   error?: string;
+  details?: any;
 }> {
   if (!WHATSAPP_API_TOKEN) {
-    return { success: false, error: 'WhatsApp API token não configurado' };
+    log('WhatsApp API token não configurado ou inválido', 'error');
+    return { 
+      success: false, 
+      error: 'WhatsApp API token não configurado. Configure o token no arquivo .env'
+    };
   }
   
   try {
     // Tenta obter informações do número de telefone para verificar a conexão
+    log(`Verificando conexão com WhatsApp: ${WHATSAPP_API_URL}/${WHATSAPP_PHONE_ID}`, 'info');
+    
     const response = await axios.get(
-      `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_ID}`,
+      `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_ID}?fields=verified_name,display_phone_number,quality_rating`,
       {
         headers: {
-          'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`
-        }
+          'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000 // 10 segundos de timeout
       }
     );
     
-    return { success: true };
+    if (!response.data || !response.data.id) {
+      return { 
+        success: false, 
+        error: 'Resposta da API sem informações do número',
+        details: response.data
+      };
+    }
+    
+    // Retorna sucesso com detalhes do número
+    log(`Conexão com WhatsApp estabelecida: ${JSON.stringify(response.data)}`, 'info');
+    return { 
+      success: true,
+      details: {
+        name: response.data.verified_name || 'Conta WhatsApp',
+        phone: response.data.display_phone_number || WHATSAPP_PHONE_ID,
+        quality: response.data.quality_rating
+      }
+    };
   } catch (error) {
     log(`Erro ao verificar conexão WhatsApp: ${JSON.stringify(error)}`, 'error');
     let errorMessage = 'Erro ao verificar conexão com a API do WhatsApp';
+    let details = null;
     
-    if (axios.isAxiosError(error) && error.response?.data?.error) {
-      errorMessage = error.response.data.error.message || errorMessage;
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        // A requisição foi feita e o servidor respondeu com um status de erro
+        errorMessage = error.response.data?.error?.message || 
+                       error.response.data?.message || 
+                       `Erro ${error.response.status}: ${error.message}`;
+        details = error.response.data;
+      } else if (error.request) {
+        // A requisição foi feita mas não recebeu resposta
+        errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
+      } else {
+        // Algo aconteceu na configuração da requisição que causou o erro
+        errorMessage = `Erro na configuração da requisição: ${error.message}`;
+      }
     }
     
-    return { success: false, error: errorMessage };
+    return { success: false, error: errorMessage, details };
   }
+}
+
+/**
+ * Formata o número de telefone para o formato internacional
+ * @param phoneNumber Número de telefone a ser formatado
+ * @returns Número formatado ou null se inválido
+ */
+export function formatPhoneNumber(phoneNumber: string | null | undefined): string | null {
+  if (!phoneNumber) return null;
+  
+  // Remover todos os caracteres não numéricos
+  let digits = phoneNumber.replace(/\D/g, '');
+  
+  // Se não começar com código de país, assumir Brasil (+55)
+  if (!digits.startsWith('55') && digits.length <= 11) {
+    digits = '55' + digits;
+  }
+  
+  // Verificar o tamanho mínimo (código de país + DDD + número)
+  // Brasil: 55 + 2 dígitos (DDD) + 8-9 dígitos (número)
+  if (digits.length < 12) {
+    log(`Número de telefone inválido: ${phoneNumber} (formatado: ${digits})`, 'warn');
+    return null;
+  }
+  
+  return digits;
 }
