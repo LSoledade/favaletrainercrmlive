@@ -7,6 +7,7 @@ import { setupAuth } from "./auth";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { logAuditEvent, AuditEventType, getRecentAuditLogs } from "./audit-log";
+import { sendWhatsAppMessage, sendWhatsAppTemplate, checkWhatsAppConnection } from "./whatsapp-service";
 
 const scryptAsync = promisify(scrypt);
 
@@ -795,12 +796,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead não encontrado" });
       }
       
-      // Aqui seria o lugar para integrar com a API do WhatsApp
-      // Por enquanto, apenas registramos a mensagem no banco de dados
-      const message = await storage.createWhatsappMessage(messageData);
+      // Criar a mensagem no banco de dados com status 'pending'
+      const messageWithPendingStatus = {
+        ...messageData,
+        status: 'pending'
+      };
       
-      // Em uma implementação real, aqui enviaríamos a mensagem via WhatsApp
-      // e atualizaríamos o status com base na resposta da API
+      const message = await storage.createWhatsappMessage(messageWithPendingStatus);
+      
+      // Enviar a mensagem via API do WhatsApp
+      const result = await sendWhatsAppMessage(lead, messageData.content);
+      
+      // Atualizar o status com base na resposta da API
+      if (result.success) {
+        await storage.updateWhatsappMessageStatus(message.id, 'sent');
+        message.status = 'sent';
+        message.messageId = result.messageId;
+      } else {
+        await storage.updateWhatsappMessageStatus(message.id, 'failed');
+        message.status = 'failed';
+        // Registrar o erro para debug
+        console.error(`Falha ao enviar mensagem WhatsApp: ${result.error}`);
+      }
       
       res.status(201).json(message);
     } catch (error) {
@@ -846,6 +863,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Erro ao excluir mensagem:', error);
       res.status(500).json({ message: "Erro ao excluir mensagem" });
+    }
+  });
+  
+  // Verificar conexão com a API do WhatsApp
+  app.get('/api/whatsapp/status', async (req, res) => {
+    try {
+      const connectionStatus = await checkWhatsAppConnection();
+      
+      if (connectionStatus.success) {
+        res.json({ status: 'connected', message: 'Conexão com a API do WhatsApp está funcionando corretamente' });
+      } else {
+        res.status(503).json({ status: 'disconnected', message: connectionStatus.error || 'Falha na conexão com a API do WhatsApp' });
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status da API:', error);
+      res.status(500).json({ status: 'error', message: 'Erro ao verificar conexão com a API do WhatsApp' });
+    }
+  });
+  
+  // Enviar template pelo WhatsApp
+  app.post('/api/whatsapp/template', async (req, res) => {
+    try {
+      const { leadId, templateName, language } = req.body;
+      
+      if (!leadId || !templateName) {
+        return res.status(400).json({ message: "ID do lead e nome do template são obrigatórios" });
+      }
+      
+      // Verificar se o lead existe
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
+      // Enviar o template
+      const result = await sendWhatsAppTemplate(lead, templateName, language || 'pt_BR');
+      
+      if (result.success) {
+        res.json({ success: true, messageId: result.messageId });
+      } else {
+        res.status(400).json({ success: false, message: result.error });
+      }
+    } catch (error) {
+      console.error('Erro ao enviar template WhatsApp:', error);
+      res.status(500).json({ message: "Erro ao enviar template WhatsApp" });
     }
   });
 
