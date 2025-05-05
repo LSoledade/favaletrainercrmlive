@@ -218,6 +218,7 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   timestamp: timestamp("timestamp").defaultNow().notNull(),
   mediaUrl: text("media_url"), // URL opcional para mídia (imagens, áudio, etc.)
   mediaType: text("media_type"), // Tipo de mídia (image, audio, video, document)
+  messageId: text("message_id"), // ID da mensagem na API do WhatsApp
 });
 
 export const insertWhatsappMessageSchema = createInsertSchema(whatsappMessages).omit({
@@ -230,13 +231,14 @@ export const whatsappMessageValidationSchema = insertWhatsappMessageSchema.exten
     errorMap: () => ({ message: "Direção deve ser 'incoming' ou 'outgoing'" })
   }),
   content: z.string().min(1, "O conteúdo da mensagem é obrigatório"),
-  status: z.enum(["sent", "delivered", "read", "failed"], {
+  status: z.enum(["pending", "sent", "delivered", "read", "failed"], {
     errorMap: () => ({ message: "Status inválido" })
   }),
   mediaUrl: z.string().url("URL de mídia inválida").optional(),
   mediaType: z.enum(["image", "audio", "video", "document"], {
     errorMap: () => ({ message: "Tipo de mídia inválido" })
   }).optional(),
+  messageId: z.string().optional(),
 });
 
 export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;

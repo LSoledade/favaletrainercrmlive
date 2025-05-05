@@ -811,7 +811,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result.success) {
         await storage.updateWhatsappMessageStatus(message.id, 'sent');
         message.status = 'sent';
-        message.messageId = result.messageId;
+        
+        // Se temos um ID da mensagem da API do WhatsApp, salvamos no banco
+        if (result.messageId) {
+          await storage.updateWhatsappMessageId(message.id, result.messageId);
+          message.messageId = result.messageId;
+        }
       } else {
         await storage.updateWhatsappMessageStatus(message.id, 'failed');
         message.status = 'failed';
@@ -897,13 +902,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Lead não encontrado" });
       }
       
+      // Criar entrada da mensagem no banco de dados
+      const messageData = {
+        leadId,
+        direction: 'outgoing',
+        content: `Template: ${templateName}`,
+        status: 'pending',
+        mediaUrl: null,
+        mediaType: null
+      };
+      
+      // Salvar a mensagem no banco de dados
+      const message = await storage.createWhatsappMessage(messageData);
+      
       // Enviar o template
       const result = await sendWhatsAppTemplate(lead, templateName, language || 'pt_BR');
       
+      // Atualizar mensagem com resultado da API
       if (result.success) {
-        res.json({ success: true, messageId: result.messageId });
+        await storage.updateWhatsappMessageStatus(message.id, 'sent');
+        
+        if (result.messageId) {
+          await storage.updateWhatsappMessageId(message.id, result.messageId);
+        }
+        
+        res.json({ 
+          success: true, 
+          messageId: result.messageId,
+          message: 'Template enviado com sucesso'
+        });
       } else {
-        res.status(400).json({ success: false, message: result.error });
+        await storage.updateWhatsappMessageStatus(message.id, 'failed');
+        res.status(400).json({ 
+          success: false, 
+          message: result.error || 'Erro ao enviar template' 
+        });
       }
     } catch (error) {
       console.error('Erro ao enviar template WhatsApp:', error);

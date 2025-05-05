@@ -45,6 +45,7 @@ export interface IStorage {
   getWhatsappMessages(leadId: number): Promise<WhatsappMessage[]>;
   createWhatsappMessage(message: InsertWhatsappMessage): Promise<WhatsappMessage>;
   updateWhatsappMessageStatus(id: number, status: string): Promise<WhatsappMessage | undefined>;
+  updateWhatsappMessageId(id: number, messageId: string): Promise<WhatsappMessage | undefined>;
   deleteWhatsappMessage(id: number): Promise<boolean>;
   
   // Trainer methods
@@ -553,6 +554,15 @@ export class DatabaseStorage implements IStorage {
     const [updatedMessage] = await db
       .update(whatsappMessages)
       .set({ status })
+      .where(eq(whatsappMessages.id, id))
+      .returning();
+    return updatedMessage || undefined;
+  }
+  
+  async updateWhatsappMessageId(id: number, messageId: string): Promise<WhatsappMessage | undefined> {
+    const [updatedMessage] = await db
+      .update(whatsappMessages)
+      .set({ messageId })
       .where(eq(whatsappMessages.id, id))
       .returning();
     return updatedMessage || undefined;
