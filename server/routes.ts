@@ -1114,6 +1114,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Webhook para receber notificações do WhatsApp
+  app.post('/api/whatsapp/webhook', async (req, res) => {
+    try {
+      console.log('Webhook WhatsApp recebido:', JSON.stringify(req.body, null, 2));
+      
+      // Verificação do webhook conforme documentação da Meta
+      // https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/
+      
+      // 1. Verificação de hub (para configuração inicial do webhook)
+      if (req.query && req.query['hub.mode'] === 'subscribe') {
+        const token = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'favale_pink_webhook';
+        
+        if (req.query['hub.verify_token'] === token) {
+          console.log('Webhook verificado!');
+          return res.send(req.query['hub.challenge']);
+        } else {
+          console.warn('Verificação do webhook falhou - token inválido');
+          return res.status(403).send('Forbidden');
+        }
+      }
+      
+      // 2. Processamento de eventos
+      const data = req.body;
+      
+      // Verificar se é uma notificação válida
+      if (!data || !data.object || !data.entry || !Array.isArray(data.entry)) {
+        return res.status(400).json({ message: 'Formato de webhook inválido' });
+      }
+      
+      // Processar mensagens recebidas
+      for (const entry of data.entry) {
+        // Verificar se há mudanças na mensagem
+        if (!entry.changes || !Array.isArray(entry.changes)) continue;
+        
+        for (const change of entry.changes) {
+          // Verificar se é uma mensagem do WhatsApp
+          if (change.field !== 'messages') continue;
+          
+          const value = change.value;
+          if (!value || !value.messages || !Array.isArray(value.messages)) continue;
+          
+          // Processar cada mensagem recebida
+          for (const message of value.messages) {
+            // Só processar mensagens recebidas (não as enviadas pelo sistema)
+            if (message.type !== 'text' || !message.from) continue;
+            
+            const phoneNumber = message.from;
+            const messageContent = message.text?.body || '';
+            const messageId = message.id;
+            
+            // Buscar lead pelo número de telefone
+            const leadsByPhone = await db.select().from(leads).where(sql`phone = ${phoneNumber}`);
+            
+            if (leadsByPhone.length === 0) {
+              console.warn(`Recebida mensagem de número não cadastrado: ${phoneNumber}`);
+              continue;
+            }
+            
+            const lead = leadsByPhone[0];
+            
+            // Registrar a mensagem recebida
+            await storage.createWhatsappMessage({
+              leadId: lead.id,
+              direction: 'incoming',
+              content: messageContent,
+              status: 'received',
+              messageId
+            });
+            
+            console.log(`Mensagem recebida de ${lead.name} (${phoneNumber}): ${messageContent}`);
+          }
+        }
+      }
+      
+      // Responder com 200 OK para confirmar o recebimento
+      res.status(200).send('EVENT_RECEIVED');
+    } catch (error) {
+      console.error('Erro ao processar webhook do WhatsApp:', error);
+      res.status(500).json({ message: 'Erro interno ao processar webhook' });
+    }
+  });
+  
+  // Endpoint para verificar webhook (GET)
+  app.get('/api/whatsapp/webhook', (req, res) => {
+    // Verificar token conforme documentação da Meta
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+    
+    const verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'favale_pink_webhook';
+    
+    // Verificar se token enviado corresponde ao configurado
+    if (mode === 'subscribe' && token === verifyToken) {
+      console.log('Webhook verificado com sucesso!');
+      res.status(200).send(challenge);
+    } else {
+      console.warn('Falha na verificação do webhook');
+      res.sendStatus(403);
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
