@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Lead, WhatsappMessage } from "@shared/schema";
@@ -40,6 +41,7 @@ export default function WhatsappPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [activeTab, setActiveTab] = useState('all');
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   
   // Formatar a data para exibição
   const formatMessageDate = (date: Date | string) => {
@@ -115,11 +117,21 @@ export default function WhatsappPage() {
           content,
           status: 'pending',
         }),
-      }).then(res => {
+      }).then(async res => {
+        const responseData = await res.json();
+        
         if (!res.ok) {
-          throw new Error('Falha ao enviar mensagem');
+          // Verificar se o erro é de número não autorizado
+          if (responseData.unauthorizedNumber) {
+            throw new Error(
+              'Número não autorizado: Este número não está na lista de permissões da API do WhatsApp. ' +
+              'Em modo de desenvolvimento, você só pode enviar mensagens para números previamente autorizados.'
+            );
+          }
+          throw new Error(responseData.error || 'Falha ao enviar mensagem');
         }
-        return res.json();
+        
+        return responseData;
       });
     },
     onSuccess: () => {
@@ -135,7 +147,13 @@ export default function WhatsappPage() {
     },
     onError: (error) => {
       console.error('Erro ao enviar mensagem:', error);
-      // Você pode adicionar uma notificação de erro aqui
+      
+      // Exibir notificação de erro usando o toast
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: error instanceof Error ? error.message : 'Falha ao enviar mensagem',
+        variant: "destructive",
+      });
     },
   });
   

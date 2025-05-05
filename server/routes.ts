@@ -1024,6 +1024,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             success: true
           });
         } else {
+          // Verificar se o erro é por causa de número não autorizado (conta em modo de desenvolvimento)
+          const errorMessage = result.error || 'Erro desconhecido';
+          const isNotAuthorizedNumber = errorMessage.includes('not in allowed list');
+          
           await storage.updateWhatsappMessageStatus(message.id, 'failed');
           res.status(400).json({
             id: message.id,
@@ -1031,7 +1035,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             content: message.content,
             status: 'failed',
             timestamp: message.timestamp,
-            error: result.error,
+            error: errorMessage,
+            unauthorizedNumber: isNotAuthorizedNumber,
             success: false
           });
         }
