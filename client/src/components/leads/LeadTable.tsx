@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Lead } from "@shared/schema";
 import { useLeadContext } from "@/context/LeadContext";
+import { useWhatsappContext } from "@/context/WhatsappContext";
 import { formatDate } from "@/utils/formatters";
+import WhatsappButton from "../whatsapp/WhatsappButton";
 
 interface LeadTableProps {
   leads: Lead[];
@@ -16,6 +18,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
     selectedLeadIds,
     setSelectedLeadIds 
   } = useLeadContext();
+  const { openWhatsappChat } = useWhatsappContext();
   const [currentPage, setCurrentPage] = useState(1);
   const leadsPerPage = 10;
   
@@ -181,6 +184,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
                   </td>
                   <td className="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
                     <div className="flex space-x-1 sm:space-x-3">
+                      <WhatsappButton onClick={() => openWhatsappChat(lead)} />
                       <button 
                         className="p-1 sm:p-1.5 rounded-full text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:text-indigo-300 dark:hover:bg-indigo-900/30 transition-all duration-200"
                         onClick={() => handleEdit(lead)}
