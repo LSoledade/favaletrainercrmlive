@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLeadSchema, leadValidationSchema } from "@shared/schema";
+import { insertLeadSchema, leadValidationSchema, whatsappMessageValidationSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { setupAuth } from "./auth";
 import { scrypt, randomBytes } from "crypto";
@@ -751,6 +751,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
       res.status(500).json({ message: "Erro ao buscar estatísticas" });
+    }
+  });
+
+  // WhatsApp API Routes
+  // Obter todas as mensagens de um lead
+  app.get('/api/whatsapp/lead/:leadId', async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      if (isNaN(leadId)) {
+        return res.status(400).json({ message: "ID do lead inválido" });
+      }
+      
+      // Verificar se o lead existe
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
+      const messages = await storage.getWhatsappMessages(leadId);
+      res.json(messages);
+    } catch (error) {
+      console.error('Erro ao buscar mensagens de WhatsApp:', error);
+      res.status(500).json({ message: "Erro ao buscar mensagens de WhatsApp" });
+    }
+  });
+
+  // Enviar mensagem de WhatsApp
+  app.post('/api/whatsapp/send', async (req, res) => {
+    try {
+      const validationResult = whatsappMessageValidationSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        const validationError = fromZodError(validationResult.error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      
+      const messageData = validationResult.data;
+      
+      // Verificar se o lead existe
+      const lead = await storage.getLead(messageData.leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
+      // Aqui seria o lugar para integrar com a API do WhatsApp
+      // Por enquanto, apenas registramos a mensagem no banco de dados
+      const message = await storage.createWhatsappMessage(messageData);
+      
+      // Em uma implementação real, aqui enviaríamos a mensagem via WhatsApp
+      // e atualizaríamos o status com base na resposta da API
+      
+      res.status(201).json(message);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem de WhatsApp:', error);
+      res.status(500).json({ message: "Erro ao enviar mensagem de WhatsApp" });
+    }
+  });
+
+  // Atualizar status de uma mensagem
+  app.patch('/api/whatsapp/messages/:id/status', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!status || !['sent', 'delivered', 'read', 'failed'].includes(status)) {
+        return res.status(400).json({ message: "Status inválido" });
+      }
+      
+      const updatedMessage = await storage.updateWhatsappMessageStatus(id, status);
+      
+      if (!updatedMessage) {
+        return res.status(404).json({ message: "Mensagem não encontrada" });
+      }
+      
+      res.json(updatedMessage);
+    } catch (error) {
+      console.error('Erro ao atualizar status da mensagem:', error);
+      res.status(500).json({ message: "Erro ao atualizar status da mensagem" });
+    }
+  });
+
+  // Excluir uma mensagem
+  app.delete('/api/whatsapp/messages/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteWhatsappMessage(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Mensagem não encontrada" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error('Erro ao excluir mensagem:', error);
+      res.status(500).json({ message: "Erro ao excluir mensagem" });
     }
   });
 

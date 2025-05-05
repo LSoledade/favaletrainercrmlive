@@ -531,6 +531,42 @@ export class DatabaseStorage implements IStorage {
       .where(eq(sessionHistory.sessionId, sessionId))
       .orderBy(desc(sessionHistory.changedAt));
   }
+
+  // WhatsApp methods
+  async getWhatsappMessages(leadId: number): Promise<WhatsappMessage[]> {
+    return await db
+      .select()
+      .from(whatsappMessages)
+      .where(eq(whatsappMessages.leadId, leadId))
+      .orderBy(asc(whatsappMessages.timestamp));
+  }
+
+  async createWhatsappMessage(message: InsertWhatsappMessage): Promise<WhatsappMessage> {
+    const [newMessage] = await db
+      .insert(whatsappMessages)
+      .values(message)
+      .returning();
+    return newMessage;
+  }
+
+  async updateWhatsappMessageStatus(id: number, status: string): Promise<WhatsappMessage | undefined> {
+    const [updatedMessage] = await db
+      .update(whatsappMessages)
+      .set({ status })
+      .where(eq(whatsappMessages.id, id))
+      .returning();
+    return updatedMessage || undefined;
+  }
+
+  async deleteWhatsappMessage(id: number): Promise<boolean> {
+    try {
+      await db.delete(whatsappMessages).where(eq(whatsappMessages.id, id));
+      return true;
+    } catch (error) {
+      console.error("Erro ao excluir mensagem:", error);
+      return false;
+    }
+  }
 }
 
 // Inicializa o armazenamento usando o banco de dados PostgreSQL
