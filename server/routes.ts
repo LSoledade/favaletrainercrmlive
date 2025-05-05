@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { insertLeadSchema, leadValidationSchema, whatsappMessageValidationSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { setupAuth } from "./auth";
@@ -869,6 +870,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Erro ao excluir mensagem:', error);
       res.status(500).json({ message: "Erro ao excluir mensagem" });
+    }
+  });
+  
+  // Obter mensagens de um lead específico
+  app.get('/api/whatsapp/lead/:id', async (req, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      
+      if (isNaN(leadId)) {
+        return res.status(400).json({ message: "ID inválido" });
+      }
+      
+      // Verificar se o lead existe
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
+      // Obter mensagens do lead
+      const messages = await storage.getWhatsappMessages(leadId);
+      
+      // Ordenar do mais antigo para o mais recente (para exibição cronológica)
+      messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      
+      res.json(messages);
+    } catch (error) {
+      console.error('Erro ao buscar mensagens do lead:', error);
+      res.status(500).json({ message: "Erro ao buscar mensagens" });
     }
   });
   

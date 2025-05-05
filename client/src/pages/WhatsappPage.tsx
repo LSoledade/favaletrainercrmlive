@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Lead, WhatsappMessage } from "@shared/schema";
 import { useWhatsappContext } from "@/context/WhatsappContext";
 import { CheckCircle2, AlertCircle, XCircle, Search, Filter, PlusCircle, MoreVertical, Star, Clock, Inbox, RefreshCw, Paperclip, Send } from "lucide-react";
@@ -38,6 +39,7 @@ export default function WhatsappPage() {
   // Estado para o lead selecionado na lista
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [activeTab, setActiveTab] = useState('all');
+  const endOfMessagesRef = useRef<HTMLDivElement>(null);
   
   // Formatar a data para exibição
   const formatMessageDate = (date: Date | string) => {
@@ -85,6 +87,63 @@ export default function WhatsappPage() {
     }
     
     return new Date(leadMessages[0].timestamp);
+  };
+  
+  // Estado para a mensagem a ser enviada
+  const [messageText, setMessageText] = useState("");
+  
+  // Efeito para rolar para o final das mensagens quando novas mensagens chegarem
+  useEffect(() => {
+    if (endOfMessagesRef.current) {
+      endOfMessagesRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+  
+  // Mutação para enviar mensagem
+  const { mutate: sendMessage, isPending: isSending } = useMutation({
+    mutationFn: async (content: string) => {
+      if (!selectedLead) return null;
+      
+      return fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          leadId: selectedLead.id,
+          direction: 'outgoing',
+          content,
+          status: 'pending',
+        }),
+      }).then(res => {
+        if (!res.ok) {
+          throw new Error('Falha ao enviar mensagem');
+        }
+        return res.json();
+      });
+    },
+    onSuccess: () => {
+      // Limpar o campo de mensagem
+      setMessageText('');
+      
+      // Atualizar a lista de mensagens
+      if (selectedLead) {
+        const queryKey = [`/api/whatsapp/lead/${selectedLead.id}`];
+        queryClient.invalidateQueries({ queryKey });
+      }
+    },
+    onError: (error) => {
+      console.error('Erro ao enviar mensagem:', error);
+      // Você pode adicionar uma notificação de erro aqui
+    },
+  });
+  
+  // Função para lidar com o envio de mensagem
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (messageText.trim() && !isSending) {
+      sendMessage(messageText.trim());
+    }
   };
   
   return (
@@ -280,30 +339,49 @@ export default function WhatsappPage() {
                   </div>
                 ) : (
                   <>
-                    {/* Aqui viriam as mensagens */}
-                    {/* Placeholder para teste */}
-                    <div className="flex justify-end">
-                      <div className="bg-primary text-white rounded-lg p-3 rounded-br-none max-w-xs">
-                        <p>Olá, como posso ajudar?</p>
-                        <div className="text-xs opacity-80 text-right mt-1">14:30 ✓</div>
+                    {messages.map((message) => (
+                      <div 
+                        key={message.id} 
+                        className={`flex ${message.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div 
+                          className={`max-w-xs md:max-w-sm rounded-lg p-3 ${message.direction === 'outgoing' 
+                            ? 'bg-primary text-primary-foreground rounded-br-none' 
+                            : 'bg-card dark:bg-gray-700 rounded-bl-none'}`}
+                        >
+                          <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
+                          <div className="text-xs opacity-80 text-right mt-1 flex justify-end items-center">
+                            {formatMessageDate(message.timestamp)}
+                            {message.direction === 'outgoing' && (
+                              <span className="ml-1">
+                                {message.status === 'read' ? (
+                                  <span className="text-blue-400">✓✓</span>
+                                ) : message.status === 'delivered' ? (
+                                  <span>✓✓</span>
+                                ) : message.status === 'sent' ? (
+                                  <span>✓</span>
+                                ) : message.status === 'failed' ? (
+                                  <span className="text-red-500">⚠</span>
+                                ) : (
+                                  <span className="opacity-50">⌛</span>
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex justify-start">
-                      <div className="bg-white dark:bg-gray-700 rounded-lg p-3 rounded-bl-none max-w-xs">
-                        <p>Gostaria de obter mais informações sobre os planos.</p>
-                        <div className="text-xs opacity-80 text-right mt-1">14:32</div>
-                      </div>
-                    </div>
+                    ))}
+                    <div ref={endOfMessagesRef} />
                   </>
                 )}
               </div>
               
               {/* Campo de entrada de mensagem */}
-              <div className="p-3 border-t flex items-end">
+              <form onSubmit={handleSendMessage} className="p-3 border-t flex items-end">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 mr-1">
+                      <Button type="button" variant="ghost" size="icon" className="h-9 w-9 mr-1">
                         <Paperclip className="h-5 w-5 text-muted-foreground" />
                       </Button>
                     </TooltipTrigger>
@@ -317,13 +395,32 @@ export default function WhatsappPage() {
                     className="w-full p-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary resize-none min-h-[40px] max-h-32" 
                     placeholder="Digite uma mensagem"
                     rows={1}
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (messageText.trim() && !isSending) {
+                          sendMessage(messageText.trim());
+                        }
+                      }
+                    }}
+                    disabled={isSending || connectionStatus.status !== 'connected'}
                   />
                 </div>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button className="h-9 w-9 p-0 rounded-full">
-                        <Send className="h-4 w-4" />
+                      <Button 
+                        type="submit" 
+                        className="h-9 w-9 p-0 rounded-full"
+                        disabled={!messageText.trim() || isSending || connectionStatus.status !== 'connected'}
+                      >
+                        {isSending ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent border-white" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -331,7 +428,7 @@ export default function WhatsappPage() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-              </div>
+              </form>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center p-4">
