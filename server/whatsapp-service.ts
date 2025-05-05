@@ -246,6 +246,13 @@ export async function checkWhatsAppConnection(): Promise<{
                        error.response.data?.message || 
                        `Erro ${error.response.status}: ${error.message}`;
         details = error.response.data;
+        
+        // Verificar se é um erro de token expirado
+        if (error.response.status === 401 && 
+            (errorMessage.includes('expired') || errorMessage.includes('Session has expired'))) {
+          log('Token de acesso do WhatsApp expirado. É necessário atualizá-lo.', 'error');
+          errorMessage = 'Token de acesso expirado. Entre em contato com o administrador para atualizar o token.';
+        }
       } else if (error.request) {
         // A requisição foi feita mas não recebeu resposta
         errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
