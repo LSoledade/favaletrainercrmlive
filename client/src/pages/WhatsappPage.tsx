@@ -1,18 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { Lead } from "@shared/schema";
 import { useWhatsappContext } from "@/context/WhatsappContext";
+import { CheckCircle2, AlertCircle, XCircle } from "lucide-react";
 
 export default function WhatsappPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState("all");
-  const { openWhatsappChat } = useWhatsappContext();
+  const { openWhatsappChat, connectionStatus, refreshConnectionStatus } = useWhatsappContext();
 
   // Buscar todos os leads
   const { data: leads = [], isLoading } = useQuery<Lead[]>({
@@ -60,6 +62,43 @@ export default function WhatsappPage() {
         </div>
       </CardHeader>
       <CardContent>
+        {/* Exibir status da conexão WhatsApp */}
+        <div className="mb-6">
+          <Alert variant={connectionStatus.status === 'connected' ? 'default' : connectionStatus.status === 'checking' ? 'secondary' : 'destructive'} className="mb-4">
+            <div className="flex items-center">
+              {connectionStatus.status === 'connected' ? (
+                <CheckCircle2 className="h-5 w-5 mr-2" />
+              ) : connectionStatus.status === 'checking' ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-t-primary border-r-transparent border-b-primary border-l-transparent mr-2"></div>
+              ) : (
+                <XCircle className="h-5 w-5 mr-2" />
+              )}
+              <div>
+                <AlertTitle>
+                  {connectionStatus.status === 'connected' ? 'Conectado à API do WhatsApp' :
+                   connectionStatus.status === 'checking' ? 'Verificando conexão...' :
+                   'Falha na conexão com a API do WhatsApp'}
+                </AlertTitle>
+                <AlertDescription className="mt-1">
+                  {connectionStatus.message || 
+                   (connectionStatus.status === 'connected' ? 'O sistema está pronto para enviar e receber mensagens.' :
+                    connectionStatus.status === 'checking' ? 'Aguarde enquanto verificamos a conexão com a API do WhatsApp.' :
+                    'Não foi possível conectar à API do WhatsApp. Verifique as configurações.')}
+                </AlertDescription>
+              </div>
+            </div>
+            <Button 
+              onClick={() => refreshConnectionStatus()} 
+              variant="outline" 
+              size="sm"
+              className="ml-auto"
+              disabled={connectionStatus.status === 'checking'}
+            >
+              Verificar novamente
+            </Button>
+          </Alert>
+        </div>
+        
         {isLoading ? (
           <div className="flex justify-center p-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
