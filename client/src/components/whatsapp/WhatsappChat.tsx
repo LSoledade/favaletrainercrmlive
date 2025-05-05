@@ -7,6 +7,7 @@ import { Paperclip, Send, Image, Mic, AlertCircle, MoreVertical, ChevronLeft } f
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import WhatsappTemplateSelector from './WhatsappTemplateSelector';
 
 interface WhatsappChatProps {
   lead: Lead;
@@ -112,6 +113,13 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
           </div>
         </div>
         <div className="flex items-center space-x-1">
+          {/* Seletor de templates */}
+          <WhatsappTemplateSelector lead={lead} onSuccess={() => {
+            if (endOfMessagesRef.current) {
+              setTimeout(() => endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }), 1000);
+            }
+          }} />
+          
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -158,9 +166,22 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
               <AlertCircle className="h-6 w-6 text-muted-foreground" />
             </div>
             <h3 className="font-medium mb-1">Nenhuma mensagem ainda</h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mb-2">
               Envie uma mensagem para iniciar a conversa com {lead.name}.
             </p>
+            
+            {/* Mensagem de aviso sobre limitação da WhatsApp API */}
+            <div className="mt-4 max-w-xs bg-amber-50 p-3 rounded-md border border-amber-200 text-left">
+              <p className="text-xs text-amber-800 font-medium mb-1">Atenção</p>
+              <p className="text-xs text-amber-700">
+                No ambiente de teste, mensagens só podem ser enviadas para números verificados. 
+                {lead.phone === '5511996356454' ? (
+                  <span className="block mt-1 font-medium">Este número está autorizado!</span>
+                ) : (
+                  <span className="block mt-1">No momento, apenas o número <span className="font-mono">+5511996356454</span> está autorizado.</span>
+                )}
+              </p>
+            </div>
           </div>
         ) : (
           messages.map((msg) => (

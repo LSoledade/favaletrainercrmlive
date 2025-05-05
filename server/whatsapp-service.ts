@@ -84,6 +84,7 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
     log(`Erro ao enviar mensagem WhatsApp: ${JSON.stringify(error)}`, 'error');
     let errorMessage = 'Erro desconhecido ao enviar mensagem';
     let details = null;
+    let isUnauthorizedNumber = false;
     
     if (axios.isAxiosError(error)) {
       if (error.response) {
@@ -92,6 +93,13 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
                        error.response.data?.message || 
                        `Erro ${error.response.status}: ${error.message}`;
         details = error.response.data;
+        
+        // Verificar se o erro é relacionado a número não autorizado (comum em contas de teste)
+        if (errorMessage.toLowerCase().includes('not in allowed list') || 
+            errorMessage.toLowerCase().includes('to phone number not approved')) {
+          isUnauthorizedNumber = true;
+          errorMessage = `Número de telefone não autorizado. No ambiente de teste, apenas números verificados podem receber mensagens. Use o número 5511996356454 para testar ou adicione o número ${phoneNumber} à lista de números permitidos.`;
+        }
       } else if (error.request) {
         // A requisição foi feita mas não recebeu resposta
         errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
@@ -101,7 +109,7 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
       }
     }
     
-    return { success: false, error: errorMessage, details };
+    return { success: false, error: errorMessage, details, isUnauthorizedNumber };
   }
 }
 
@@ -164,6 +172,7 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
     log(`Erro ao enviar template WhatsApp: ${JSON.stringify(error)}`, 'error');
     let errorMessage = 'Erro desconhecido ao enviar mensagem';
     let details = null;
+    let isUnauthorizedNumber = false;
     
     if (axios.isAxiosError(error)) {
       if (error.response) {
@@ -172,6 +181,18 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
                        error.response.data?.message || 
                        `Erro ${error.response.status}: ${error.message}`;
         details = error.response.data;
+        
+        // Verificar se o erro é relacionado a número não autorizado (comum em contas de teste)
+        if (errorMessage.toLowerCase().includes('not in allowed list') || 
+            errorMessage.toLowerCase().includes('to phone number not approved')) {
+          isUnauthorizedNumber = true;
+          errorMessage = `Número de telefone não autorizado. No ambiente de teste, apenas números verificados podem receber mensagens. Use o número 5511996356454 para testar ou adicione o número ${phoneNumber} à lista de números permitidos.`;
+        }
+        
+        // Verificar se o template existe
+        if (errorMessage.toLowerCase().includes('template not found')) {
+          errorMessage = `Template "${templateName}" não encontrado. Verifique se o template foi aprovado na WhatsApp Business Platform.`;
+        }
       } else if (error.request) {
         // A requisição foi feita mas não recebeu resposta
         errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
@@ -181,7 +202,7 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
       }
     }
     
-    return { success: false, error: errorMessage, details };
+    return { success: false, error: errorMessage, details, isUnauthorizedNumber };
   }
 }
 
