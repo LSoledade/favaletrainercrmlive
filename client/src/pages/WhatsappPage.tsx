@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { Lead } from "@shared/schema";
 import { useWhatsappContext } from "@/context/WhatsappContext";
 
@@ -16,7 +15,7 @@ export default function WhatsappPage() {
   const { openWhatsappChat } = useWhatsappContext();
 
   // Buscar todos os leads
-  const { data: leads = [], isLoading } = useQuery({
+  const { data: leads = [], isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
   });
 
@@ -82,7 +81,7 @@ export default function WhatsappPage() {
                           <h3 className="font-semibold truncate">{lead.name}</h3>
                           <Badge 
                             variant={lead.status === 'novo' ? 'default' : 
-                                    lead.status === 'qualificado' ? 'success' : 'secondary'}
+                                    lead.status === 'qualificado' ? 'outline' : 'secondary'}
                             className="ml-2 text-[10px]">
                             {lead.status}
                           </Badge>

@@ -24,6 +24,7 @@ function Router() {
       <ProtectedRoute path="/leads" component={LeadsPage} />
       <ProtectedRoute path="/agendamentos" component={SessionsPage} />
       <ProtectedRoute path="/calendario" component={CalendarPage} />
+      <ProtectedRoute path="/whatsapp" component={WhatsappPage} />
       <ProtectedRoute path="/config" component={ConfigPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
