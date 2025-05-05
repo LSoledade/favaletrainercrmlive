@@ -13,6 +13,7 @@ import ReportPage from "@/pages/ReportPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LeadProvider } from "@/context/LeadContext";
+import { WhatsappProvider } from "@/context/WhatsappContext";
 import { AuthProvider } from "@/hooks/use-auth";
 
 function Router() {
@@ -38,14 +39,16 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <LeadProvider>
-            {isAuthPage ? (
-              <Router />
-            ) : (
-              <Layout>
+            <WhatsappProvider>
+              {isAuthPage ? (
                 <Router />
-              </Layout>
-            )}
-            <Toaster />
+              ) : (
+                <Layout>
+                  <Router />
+                </Layout>
+              )}
+              <Toaster />
+            </WhatsappProvider>
           </LeadProvider>
         </AuthProvider>
       </TooltipProvider>

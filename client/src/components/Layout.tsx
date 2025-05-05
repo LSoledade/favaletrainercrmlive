@@ -1,6 +1,8 @@
 import { ReactNode, useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { useWhatsappContext } from "@/context/WhatsappContext";
+import WhatsappModal from "./whatsapp/WhatsappModal";
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,6 +12,7 @@ export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const { isWhatsappOpen, selectedLeadForWhatsapp, closeWhatsappChat } = useWhatsappContext();
   
   useEffect(() => {
     // Verificar se é mobile ao inicializar
@@ -50,6 +53,13 @@ export default function Layout({ children }: LayoutProps) {
           {children}
         </div>
       </main>
+
+      {/* WhatsApp Modal */}
+      <WhatsappModal 
+        isOpen={isWhatsappOpen} 
+        onClose={closeWhatsappChat} 
+        lead={selectedLeadForWhatsapp} 
+      />
     </div>
   );
 }
