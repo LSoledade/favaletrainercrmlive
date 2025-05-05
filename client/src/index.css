@@ -54,44 +54,52 @@
 }
 
 .dark {
-  --background: 260 18% 4%; /* Fundo preto azulado mais escuro para melhor contraste */
-  --foreground: 0 0% 100%; /* Texto mais branco para maior contraste */
+  --background: 220 15% 12%; /* #191c22 em HSL aproximado */
+  --foreground: 0 0% 98%; /* Texto quase branco */
   
-  --muted: 260 15% 10%;
-  --muted-foreground: 240 5% 75%; /* Aumentado para melhor legibilidade */
+  --muted: 220 10% 18%; /* Cinza intermediário para áreas menos importantes */
+  --muted-foreground: 220 8% 70%;
   
-  --popover: 260 15% 6%;
-  --popover-foreground: 0 0% 100%;
+  --popover: 220 15% 16%; /* Fundo de popover um pouco mais claro */
+  --popover-foreground: 0 0% 98%;
   
-  --card: 260 15% 7%;
-  --card-foreground: 0 0% 100%;
+  --card: 220 15% 14%; /* Cards levemente elevados */
+  --card-foreground: 0 0% 98%;
   
-  --border: 340 70% 40%;
-  --input: 260 15% 12%;
+  --border: 220 10% 30% / 0.25; /* Borda translúcida e mais suave */
+  --input: 220 14% 20%;
   
-  --primary: 340 90% 55%; /* Pink mais vibrante */
+  --primary: 260 100% 70%; /* Azul neon moderno */
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 260 70% 40%; /* Aumentando a saturação */
+  --secondary: 280 80% 60%; /* Roxo suave */
   --secondary-foreground: 0 0% 100%;
   
-  --accent: 260 75% 50%;
+  --accent: 160 70% 50%; /* Verde suave para detalhes */
   --accent-foreground: 0 0% 100%;
   
-  --destructive: 0 70% 35%;
+  --destructive: 0 70% 40%;
   --destructive-foreground: 0 0% 100%;
   
-  --ring: 340 90% 55%;
+  --ring: 260 100% 70%;
   
-  /* Efeitos neon aprimorados para o dark mode */
-  --glow-primary: 0 0 20px hsla(340, 90%, 65%, 0.5);
-  --glow-primary-strong: 0 0 30px hsla(340, 90%, 65%, 0.7);
-  --glow-primary-intense: 0 0 40px hsla(340, 90%, 70%, 0.8);
-  --glow-xs: 0 0 10px hsla(340, 90%, 65%, 0.4);
-  --glow-focus: 0 0 0 3px hsla(340, 90%, 65%, 0.25);
-  --glow-subtle: 0 0 6px hsla(340, 90%, 65%, 0.2);
-  --glow-border: 0 0 4px hsla(340, 90%, 65%, 0.3);
-  --glow-text: 0 0 3px hsla(340, 90%, 65%, 0.85);
+  /* Glow bem suave para bordas e elementos */
+  --glow-primary: 0 0 0 2px hsla(260, 100%, 70%, 0.10);
+  --glow-primary-strong: 0 0 0 4px hsla(260, 100%, 70%, 0.15);
+  --glow-primary-intense: 0 0 0 6px hsla(260, 100%, 70%, 0.18);
+  --glow-xs: 0 0 0 1px hsla(260, 100%, 70%, 0.08);
+  --glow-focus: 0 0 0 2px hsla(260, 100%, 70%, 0.12);
+  --glow-subtle: 0 0 0 2px hsla(260, 100%, 70%, 0.07);
+  --glow-border: 0 0 0 2px hsla(260, 100%, 70%, 0.10);
+  --glow-text: 0 0 2px hsla(260, 100%, 70%, 0.18);
+
+  /* Sugestão para popovers/menus modernos */
+  /*
+  .dark .popover, .dark .menu {
+    background: hsla(var(--popover) / 0.85);
+    backdrop-filter: blur(8px);
+  }
+  */
 }
 
 @layer base {
@@ -389,4 +397,14 @@
 
 .mobile-margin {
   @apply m-2 xs:m-3 sm:m-4 md:m-6;
+}
+
+.dark .glow-border, .dark .glow-card, .dark .glow-card-intense {
+  box-shadow: 0 0 0 2px hsla(var(--primary), 0.10), 0 2px 8px 0 rgba(25,28,34,0.10);
+  border-color: hsl(var(--primary) / 0.25);
+}
+
+.dark .glow-border-subtle {
+  box-shadow: 0 0 0 1.5px hsla(var(--primary), 0.07);
+  border-color: hsl(var(--primary) / 0.15);
 }
