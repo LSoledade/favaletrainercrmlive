@@ -872,6 +872,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Obter as mensagens mais recentes para cada lead (para exibição na lista de conversas)
+  app.get('/api/whatsapp/recent-messages', async (req, res) => {
+    try {
+      // Obter todas as mensagens WhatsApp agrupadas por lead
+      const query = `
+        SELECT DISTINCT ON (lead_id) *
+        FROM whatsapp_messages
+        ORDER BY lead_id, timestamp DESC
+      `;
+      
+      const result = await db.execute(query);
+      
+      // Transformar o resultado em um objeto com lead_id como chave
+      const messagesByLead = {};
+      
+      if (Array.isArray(result)) {
+        result.forEach(message => {
+          const leadId = message.lead_id;
+          if (!messagesByLead[leadId]) {
+            messagesByLead[leadId] = [];
+          }
+          messagesByLead[leadId].push({
+            id: message.id,
+            leadId: message.lead_id,
+            direction: message.direction,
+            content: message.content,
+            status: message.status,
+            timestamp: message.timestamp,
+            mediaUrl: message.media_url,
+            mediaType: message.media_type,
+            messageId: message.message_id
+          });
+        });
+      }
+      
+      res.json(messagesByLead);
+    } catch (error) {
+      console.error('Erro ao buscar mensagens recentes:', error);
+      res.status(500).json({ message: "Erro ao buscar mensagens recentes" });
+    }
+  });
+  
   // Verificar conexão com a API do WhatsApp
   app.get('/api/whatsapp/status', async (req, res) => {
     try {

@@ -62,9 +62,29 @@ export default function WhatsappPage() {
   });
   
   // Mensagem mais recente para exibir na prévia
+  const { data: allMessages = {} } = useQuery<{[leadId: string]: any[]}>({ 
+    queryKey: ['/api/whatsapp/recent-messages'],
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
+  });
+  
   const getLastMessage = (leadId: number) => {
-    // Simulação de última mensagem - isso seria substituído por dados reais do backend
-    return `Última mensagem para ${leadId}`;
+    const leadMessages = allMessages[leadId] || [];
+    if (leadMessages.length === 0) {
+      return 'Nenhuma mensagem ainda...';
+    }
+    
+    const lastMessage = leadMessages[0]; // A primeira mensagem do array será a mais recente
+    const prefix = lastMessage.direction === 'outgoing' ? 'Você: ' : '';
+    return `${prefix}${lastMessage.content}`;
+  };
+  
+  const getLastMessageTime = (leadId: number) => {
+    const leadMessages = allMessages[leadId] || [];
+    if (leadMessages.length === 0) {
+      return null;
+    }
+    
+    return new Date(leadMessages[0].timestamp);
   };
   
   return (
