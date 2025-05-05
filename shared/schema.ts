@@ -207,3 +207,37 @@ export const insertSessionHistorySchema = createInsertSchema(sessionHistory).omi
 
 export type InsertSessionHistory = z.infer<typeof insertSessionHistorySchema>;
 export type SessionHistory = typeof sessionHistory.$inferSelect;
+
+// WhatsApp mensagens
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").references(() => leads.id).notNull(),
+  direction: text("direction").notNull(), // "incoming" ou "outgoing"
+  content: text("content").notNull(),
+  status: text("status").notNull(), // "sent", "delivered", "read", "failed"
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  mediaUrl: text("media_url"), // URL opcional para mídia (imagens, áudio, etc.)
+  mediaType: text("media_type"), // Tipo de mídia (image, audio, video, document)
+});
+
+export const insertWhatsappMessageSchema = createInsertSchema(whatsappMessages).omit({
+  id: true,
+});
+
+export const whatsappMessageValidationSchema = insertWhatsappMessageSchema.extend({
+  leadId: z.number().int().positive("ID do lead inválido"),
+  direction: z.enum(["incoming", "outgoing"], {
+    errorMap: () => ({ message: "Direção deve ser 'incoming' ou 'outgoing'" })
+  }),
+  content: z.string().min(1, "O conteúdo da mensagem é obrigatório"),
+  status: z.enum(["sent", "delivered", "read", "failed"], {
+    errorMap: () => ({ message: "Status inválido" })
+  }),
+  mediaUrl: z.string().url("URL de mídia inválida").optional(),
+  mediaType: z.enum(["image", "audio", "video", "document"], {
+    errorMap: () => ({ message: "Tipo de mídia inválido" })
+  }).optional(),
+});
+
+export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;
+export type WhatsappMessage = typeof whatsappMessages.$inferSelect;

@@ -1,11 +1,12 @@
 import { 
-  leads, students, trainers, sessions, sessionHistory,
+  leads, students, trainers, sessions, sessionHistory, whatsappMessages,
   type Lead, type InsertLead, 
   type User, type InsertUser, 
   type Student, type InsertStudent,
   type Trainer, type InsertTrainer,
   type Session, type InsertSession,
   type SessionHistory, type InsertSessionHistory,
+  type WhatsappMessage, type InsertWhatsappMessage,
   users 
 } from "@shared/schema";
 import { db, pool } from "./db";
@@ -39,6 +40,12 @@ export interface IStorage {
   // Batch operations
   updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number>;
   deleteLeadsInBatch(ids: number[]): Promise<number>;
+  
+  // WhatsApp methods
+  getWhatsappMessages(leadId: number): Promise<WhatsappMessage[]>;
+  createWhatsappMessage(message: InsertWhatsappMessage): Promise<WhatsappMessage>;
+  updateWhatsappMessageStatus(id: number, status: string): Promise<WhatsappMessage | undefined>;
+  deleteWhatsappMessage(id: number): Promise<boolean>;
   
   // Trainer methods
   getTrainers(): Promise<Trainer[]>;
