@@ -128,8 +128,9 @@ export default function WhatsappPage() {
       
       // Atualizar a lista de mensagens
       if (selectedLead) {
-        const queryKey = [`/api/whatsapp/lead/${selectedLead.id}`];
-        queryClient.invalidateQueries({ queryKey });
+        // Invalidar tanto a consulta de mensagens específicas quanto a de mensagens recentes
+        queryClient.invalidateQueries({ queryKey: [`/api/whatsapp/lead/${selectedLead.id}`] });
+        queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/recent-messages'] });
       }
     },
     onError: (error) => {
@@ -371,6 +372,7 @@ export default function WhatsappPage() {
                         </div>
                       </div>
                     ))}
+                    {/* Elemento invisível para o scroll automático */}
                     <div ref={endOfMessagesRef} />
                   </>
                 )}

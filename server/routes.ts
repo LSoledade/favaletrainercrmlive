@@ -8,7 +8,7 @@ import { setupAuth } from "./auth";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { logAuditEvent, AuditEventType, getRecentAuditLogs } from "./audit-log";
-import { sendWhatsAppMessage, sendWhatsAppTemplate, checkWhatsAppConnection } from "./whatsapp-service";
+import { sendWhatsAppMessage, sendWhatsAppTemplate, checkWhatsAppConnection, formatPhoneNumber } from "./whatsapp-service";
 import { log } from "./vite";
 
 const scryptAsync = promisify(scrypt);
@@ -965,6 +965,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`Erro ao verificar status da API: ${JSON.stringify(error)}`);
       res.status(500).json({ status: 'error', message: 'Erro ao verificar conexão com a API do WhatsApp' });
+    }
+  });
+  
+  // Enviar mensagem pelo WhatsApp
+  app.post('/api/whatsapp/send', async (req, res) => {
+    try {
+      const { leadId, content, direction, status } = req.body;
+      
+      if (!leadId || !content) {
+        return res.status(400).json({ message: "ID do lead e conteúdo são obrigatórios" });
+      }
+      
+      // Verificar se o lead existe
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
+      // Validar número de telefone
+      const formattedPhone = formatPhoneNumber(lead.phone);
+      if (!formattedPhone) {
+        return res.status(400).json({ message: "Número de telefone inválido ou não encontrado para o lead" });
+      }
+      
+      // Criar entrada da mensagem no banco de dados
+      const messageData = {
+        leadId,
+        direction: direction || 'outgoing',
+        content,
+        status: status || 'pending',
+        mediaUrl: null,
+        mediaType: null
+      };
+      
+      // Salvar a mensagem no banco de dados
+      const message = await storage.createWhatsappMessage(messageData);
+      
+      // Enviar a mensagem via API do WhatsApp apenas se for uma mensagem de saída
+      if (direction !== 'incoming') {
+        const result = await sendWhatsAppMessage(lead, content);
+        
+        // Atualizar status da mensagem com o resultado da API
+        if (result.success) {
+          await storage.updateWhatsappMessageStatus(message.id, 'sent');
+          
+          if (result.messageId) {
+            await storage.updateWhatsappMessageId(message.id, result.messageId);
+          }
+          
+          res.status(201).json({
+            id: message.id,
+            leadId: message.leadId,
+            content: message.content,
+            status: 'sent',
+            timestamp: message.timestamp,
+            messageId: result.messageId,
+            success: true
+          });
+        } else {
+          await storage.updateWhatsappMessageStatus(message.id, 'failed');
+          res.status(400).json({
+            id: message.id,
+            leadId: message.leadId,
+            content: message.content,
+            status: 'failed',
+            timestamp: message.timestamp,
+            error: result.error,
+            success: false
+          });
+        }
+      } else {
+        // Mensagem recebida, apenas retorna sucesso
+        res.status(201).json({
+          id: message.id,
+          leadId: message.leadId,
+          content: message.content,
+          status: message.status,
+          timestamp: message.timestamp,
+          success: true
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao enviar mensagem WhatsApp:', error);
+      res.status(500).json({ message: "Erro ao enviar mensagem", error: String(error) });
     }
   });
   
