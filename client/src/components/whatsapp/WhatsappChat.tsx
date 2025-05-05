@@ -41,11 +41,22 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
       queryClient.invalidateQueries({ queryKey: [`/api/whatsapp/lead/${lead.id}`] });
       setMessage('');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Erro ao enviar mensagem:', error);
+      
+      let errorMessage = 'Não foi possível enviar a mensagem';
+      
+      // Verificar se é um erro específico de número não autorizado
+      if (error?.response?.data?.isUnauthorizedNumber) {
+        errorMessage = `Número ${lead.phone} não autorizado. Apenas números verificados podem receber mensagens no ambiente de teste.`;
+      } else if (error?.response?.data?.error) {
+        // Usar mensagem de erro da API quando disponível
+        errorMessage = error.response.data.error;
+      }
+      
       toast({
-        title: 'Erro',
-        description: 'Não foi possível enviar a mensagem',
+        title: 'Erro no envio',
+        description: errorMessage,
         variant: 'destructive',
       });
     },
@@ -58,8 +69,19 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
     }
   }, [messages]);
 
+  // Verificar se o número é autorizado (apenas para ambiente de teste)
+  const isAuthorizedNumber = lead.phone === '5511996356454';
+  
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // No ambiente de teste, mostrar uma confirmação se tentando enviar para número não autorizado
+    if (!isAuthorizedNumber) {
+      if (!confirm(`ATENÇÃO: O número ${lead.phone} não está na lista de números autorizados do WhatsApp. No ambiente de desenvolvimento, apenas o número 5511996356454 está autorizado para receber mensagens.\n\nDeseja continuar mesmo assim? (A mensagem provavelmente falhará)`)) {
+        return;
+      }
+    }
+    
     if (message.trim()) {
       sendMessageMutation.mutate(message.trim());
     }
@@ -171,16 +193,30 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
             </p>
             
             {/* Mensagem de aviso sobre limitação da WhatsApp API */}
-            <div className="mt-4 max-w-xs bg-amber-50 p-3 rounded-md border border-amber-200 text-left">
-              <p className="text-xs text-amber-800 font-medium mb-1">Atenção</p>
-              <p className="text-xs text-amber-700">
-                No ambiente de teste, mensagens só podem ser enviadas para números verificados. 
-                {lead.phone === '5511996356454' ? (
-                  <span className="block mt-1 font-medium">Este número está autorizado!</span>
-                ) : (
-                  <span className="block mt-1">No momento, apenas o número <span className="font-mono">+5511996356454</span> está autorizado.</span>
-                )}
-              </p>
+            <div className="mt-4 max-w-xs bg-amber-50 p-4 rounded-md border border-amber-200 text-left">
+              <div className="flex items-start">
+                <div className="bg-amber-100 rounded-full p-1.5 mr-2">
+                  <AlertCircle className="h-4 w-4 text-amber-800" />
+                </div>
+                <div>
+                  <p className="text-xs text-amber-800 font-medium mb-1">Limitação do ambiente de teste</p>
+                  <p className="text-xs text-amber-700">
+                    Mensagens só podem ser enviadas para números verificados pela Meta. 
+                    {isAuthorizedNumber ? (
+                      <span className="block mt-1.5 text-green-700 font-medium flex items-center">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Este número está autorizado!
+                      </span>
+                    ) : (
+                      <span className="block mt-1.5">
+                        No momento, apenas o número <span className="font-mono bg-amber-100 px-1 py-0.5 rounded text-amber-800">+5511996356454</span> está autorizado.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
