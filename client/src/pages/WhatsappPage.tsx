@@ -70,32 +70,39 @@ export default function WhatsappPage() {
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-background rounded-lg border">
       {/* Status da conexão */}
-      {connectionStatus.status !== 'connected' && (
-        <Alert variant={connectionStatus.status === 'checking' ? 'default' : 'destructive'} className="rounded-none border-x-0 border-t-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              {connectionStatus.status === 'checking' ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-t-primary border-r-transparent border-b-primary border-l-transparent mr-2"></div>
-              ) : (
-                <XCircle className="h-4 w-4 mr-2" />
-              )}
-              <span className="text-sm font-medium">
-                {connectionStatus.status === 'checking' ? 'Verificando conexão...' : 'Falha na conexão com a API do WhatsApp'}
-              </span>
-            </div>
-            <Button 
-              onClick={() => refreshConnectionStatus()} 
-              variant="ghost" 
-              size="sm"
-              className="h-7 px-2"
-              disabled={connectionStatus.status === 'checking'}
-            >
-              <RefreshCw className="h-3.5 w-3.5 mr-1" />
-              Verificar
-            </Button>
+      <Alert 
+        variant={connectionStatus.status === 'connected' ? 'default' : 
+                connectionStatus.status === 'checking' ? 'default' : 'destructive'} 
+        className="rounded-none border-x-0 border-t-0"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            {connectionStatus.status === 'connected' ? (
+              <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
+            ) : connectionStatus.status === 'checking' ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-t-primary border-r-transparent border-b-primary border-l-transparent mr-2"></div>
+            ) : (
+              <XCircle className="h-4 w-4 mr-2" />
+            )}
+            <span className="text-sm font-medium">
+              {connectionStatus.status === 'connected' ? 
+                `Conectado ao WhatsApp: ${connectionStatus.details?.name || 'Conta WhatsApp'} (${connectionStatus.details?.phone || 'Não disponível'})` : 
+                connectionStatus.status === 'checking' ? 'Verificando conexão...' : 
+                connectionStatus.message || 'Falha na conexão com a API do WhatsApp'}
+            </span>
           </div>
-        </Alert>
-      )}
+          <Button 
+            onClick={() => refreshConnectionStatus()} 
+            variant="ghost" 
+            size="sm"
+            className="h-7 px-2"
+            disabled={connectionStatus.status === 'checking'}
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+            Verificar
+          </Button>
+        </div>
+      </Alert>
       
       {/* Interface principal */}
       <div className="flex flex-1 h-full overflow-hidden">
