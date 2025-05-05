@@ -31,15 +31,19 @@ interface WhatsAppAPIResponse {
   };
 }
 
-/**
- * Envia mensagem de texto via WhatsApp API
- */
-export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<{
+// Interface compartilhada para retorno das funções de WhatsApp
+interface WhatsAppResult {
   success: boolean;
   messageId?: string;
   error?: string;
   details?: any;
-}> {
+  isUnauthorizedNumber?: boolean;
+}
+
+/**
+ * Envia mensagem de texto via WhatsApp API
+ */
+export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<WhatsAppResult> {
   if (!WHATSAPP_API_TOKEN) {
     log('WhatsApp API token não configurado', 'error');
     return { success: false, error: 'WhatsApp API token não configurado' };
@@ -117,12 +121,7 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
  * Envia uma mensagem de template WhatsApp
  * Templates são mensagens pré-aprovadas pela Meta
  */
-export async function sendWhatsAppTemplate(lead: Lead, templateName: string, language: string = 'pt_BR'): Promise<{
-  success: boolean;
-  messageId?: string;
-  error?: string;
-  details?: any;
-}> {
+export async function sendWhatsAppTemplate(lead: Lead, templateName: string, language: string = 'pt_BR'): Promise<WhatsAppResult> {
   if (!WHATSAPP_API_TOKEN) {
     log('WhatsApp API token não configurado', 'error');
     return { success: false, error: 'WhatsApp API token não configurado' };
@@ -209,11 +208,7 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
 /**
  * Verifica se existe conexão com a API do WhatsApp
  */
-export async function checkWhatsAppConnection(): Promise<{
-  success: boolean;
-  error?: string;
-  details?: any;
-}> {
+export async function checkWhatsAppConnection(): Promise<WhatsAppResult> {
   if (!WHATSAPP_API_TOKEN) {
     log('WhatsApp API token não configurado ou inválido', 'error');
     return { 
