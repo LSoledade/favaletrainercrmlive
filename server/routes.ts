@@ -146,35 +146,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Normalizar o telefone do lead atual
           const normalizedPhone = normalizePhone(leadData.phone);
+          console.log(`Verificando telefone normalizado: ${normalizedPhone}`);
           
           // Verificar se o número de telefone já existe
           if (normalizedPhone && phoneToLeadMap.has(normalizedPhone)) {
             const existingLeadId = phoneToLeadMap.get(normalizedPhone);
+            console.log(`Telefone ${normalizedPhone} encontrado, ID existente: ${existingLeadId}`);
             
             // Se o email for diferente ou nome for diferente, permitir atualização
             const existingLead = existingLeads.find(l => l.id === existingLeadId);
             
-            // Verificar se campos importantes mudaram para justificar uma atualização
-            const shouldUpdate = existingLead && (
-              (leadData.email && existingLead.email !== leadData.email) ||
-              (leadData.tags && leadData.tags.length > 0) ||
-              (leadData.status && existingLead.status !== leadData.status) ||
-              (leadData.notes && (!existingLead.notes || existingLead.notes !== leadData.notes))
-            );
+            if (existingLead) {
+              console.log(`Lead existente encontrado: ${existingLead.name}, email: ${existingLead.email}, status: ${existingLead.status}`);
+              console.log(`Novo lead: ${leadData.name}, email: ${leadData.email}, status: ${leadData.status}`);
             
-            if (shouldUpdate) {
-              // Atualizar o lead existente em vez de criar um novo
-              const updatedLead = await storage.updateLead(existingLeadId, leadData);
-              results.updated.push({
-                index: i,
-                id: existingLeadId,
-                action: "atualizado",
-                phone: leadData.phone
-              });
-              continue;
+              // Verificar se campos importantes mudaram para justificar uma atualização
+              const shouldUpdate = (
+                (leadData.email && existingLead.email !== leadData.email) ||
+                (leadData.tags && leadData.tags.length > 0) ||
+                (leadData.status && existingLead.status !== leadData.status) ||
+                (leadData.notes && (!existingLead.notes || existingLead.notes !== leadData.notes))
+              );
+              
+              console.log(`Deve atualizar? ${shouldUpdate}`);
+              console.log(`Razões para atualização: 
+                Email diferente? ${leadData.email && existingLead.email !== leadData.email}
+                Tags não vazias? ${leadData.tags && leadData.tags.length > 0}
+                Status diferente? ${leadData.status && existingLead.status !== leadData.status}
+                Notas diferentes? ${leadData.notes && (!existingLead.notes || existingLead.notes !== leadData.notes)}
+              `);
+              
+              // Processamento específico para tags
+              if (typeof leadData.tags === 'string') {
+                // Se as tags vieram como string, converter para array
+                leadData.tags = leadData.tags.split(/[,;]/).map((tag: string) => tag.trim()).filter(Boolean);
+              } else if (!Array.isArray(leadData.tags)) {
+                // Se não for array nem string, inicializar como array vazio
+                leadData.tags = [];
+              }
+              
+              // Combinar tags do lead existente com as novas tags (se existirem)
+              if (existingLead.tags && Array.isArray(existingLead.tags) && existingLead.tags.length > 0) {
+                console.log(`Tags existentes: ${JSON.stringify(existingLead.tags)}`);
+                console.log(`Novas tags: ${JSON.stringify(leadData.tags)}`);
+                
+                // Unir as tags e remover duplicatas
+                const combinedTags = [...new Set([...existingLead.tags, ...leadData.tags])];
+                leadData.tags = combinedTags.filter(tag => tag && tag.trim() !== '');
+                console.log(`Tags combinadas: ${JSON.stringify(leadData.tags)}`);
+              }
+              
+              // Sempre atualizar quando um número de telefone existente for encontrado
+              if (true) { // Alteração importante: sempre atualizar em vez de verificar condições
+                // Atualizar o lead existente em vez de criar um novo
+                console.log(`Atualizando lead ID ${existingLeadId} com novos dados`);
+                const updatedLead = await storage.updateLead(existingLeadId, leadData);
+                results.updated.push({
+                  index: i,
+                  id: existingLeadId,
+                  action: "atualizado",
+                  phone: leadData.phone
+                });
+                continue;
+              } else {
+                console.log(`Sem alterações significativas para atualizar`);
+                // Não há mudanças significativas para atualizar
+                throw new Error(`Telefone ${leadData.phone} já existe no sistema e não há alterações significativas para atualizar`);
+              }
             } else {
-              // Não há mudanças significativas para atualizar
-              throw new Error(`Telefone ${leadData.phone} já existe no sistema e não há alterações significativas para atualizar`);
+              console.log(`Lead com ID ${existingLeadId} não encontrado no array de leads.`);
+              throw new Error(`Telefone ${leadData.phone} já existe no sistema, mas o lead não foi encontrado.`);
             }
           }
           
