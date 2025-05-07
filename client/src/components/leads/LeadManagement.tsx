@@ -961,8 +961,26 @@ export default function LeadManagement() {
   const confirmImport = async () => {
     if (parsedLeads.length === 0) return;
     
+    // Reset estatísticas de importação
+    setImportStats({
+      currentBatch: 0,
+      totalBatches: 1,
+      processedCount: 0,
+      successCount: 0,
+      errorCount: 0,
+      updatedCount: 0,
+      totalCount: parsedLeads.length,
+      currentBatchSize: parsedLeads.length,
+      statusMessage: 'Iniciando importação...',
+      batchResults: []
+    });
+    
     try {
       setImportProgress(60);
+      setImportStats(prev => ({
+        ...prev,
+        statusMessage: 'Enviando dados para o servidor...'
+      }));
       
       // Enviar leads em lote para a API
       const response = await fetch('/api/leads/batch/import', {
@@ -984,6 +1002,12 @@ export default function LeadManagement() {
           // Se não for JSON, tenta obter como texto
           errorText = await response.text();
         }
+        
+        setImportStats(prev => ({
+          ...prev,
+          statusMessage: `Erro: ${errorText}`,
+        }));
+        
         throw new Error(`Erro na importação em lote: ${errorText}`);
       }
       
@@ -995,6 +1019,32 @@ export default function LeadManagement() {
       }
       console.log('Resultado da importação em lote:', result);
       
+      // Atualizar estatísticas com os resultados
+      setImportStats(prev => {
+        const successCount = result.successCount || 0;
+        const updatedCount = result.updatedCount || 0;
+        const errorCount = result.errorCount || 0;
+        
+        // Adicionar resultado do lote ao histórico
+        const newBatchResults = [...prev.batchResults, {
+          batch: 1,
+          success: successCount,
+          updated: updatedCount,
+          errors: errorCount
+        }];
+        
+        return {
+          ...prev,
+          currentBatch: 1,
+          processedCount: parsedLeads.length,
+          successCount,
+          updatedCount,
+          errorCount,
+          statusMessage: 'Processamento concluído, atualizando dados...',
+          batchResults: newBatchResults
+        };
+      });
+      
       // Atualizar a lista de leads após a importação bem-sucedida
       try {
         // Primeiro, invalidamos a consulta
@@ -1002,7 +1052,13 @@ export default function LeadManagement() {
         
         // Em seguida, disparamos manualmente uma nova consulta com await para garantir que seja concluída
         await queryClient.fetchQuery({ queryKey: ["/api/leads"] });
-        console.log('Dados atualizados com sucesso após importação');  
+        console.log('Dados atualizados com sucesso após importação');
+        
+        // Atualizar mensagem final
+        setImportStats(prev => ({
+          ...prev,
+          statusMessage: 'Importação finalizada com sucesso!'
+        }));
       } catch (e) {
         console.error('Erro ao atualizar dados após importação:', e);
       }
@@ -1025,6 +1081,12 @@ export default function LeadManagement() {
       
     } catch (error) {
       console.error('Erro ao processar importação:', error);
+      
+      setImportStats(prev => ({
+        ...prev,
+        statusMessage: error instanceof Error ? error.message : 'Erro desconhecido durante a importação'
+      }));
+      
       toast({
         title: "Erro na importação",
         description: error instanceof Error ? error.message : "Ocorreu um erro ao importar os leads.",
@@ -1533,15 +1595,83 @@ export default function LeadManagement() {
           </DialogHeader>
           
           {importLoading && (
-            <div className="my-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {importProgress < 60 ? 'Processando arquivo...' : 
-                   importProgress < 100 ? 'Importando leads...' : 'Concluído!'}
-                </span>
-                <span className="text-sm font-medium">{importProgress}%</span>
+            <div className="my-4 space-y-4">
+              {/* Barra de progresso principal */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {importProgress < 60 ? 'Processando arquivo...' : 
+                     importProgress < 100 ? 'Importando leads...' : 'Concluído!'}
+                  </span>
+                  <span className="text-sm font-medium">{importProgress}%</span>
+                </div>
+                <Progress value={importProgress} className="h-2" />
               </div>
-              <Progress value={importProgress} className="h-2" />
+              
+              {/* Detalhes das estatísticas */}
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border dark:border-gray-800">
+                <div className="mb-3">
+                  <h4 className="text-sm font-medium mb-1">Status da importação</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{importStats.statusMessage}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Lote atual</div>
+                    <div className="text-lg font-semibold">{importStats.currentBatch} / {importStats.totalBatches}</div>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Processados</div>
+                    <div className="text-lg font-semibold">{importStats.processedCount} / {importStats.totalCount}</div>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Importados</div>
+                    <div className="text-lg font-semibold text-green-600 dark:text-green-500">{importStats.successCount + importStats.updatedCount}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <span className="text-emerald-600 dark:text-emerald-500">{importStats.successCount} novos</span> / 
+                      <span className="text-blue-600 dark:text-blue-500"> {importStats.updatedCount} atualizados</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Erros</div>
+                    <div className="text-lg font-semibold text-red-600 dark:text-red-500">{importStats.errorCount}</div>
+                  </div>
+                </div>
+                
+                {/* Histórico de lotes processados */}
+                {importStats.batchResults.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Histórico de lotes</h4>
+                    <div className="bg-white dark:bg-gray-800 rounded-md overflow-hidden">
+                      <div className="max-h-32 overflow-y-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-800">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Lote</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Novos</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Atualizados</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Erros</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {importStats.batchResults.map((batch, index) => (
+                              <tr key={index} className={index % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}>
+                                <td className="px-3 py-2 text-xs">{batch.batch}</td>
+                                <td className="px-3 py-2 text-xs text-emerald-600 dark:text-emerald-500">{batch.success}</td>
+                                <td className="px-3 py-2 text-xs text-blue-600 dark:text-blue-500">{batch.updated}</td>
+                                <td className="px-3 py-2 text-xs text-red-600 dark:text-red-500">{batch.errors}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           
