@@ -325,7 +325,12 @@ export default function LeadManagement() {
     reader.onload = async (event) => {
       try {
         const content = event.target?.result as string;
-        const rows = content.split('\n');
+        
+        // Pré-processamento para garantir quebras de linha consistentes (CRLF -> LF)
+        const normalizedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const rows = normalizedContent.split('\n');
+        
+        console.log(`Total de linhas no arquivo: ${rows.length}`);
         
         if (rows.length < 2) {
           toast({
@@ -336,10 +341,38 @@ export default function LeadManagement() {
           return;
         }
         
-        // Extract headers and normalize them
-        const headers = rows[0]
-          .split(',')
-          .map(header => header.trim().toLowerCase());
+        // Extrair cabeçalhos com tratamento especial para vírgulas em aspas
+        let headerRow = rows[0];
+        const headerValues: string[] = [];
+        let insideHeaderQuotes = false;
+        let currentHeader = "";
+        
+        for (let j = 0; j < headerRow.length; j++) {
+          const char = headerRow[j];
+          
+          if (char === '"') {
+            insideHeaderQuotes = !insideHeaderQuotes;
+          } else if (char === ',' && !insideHeaderQuotes) {
+            headerValues.push(currentHeader.trim().toLowerCase());
+            currentHeader = "";
+          } else {
+            currentHeader += char;
+          }
+        }
+        
+        // Adicionar o último cabeçalho
+        headerValues.push(currentHeader.trim().toLowerCase());
+        
+        // Limpar aspas nos cabeçalhos
+        const headers = headerValues.map(header => {
+          let cleaned = header.trim();
+          if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+            cleaned = cleaned.substring(1, cleaned.length - 1);
+          }
+          return cleaned;
+        });
+        
+        console.log('Cabeçalhos encontrados:', headers);
         
         // Map para normalização de cabeçalhos
         const headerMap: Record<string, string[]> = {
@@ -379,8 +412,9 @@ export default function LeadManagement() {
         const leadsToImport: InsertLead[] = [];
         const errorRows: number[] = [];
         
+        // Iniciar da linha 1 (após o cabeçalho)
         for (let i = 1; i < rows.length; i++) {
-          if (!rows[i].trim()) continue;
+          if (!rows[i] || !rows[i].trim()) continue;
           
           // Process each row - tratamento especial para campos com vírgulas dentro de aspas
           const row = rows[i];
@@ -554,38 +588,76 @@ export default function LeadManagement() {
           return;
         }
         
-        // Enviar leads em lote para a API
+        // Enviar leads em lote para a API em chunks para evitar problemas com tamanho de payload
         try {
-          setImportProgress(70);
-          const response = await fetch('/api/leads/batch/import', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ leads: leadsToImport })
-          });
+          setImportProgress(50);
           
-          let result;
-          if (!response.ok) {
-            let errorText;
-            try {
-              // Tenta obter o erro como JSON
-              const errorJson = await response.json();
-              errorText = errorJson.message || 'Erro desconhecido';
-            } catch (e) {
-              // Se não for JSON, tenta obter como texto
-              errorText = await response.text();
+          // Processar em lotes de no máximo 500 leads para evitar problemas de tamanho de payload
+          const BATCH_SIZE = 500;
+          const totalBatches = Math.ceil(leadsToImport.length / BATCH_SIZE);
+          console.log(`Processando ${leadsToImport.length} leads em ${totalBatches} lotes de ${BATCH_SIZE}`);
+          
+          let successCount = 0;
+          let updatedCount = 0;
+          let errorCount = 0;
+          let details: Array<{index: number, id?: number, error?: string, action?: string, data?: any}> = [];
+          
+          for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+            const start = batchIndex * BATCH_SIZE;
+            const end = Math.min(start + BATCH_SIZE, leadsToImport.length);
+            const currentBatch = leadsToImport.slice(start, end);
+            
+            console.log(`Enviando lote ${batchIndex + 1}/${totalBatches} (${currentBatch.length} leads)`);
+            setImportProgress(50 + Math.floor((batchIndex / totalBatches) * 40));
+            
+            const response = await fetch('/api/leads/batch/import', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ leads: currentBatch })
+            });
+            
+            if (!response.ok) {
+              let errorText;
+              try {
+                // Tenta obter o erro como JSON
+                const errorJson = await response.json();
+                errorText = errorJson.message || 'Erro desconhecido';
+              } catch (e) {
+                // Se não for JSON, tenta obter como texto
+                errorText = await response.text();
+              }
+              throw new Error(`Erro na importação do lote ${batchIndex + 1}: ${errorText}`);
             }
-            throw new Error(`Erro na importação em lote: ${errorText}`);
+            
+            try {
+              const batchResult = await response.json();
+              console.log(`Resultado do lote ${batchIndex + 1}:`, batchResult);
+              
+              // Acumular resultados
+              successCount += batchResult.successCount || 0;
+              updatedCount += batchResult.updatedCount || 0;
+              errorCount += batchResult.errorCount || 0;
+              
+              if (batchResult.details && Array.isArray(batchResult.details)) {
+                details = [...details, ...batchResult.details];
+              }
+            } catch (e) {
+              console.error(`Erro ao parsear resultado JSON do lote ${batchIndex + 1}:`, e);
+              throw new Error('Erro ao processar resposta do servidor');
+            }
           }
           
-          try {
-            result = await response.json();
-          } catch (e) {
-            console.error('Erro ao parsear resultado JSON:', e);
-            throw new Error('Erro ao processar resposta do servidor');
-          }
-          console.log('Resultado da importação em lote:', result);
+          // Consolidar resultados de todos os lotes
+          const result = {
+            successCount,
+            updatedCount,
+            errorCount,
+            details
+          };
+          
+          console.log('Resultado final da importação em lotes:', result);
           
           // Atualizar a lista de leads após a importação bem-sucedida
           try {
@@ -603,12 +675,11 @@ export default function LeadManagement() {
           
           // Show results
           setImportDialogOpen(false);
-          const updatedCount = result.updatedCount || 0;
-          const totalSuccess = (result.successCount || 0) + updatedCount;
+          const totalSuccess = (result.successCount || 0) + (result.updatedCount || 0);
           
           toast({
             title: "Importação concluída",
-            description: `${result.successCount || 0} leads importados${updatedCount > 0 ? ` e ${updatedCount} atualizados` : ''} com sucesso.${result.errorCount > 0 ? ` ${result.errorCount} leads com erro.` : ''}`,
+            description: `${result.successCount || 0} leads importados${result.updatedCount > 0 ? ` e ${result.updatedCount} atualizados` : ''} com sucesso.${result.errorCount > 0 ? ` ${result.errorCount} leads com erro.` : ''}`,
             variant: totalSuccess > 0 ? "default" : "destructive",
           });
         } catch (error) {
