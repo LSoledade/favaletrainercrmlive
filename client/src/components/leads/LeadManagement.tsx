@@ -169,6 +169,34 @@ export default function LeadManagement() {
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [parsedLeads, setParsedLeads] = useState<InsertLead[]>([]);
+  const [importStats, setImportStats] = useState<{
+    currentBatch: number;
+    totalBatches: number; 
+    processedCount: number;
+    successCount: number;
+    errorCount: number;
+    updatedCount: number;
+    totalCount: number;
+    currentBatchSize: number;
+    statusMessage: string;
+    batchResults: Array<{
+      batch: number;
+      success: number;
+      updated: number;
+      errors: number;
+    }>;
+  }>({
+    currentBatch: 0,
+    totalBatches: 0,
+    processedCount: 0,
+    successCount: 0,
+    errorCount: 0,
+    updatedCount: 0,
+    totalCount: 0,
+    currentBatchSize: 0,
+    statusMessage: 'Aguardando início da importação',
+    batchResults: []
+  });
 
   // Parse CSV content and extract lead data
   const parseCSV = (content: string) => {
@@ -605,10 +633,24 @@ export default function LeadManagement() {
         try {
           setImportProgress(50);
           
-          // Processar em lotes de no máximo 500 leads para evitar problemas de tamanho de payload
-          const BATCH_SIZE = 500;
+          // Processar em lotes de no máximo 250 leads para evitar problemas de tamanho de payload
+          const BATCH_SIZE = 250;
           const totalBatches = Math.ceil(leadsToImport.length / BATCH_SIZE);
           console.log(`Processando ${leadsToImport.length} leads em ${totalBatches} lotes de ${BATCH_SIZE}`);
+          
+          // Reset estatísticas de importação
+          setImportStats({
+            currentBatch: 0,
+            totalBatches,
+            processedCount: 0,
+            successCount: 0,
+            errorCount: 0,
+            updatedCount: 0,
+            totalCount: leadsToImport.length,
+            currentBatchSize: 0,
+            statusMessage: 'Iniciando importação...',
+            batchResults: []
+          });
           
           let successCount = 0;
           let updatedCount = 0;
@@ -621,8 +663,16 @@ export default function LeadManagement() {
             const currentBatch = leadsToImport.slice(start, end);
             
             console.log(`Enviando lote ${batchIndex + 1}/${totalBatches} (${currentBatch.length} leads)`);
-            setImportProgress(50 + Math.floor((batchIndex / totalBatches) * 40));
             
+            // Atualizar estatísticas antes de iniciar o processamento do lote
+            setImportStats(prev => ({
+              ...prev,
+              currentBatch: batchIndex + 1,
+              currentBatchSize: currentBatch.length,
+              statusMessage: `Processando lote ${batchIndex + 1} de ${totalBatches}...`
+            }));
+            
+            setImportProgress(50 + Math.floor((batchIndex / totalBatches) * 40));
             const response = await fetch('/api/leads/batch/import', {
               method: 'POST',
               headers: {
@@ -656,6 +706,33 @@ export default function LeadManagement() {
               if (batchResult.details && Array.isArray(batchResult.details)) {
                 details = [...details, ...batchResult.details];
               }
+              
+              // Atualizar estatísticas com os resultados deste lote
+              setImportStats(prev => {
+                const processedCount = prev.processedCount + currentBatch.length;
+                const newSuccessCount = prev.successCount + (batchResult.successCount || 0);
+                const newUpdatedCount = prev.updatedCount + (batchResult.updatedCount || 0);
+                const newErrorCount = prev.errorCount + (batchResult.errorCount || 0);
+                
+                // Adicionar resultado do lote atual ao histórico
+                const newBatchResults = [...prev.batchResults, {
+                  batch: batchIndex + 1,
+                  success: batchResult.successCount || 0,
+                  updated: batchResult.updatedCount || 0,
+                  errors: batchResult.errorCount || 0
+                }];
+                
+                return {
+                  ...prev,
+                  currentBatch: batchIndex + 1,
+                  processedCount,
+                  successCount: newSuccessCount,
+                  updatedCount: newUpdatedCount,
+                  errorCount: newErrorCount,
+                  statusMessage: `Lote ${batchIndex + 1} finalizado: ${batchResult.successCount || 0} leads importados, ${batchResult.updatedCount || 0} atualizados, ${batchResult.errorCount || 0} erros`,
+                  batchResults: newBatchResults
+                };
+              });
             } catch (e) {
               console.error(`Erro ao parsear resultado JSON do lote ${batchIndex + 1}:`, e);
               throw new Error('Erro ao processar resposta do servidor');
@@ -683,6 +760,12 @@ export default function LeadManagement() {
           } catch (e) {
             console.error('Erro ao atualizar dados após importação:', e);
           }
+          
+          // Atualizar mensagem final das estatísticas
+          setImportStats(prev => ({
+            ...prev,
+            statusMessage: 'Importação finalizada com sucesso!',
+          }));
           
           setImportProgress(100);
           
