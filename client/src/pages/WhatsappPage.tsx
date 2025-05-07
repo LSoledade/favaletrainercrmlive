@@ -21,13 +21,43 @@ export default function WhatsappPage() {
   const [selectedTab, setSelectedTab] = useState("all");
   const { openWhatsappChat, connectionStatus, refreshConnectionStatus } = useWhatsappContext();
 
+  // Estado para o lead selecionado na lista
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [activeTab, setActiveTab] = useState('all');
+  const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  
   // Buscar todos os leads
   const { data: leads = [], isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
   });
-
-  // Filtrar leads com base na pesquisa
+  
+  // Mensagem mais recente para exibir na prévia
+  const { data: allMessages = {} } = useQuery<{[leadId: string]: any[]}>({ 
+    queryKey: ['/api/whatsapp/recent-messages'],
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
+  });
+  
+  /*
+   * Filtrar leads com base em 3 critérios:
+   * 1. Somente mostrar Leonardo Soledade (ID 14776) inicialmente
+   * 2. Adicionar outros leads à lista quando eles tiverem mensagens
+   * 3. Aplicar os filtros de busca e tab selecionada
+   * 
+   * Isso reduz o lag inicial ao carregar a página, mostrando apenas
+   * as conversas realmente relevantes.
+   */
   const filteredLeads = leads.filter((lead: Lead) => {
+    // Verifica se é o Leonardo Soledade (ID 14776) ou se tem mensagens enviadas/recebidas
+    const isLeonardo = lead.id === 14776;
+    const hasMessages = Object.keys(allMessages || {})
+      .map(id => parseInt(id))
+      .includes(lead.id);
+    
+    // Se não for o Leonardo e não tiver mensagens, não mostra na lista
+    if (!isLeonardo && !hasMessages) return false;
+    
+    // Aplica o filtro de busca
     const matchesSearch = searchQuery === "" ||
       lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (lead.phone && lead.phone.includes(searchQuery)) ||
@@ -36,12 +66,6 @@ export default function WhatsappPage() {
     if (selectedTab === "all") return matchesSearch;
     return matchesSearch && lead.status.toLowerCase() === selectedTab.toLowerCase();
   });
-
-  // Estado para o lead selecionado na lista
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [activeTab, setActiveTab] = useState('all');
-  const endOfMessagesRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
   
   // Formatar a data para exibição
   const formatMessageDate = (date: Date | string) => {
@@ -63,12 +87,6 @@ export default function WhatsappPage() {
     queryKey: selectedLead ? [`/api/whatsapp/lead/${selectedLead.id}`] : ['no-messages'],
     enabled: !!selectedLead,
     refetchInterval: selectedLead ? 10000 : false, // Atualizar a cada 10 segundos se tiver um lead selecionado
-  });
-  
-  // Mensagem mais recente para exibir na prévia
-  const { data: allMessages = {} } = useQuery<{[leadId: string]: any[]}>({ 
-    queryKey: ['/api/whatsapp/recent-messages'],
-    refetchInterval: 30000, // Atualiza a cada 30 segundos
   });
   
   const getLastMessage = (leadId: number) => {
