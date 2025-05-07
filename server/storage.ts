@@ -179,10 +179,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLead(id: number): Promise<boolean> {
-    const result = await db
-      .delete(leads)
-      .where(eq(leads.id, id));
-    return true; // Assuming no error means success
+    try {
+      // First delete any associated WhatsApp messages
+      await db
+        .delete(whatsappMessages)
+        .where(eq(whatsappMessages.leadId, id));
+      
+      // Then delete the lead
+      await db
+        .delete(leads)
+        .where(eq(leads.id, id));
+        
+      return true;
+    } catch (error) {
+      console.error("Erro ao excluir lead:", error);
+      throw error; // Re-throw to be caught by the route handler
+    }
   }
 
   async getLeadsBySource(source: string): Promise<Lead[]> {
@@ -231,11 +243,23 @@ export class DatabaseStorage implements IStorage {
   async deleteLeadsInBatch(ids: number[]): Promise<number> {
     if (ids.length === 0) return 0;
     
-    await db
-      .delete(leads)
-      .where(sql`${leads.id} IN (${sql.join(ids, sql`, `)})`);
-    
-    return ids.length; // Return the number of deleted rows
+    // First delete all WhatsApp messages associated with these leads
+    try {
+      // Delete related WhatsApp messages first
+      await db
+        .delete(whatsappMessages)
+        .where(sql`${whatsappMessages.leadId} IN (${sql.join(ids, sql`, `)})`);
+      
+      // Then delete the leads
+      await db
+        .delete(leads)
+        .where(sql`${leads.id} IN (${sql.join(ids, sql`, `)})`);
+      
+      return ids.length; // Return the number of deleted rows
+    } catch (error) {
+      console.error("Erro ao excluir leads em lote:", error);
+      throw error; // Re-throw to be caught by the route handler
+    }
   }
   
   // Trainer methods
