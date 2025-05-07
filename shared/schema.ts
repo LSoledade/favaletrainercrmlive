@@ -112,7 +112,19 @@ export const insertLeadSchema = baseInsertLeadSchema.extend({
 
 export const leadValidationSchema = insertLeadSchema.extend({
   entryDate: z.union([
-    z.string().refine(value => !isNaN(Date.parse(value)), {
+    z.string().transform(val => {
+      try {
+        // Formatar a data se estiver no padrão DD/MM/YYYY (formato brasileiro)
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+          const [day, month, year] = val.split('/');
+          return `${year}-${month}-${day}`;
+        }
+        // Outros formatos
+        return val;
+      } catch (e) {
+        return val;
+      }
+    }).refine(value => !isNaN(Date.parse(value)), {
       message: "Data de entrada precisa ser uma data válida"
     }),
     z.date()

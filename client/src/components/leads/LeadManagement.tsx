@@ -515,41 +515,41 @@ export default function LeadManagement() {
                   break;
                 case 'data_entrada':
                   try {
-                    // Tenta converter a data de entrada para formato ISO
+                    // Tenta converter a data de entrada para formato de string que o servidor conseguirá processar
                     if (value) {
-                      // Tenta lidar com formatos de data comuns (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD)
-                      const dateParts = value.split(/[\/\-]/);
-                      
-                      // Se tem 3 partes, tente determinar o formato correto
-                      if (dateParts.length === 3) {
-                        // Se o primeiro tem 4 dígitos, assume YYYY-MM-DD
-                        if (dateParts[0].length === 4) {
-                          leadData.entryDate = new Date(value).toISOString();
-                        }
-                        // Se o primeiro tem 2 dígitos, assume DD/MM/YYYY (comum no Brasil)
-                        else if (dateParts[0].length === 2 && dateParts[1].length === 2) {
-                          const isoDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
-                          leadData.entryDate = new Date(isoDate).toISOString();
-                        } else {
-                          // Tenta o formato padrão
-                          leadData.entryDate = new Date(value).toISOString();
-                        }
-                      } else {
-                        // Se não tem 3 partes, tenta o formato padrão
-                        leadData.entryDate = new Date(value).toISOString();
+                      // Formatar corretamente a data brasileira (DD/MM/YYYY)
+                      if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+                        const [day, month, year] = value.split('/');
+                        // Armazenar como string no formato ISO sem conversão para Date
+                        leadData.entryDate = `${year}-${month}-${day}`;
+                      } 
+                      // Tenta lidar com o formato americano (MM/DD/YYYY)
+                      else if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+                        const [month, day, year] = value.split('/');
+                        leadData.entryDate = `${year}-${month}-${day}`;
+                      }
+                      // Formato ISO (YYYY-MM-DD)
+                      else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                        leadData.entryDate = value;
+                      }
+                      // Formato apenas o ano (YYYY)
+                      else if (/^\d{4}$/.test(value)) {
+                        leadData.entryDate = `${value}-01-01`;
+                      }
+                      else {
+                        // Usar a data atual para qualquer formato não reconhecido
+                        console.warn(`Formato de data não reconhecido: ${value}`);
+                        leadData.entryDate = new Date().toISOString().split('T')[0];
                       }
                       
-                      // Verifica se a data é válida
-                      if (isNaN(new Date(leadData.entryDate).getTime())) {
-                        throw new Error('Data inválida');
-                      }
+                      console.log(`Processamento de data: original='${value}', processada='${leadData.entryDate}'`);
                     } else {
-                      // Se não tem valor, usa a data atual
-                      leadData.entryDate = new Date().toISOString();
+                      // Se não tem valor, usa a data atual sem a parte de hora
+                      leadData.entryDate = new Date().toISOString().split('T')[0];
                     }
                   } catch (e) {
                     console.error('Erro ao processar data:', e);
-                    leadData.entryDate = new Date().toISOString();
+                    leadData.entryDate = new Date().toISOString().split('T')[0];
                   }
                   break;
                 case 'observacoes':
