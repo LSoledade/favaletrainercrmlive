@@ -239,8 +239,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validatedLead = validationResult.data;
           
           // Converter qualquer string de data para objeto Date
-          if (typeof validatedLead.entryDate === 'string') {
-            validatedLead.entryDate = new Date(validatedLead.entryDate);
+          if (validatedLead.entryDate) {
+            try {
+              if (typeof validatedLead.entryDate === 'string') {
+                // Formatar a data se estiver no padrão DD/MM/YYYY
+                if (/^\d{2}\/\d{2}\/\d{4}$/.test(validatedLead.entryDate)) {
+                  const [day, month, year] = validatedLead.entryDate.split('/');
+                  validatedLead.entryDate = new Date(`${year}-${month}-${day}`);
+                } else {
+                  validatedLead.entryDate = new Date(validatedLead.entryDate);
+                }
+                
+                // Verificar se a data é válida
+                if (isNaN(validatedLead.entryDate.getTime())) {
+                  // Se inválida, usar a data atual
+                  console.warn(`Data inválida: ${validatedLead.entryDate}, usando data atual`);
+                  validatedLead.entryDate = new Date();
+                }
+              } else if (!(validatedLead.entryDate instanceof Date)) {
+                // Se não for string nem Date, usar data atual
+                validatedLead.entryDate = new Date();
+              }
+            } catch (e) {
+              console.error(`Erro ao converter data: ${validatedLead.entryDate}`, e);
+              validatedLead.entryDate = new Date();
+            }
+          } else {
+            validatedLead.entryDate = new Date();
           }
           
           const lead = await storage.createLead(validatedLead);
