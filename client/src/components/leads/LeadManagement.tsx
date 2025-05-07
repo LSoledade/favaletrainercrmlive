@@ -1242,9 +1242,55 @@ export default function LeadManagement() {
       {/* Batch Operations Bar - only visible when leads are selected */}
       {selectedLeadIds.length > 0 && (
         <div className="bg-primary-50 dark:bg-gray-800 border border-primary-200 dark:border-gray-700 rounded-lg p-4 mb-6 flex flex-wrap items-center gap-4 transition-colors duration-200">
-          <div className="flex items-center">
-            <span className="font-semibold text-primary dark:text-pink-400 mr-2">{selectedLeadIds.length}</span>
-            <span className="text-gray-700 dark:text-gray-300">leads selecionados</span>
+          <div className="flex flex-col">
+            <div className="flex items-center">
+              <span className="font-semibold text-primary dark:text-pink-400 mr-2">{selectedLeadIds.length}</span>
+              <span className="text-gray-700 dark:text-gray-300">leads selecionados</span>
+            </div>
+            <div className="flex items-center space-x-3 mt-1 text-sm">
+              <button 
+                onClick={() => setSelectedLeadIds([])}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs transition-colors duration-200"
+              >
+                Limpar seleção
+              </button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="text-xs font-medium text-primary dark:text-primary-light hover:text-primary/80 dark:hover:text-primary-light/80 transition-colors duration-200 flex items-center">
+                    Selecionar mais <span className="material-icons text-xs ml-0.5">arrow_drop_down</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="start" 
+                  className="bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-lg dark:shadow-gray-900/50 z-50"
+                >
+                  <DropdownMenuItem 
+                    className="text-sm px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center"
+                    onClick={() => {
+                      // Selecionar todos os leads da página atual
+                      const pageLeads = filteredLeads.slice(indexOfFirstLead, indexOfLastLead).map(lead => lead.id);
+                      const newSelection = [...new Set([...selectedLeadIds, ...pageLeads])];
+                      setSelectedLeadIds(newSelection);
+                    }}
+                  >
+                    <span className="material-icons text-xs mr-2">view_list</span>
+                    Todos da página atual
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="text-sm px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center"
+                    onClick={() => {
+                      // Selecionar todos os leads
+                      const allIds = filteredLeads.map(lead => lead.id);
+                      setSelectedLeadIds(allIds);
+                    }}
+                  >
+                    <span className="material-icons text-xs mr-2">select_all</span>
+                    Todos os leads ({filteredLeads.length})
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -1307,6 +1353,7 @@ export default function LeadManagement() {
         leads={filteredLeads || []} 
         isLoading={isLoading} 
         onDelete={handleDelete}
+        indexOfFirstLead={indexOfFirstLead}
       />
 
       {/* Lead Dialog */}
