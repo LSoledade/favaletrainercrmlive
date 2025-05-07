@@ -20,7 +20,7 @@ interface LeadTableProps {
   indexOfFirstLead?: number;
 }
 
-export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps) {
+export default function LeadTable({ leads, isLoading, onDelete, indexOfFirstLead: externalIndexOfFirstLead }: LeadTableProps) {
   const { 
     setSelectedLead, 
     setIsDialogOpen,

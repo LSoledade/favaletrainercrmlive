@@ -17,6 +17,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -37,6 +45,11 @@ export default function LeadManagement() {
   const { data: leads, isLoading, error } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
   });
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const leadsPerPage = 10;
+  const indexOfLastLead = currentPage * leadsPerPage;
+  const indexOfFirstLead = indexOfLastLead - leadsPerPage;
 
   const { 
     setIsDialogOpen, 
@@ -1269,7 +1282,7 @@ export default function LeadManagement() {
                     className="text-sm px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center"
                     onClick={() => {
                       // Selecionar todos os leads da página atual
-                      const pageLeads = filteredLeads.slice(indexOfFirstLead, indexOfLastLead).map(lead => lead.id);
+                      const pageLeads = (filteredLeads || []).slice(indexOfFirstLead, indexOfLastLead).map(lead => lead.id);
                       const newSelection = [...new Set([...selectedLeadIds, ...pageLeads])];
                       setSelectedLeadIds(newSelection);
                     }}
@@ -1281,12 +1294,12 @@ export default function LeadManagement() {
                     className="text-sm px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center"
                     onClick={() => {
                       // Selecionar todos os leads
-                      const allIds = filteredLeads.map(lead => lead.id);
+                      const allIds = (filteredLeads || []).map(lead => lead.id);
                       setSelectedLeadIds(allIds);
                     }}
                   >
                     <span className="material-icons text-xs mr-2">select_all</span>
-                    Todos os leads ({filteredLeads.length})
+                    Todos os leads ({filteredLeads?.length || 0})
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
