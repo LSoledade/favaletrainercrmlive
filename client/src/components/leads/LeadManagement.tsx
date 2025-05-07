@@ -603,10 +603,13 @@ export default function LeadManagement() {
           
           // Show results
           setImportDialogOpen(false);
+          const updatedCount = result.updatedCount || 0;
+          const totalSuccess = (result.successCount || 0) + updatedCount;
+          
           toast({
             title: "Importação concluída",
-            description: `${result.successCount} leads importados com sucesso.${result.errorCount > 0 ? ` ${result.errorCount} leads com erro.` : ''}`,
-            variant: result.successCount > 0 ? "default" : "destructive",
+            description: `${result.successCount || 0} leads importados${updatedCount > 0 ? ` e ${updatedCount} atualizados` : ''} com sucesso.${result.errorCount > 0 ? ` ${result.errorCount} leads com erro.` : ''}`,
+            variant: totalSuccess > 0 ? "default" : "destructive",
           });
         } catch (error) {
           console.error('Erro ao importar leads em lote:', error);
@@ -844,10 +847,13 @@ export default function LeadManagement() {
       setPreviewData([]);
       setParsedLeads([]);
       
+      const updatedCount = result.updatedCount || 0;
+      const totalSuccess = (result.successCount || 0) + updatedCount;
+      
       toast({
         title: "Importação concluída",
-        description: `${result.successCount} leads importados com sucesso.${result.errorCount > 0 ? ` ${result.errorCount} leads com erro.` : ''}`,
-        variant: result.successCount > 0 ? "default" : "destructive",
+        description: `${result.successCount || 0} leads importados${updatedCount > 0 ? ` e ${updatedCount} atualizados` : ''} com sucesso.${result.errorCount > 0 ? ` ${result.errorCount} leads com erro.` : ''}`,
+        variant: totalSuccess > 0 ? "default" : "destructive",
       });
       
     } catch (error) {

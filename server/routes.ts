@@ -115,11 +115,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Obter todos os leads existentes para verificar duplicatas de telefone
       const existingLeads = await storage.getLeads();
-      const existingPhones = new Set(existingLeads.map(lead => lead.phone));
+      
+      // Criar um mapa de telefones para IDs para facilitar a atualização
+      const phoneToLeadMap = new Map();
+      
+      // Função para normalizar números de telefone (remover espaços, parênteses, traços, etc.)
+      const normalizePhone = (phone) => {
+        if (!phone) return '';
+        return phone.replace(/[\s\(\)\-\+]/g, '');
+      };
+      
+      // Popula o mapa com os números normalizados
+      existingLeads.forEach(lead => {
+        if (lead.phone) {
+          const normalizedPhone = normalizePhone(lead.phone);
+          phoneToLeadMap.set(normalizedPhone, lead.id);
+        }
+      });
       
       // Processar todos os leads de uma vez      
       const results = { 
-        success: [], 
+        success: [],
+        updated: [],
         errors: [] 
       };
       
@@ -127,9 +144,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const leadData = leads[i];
           
+          // Normalizar o telefone do lead atual
+          const normalizedPhone = normalizePhone(leadData.phone);
+          
           // Verificar se o número de telefone já existe
-          if (existingPhones.has(leadData.phone)) {
-            throw new Error(`Telefone ${leadData.phone} já existe no sistema`);
+          if (normalizedPhone && phoneToLeadMap.has(normalizedPhone)) {
+            const existingLeadId = phoneToLeadMap.get(normalizedPhone);
+            
+            // Se o email for diferente ou nome for diferente, permitir atualização
+            const existingLead = existingLeads.find(l => l.id === existingLeadId);
+            
+            // Verificar se campos importantes mudaram para justificar uma atualização
+            const shouldUpdate = existingLead && (
+              (leadData.email && existingLead.email !== leadData.email) ||
+              (leadData.tags && leadData.tags.length > 0) ||
+              (leadData.status && existingLead.status !== leadData.status) ||
+              (leadData.notes && (!existingLead.notes || existingLead.notes !== leadData.notes))
+            );
+            
+            if (shouldUpdate) {
+              // Atualizar o lead existente em vez de criar um novo
+              const updatedLead = await storage.updateLead(existingLeadId, leadData);
+              results.updated.push({
+                index: i,
+                id: existingLeadId,
+                action: "atualizado",
+                phone: leadData.phone
+              });
+              continue;
+            } else {
+              // Não há mudanças significativas para atualizar
+              throw new Error(`Telefone ${leadData.phone} já existe no sistema e não há alterações significativas para atualizar`);
+            }
           }
           
           // Processamento específico para tags
@@ -158,8 +204,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const lead = await storage.createLead(validatedLead);
           
-          // Adicionar o telefone à lista de existentes para as próximas verificações
-          existingPhones.add(lead.phone);
+          // Adicionar o telefone normalizado ao mapa para verificações futuras
+          if (lead.phone) {
+            const normalizedNewPhone = normalizePhone(lead.phone);
+            phoneToLeadMap.set(normalizedNewPhone, lead.id);
+          }
           
           results.success.push({
             index: i,
@@ -183,11 +232,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorCount: results.errors.length
       });
       
-      console.log(`Importação em lote concluída: ${results.success.length} sucesso, ${results.errors.length} erros`);
+      console.log(`Importação em lote concluída: ${results.success.length} novos, ${results.updated.length} atualizados, ${results.errors.length} erros`);
       res.status(200).json({
-        message: `Importação concluída. ${results.success.length} leads importados com sucesso.`,
+        message: `Importação concluída. ${results.success.length} leads importados e ${results.updated.length} atualizados com sucesso.`,
         totalProcessed: leads.length,
         successCount: results.success.length,
+        updatedCount: results.updated.length,
         errorCount: results.errors.length,
         results
       });
