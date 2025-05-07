@@ -113,6 +113,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nenhum lead válido fornecido para importação" });
       }
 
+      // Obter todos os leads existentes para verificar duplicatas de telefone
+      const existingLeads = await storage.getLeads();
+      const existingPhones = new Set(existingLeads.map(lead => lead.phone));
+      
       // Processar todos os leads de uma vez      
       const results = { 
         success: [], 
@@ -122,6 +126,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (let i = 0; i < leads.length; i++) {
         try {
           const leadData = leads[i];
+          
+          // Verificar se o número de telefone já existe
+          if (existingPhones.has(leadData.phone)) {
+            throw new Error(`Telefone ${leadData.phone} já existe no sistema`);
+          }
+          
+          // Processamento específico para tags
+          if (typeof leadData.tags === 'string') {
+            // Se as tags vieram como string, converter para array
+            leadData.tags = leadData.tags.split(/[,;]/).map((tag: string) => tag.trim()).filter(Boolean);
+          } else if (!Array.isArray(leadData.tags)) {
+            // Se não for array nem string, inicializar como array vazio
+            leadData.tags = [];
+          }
           
           // Validar cada lead individualmente para melhor tratamento de erros
           const validationResult = leadValidationSchema.safeParse(leadData);
@@ -139,6 +157,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const lead = await storage.createLead(validatedLead);
+          
+          // Adicionar o telefone à lista de existentes para as próximas verificações
+          existingPhones.add(lead.phone);
+          
           results.success.push({
             index: i,
             id: lead.id,

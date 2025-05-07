@@ -462,7 +462,22 @@ export default function LeadManagement() {
                   leadData.status = value || "Lead";
                   break;
                 case 'tags':
-                  leadData.tags = value ? value.split(/[,;]/).map(tag => tag.trim()) : [];
+                  // Processamento mais robusto para tags
+                  if (value) {
+                    // Primeiro verifica se está entre aspas duplas
+                    let processedValue = value;
+                    if (processedValue.startsWith('"') && processedValue.endsWith('"')) {
+                      // Remove as aspas e divide pelos delimitadores
+                      processedValue = processedValue.substring(1, processedValue.length - 1);
+                    }
+                    // Divide por vírgulas ou ponto-e-vírgulas
+                    leadData.tags = processedValue
+                      .split(/[,;]/)
+                      .map(tag => tag.trim())
+                      .filter(tag => tag.length > 0); // Remove tags vazias
+                  } else {
+                    leadData.tags = [];
+                  }
                   break;
                 case 'data_entrada':
                   try {
