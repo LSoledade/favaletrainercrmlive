@@ -112,6 +112,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(leads) || leads.length === 0) {
         return res.status(400).json({ message: "Nenhum lead válido fornecido para importação" });
       }
+      
+      // Controle de tamanho do lote para prevenir erros de memória ou timeout
+      const BATCH_SIZE = 250; // Reduzido para evitar problemas com request entity too large
 
       // Obter todos os leads existentes para verificar duplicatas de telefone
       const existingLeads = await storage.getLeads();
@@ -120,7 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const phoneToLeadMap = new Map();
       
       // Função para normalizar números de telefone (remover espaços, parênteses, traços, etc.)
-      const normalizePhone = (phone) => {
+      const normalizePhone = (phone: string) => {
         if (!phone) return '';
         return phone.replace(/[\s\(\)\-\+]/g, '');
       };
@@ -133,161 +136,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      // Processar todos os leads de uma vez      
+      // Processar leads em lotes menores para evitar timeouts e problemas de memória
       const results = { 
-        success: [],
-        updated: [],
-        errors: [] 
+        success: [] as any[],
+        updated: [] as any[],
+        errors: [] as any[]
       };
       
-      for (let i = 0; i < leads.length; i++) {
-        try {
-          const leadData = leads[i];
-          
-          // Normalizar o telefone do lead atual
-          const normalizedPhone = normalizePhone(leadData.phone);
-          console.log(`Verificando telefone normalizado: ${normalizedPhone}`);
-          
-          // Verificar se o número de telefone já existe
-          if (normalizedPhone && phoneToLeadMap.has(normalizedPhone)) {
-            const existingLeadId = phoneToLeadMap.get(normalizedPhone);
-            console.log(`Telefone ${normalizedPhone} encontrado, ID existente: ${existingLeadId}`);
+      const totalBatches = Math.ceil(leads.length / BATCH_SIZE);
+      console.log(`Processando ${leads.length} leads em ${totalBatches} lotes de ${BATCH_SIZE}`);
+      
+      // Processar lote por lote
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        console.log(`Enviando lote ${batchIndex + 1}/${totalBatches} (${Math.min(BATCH_SIZE, leads.length - batchIndex * BATCH_SIZE)} leads)`);
+        
+        // Obter o lote atual
+        const startIdx = batchIndex * BATCH_SIZE;
+        const endIdx = Math.min((batchIndex + 1) * BATCH_SIZE, leads.length);
+        const currentBatch = leads.slice(startIdx, endIdx);
+        
+        // Processar cada lead no lote
+        for (let i = 0; i < currentBatch.length; i++) {
+          const globalIndex = startIdx + i; // Índice global para reportar corretamente
+          try {
+            const leadData = currentBatch[i];
             
-            // Se o email for diferente ou nome for diferente, permitir atualização
-            const existingLead = existingLeads.find(l => l.id === existingLeadId);
+            // Normalizar o telefone do lead atual
+            const normalizedPhone = normalizePhone(leadData.phone);
+            console.log(`Verificando telefone normalizado: ${normalizedPhone}`);
             
-            if (existingLead) {
-              console.log(`Lead existente encontrado: ${existingLead.name}, email: ${existingLead.email}, status: ${existingLead.status}`);
-              console.log(`Novo lead: ${leadData.name}, email: ${leadData.email}, status: ${leadData.status}`);
-            
-              // Verificar se campos importantes mudaram para justificar uma atualização
-              const shouldUpdate = (
-                (leadData.email && existingLead.email !== leadData.email) ||
-                (leadData.tags && leadData.tags.length > 0) ||
-                (leadData.status && existingLead.status !== leadData.status) ||
-                (leadData.notes && (!existingLead.notes || existingLead.notes !== leadData.notes))
-              );
+            // Verificar se o número de telefone já existe
+            if (normalizedPhone && phoneToLeadMap.has(normalizedPhone)) {
+              const existingLeadId = phoneToLeadMap.get(normalizedPhone);
+              console.log(`Telefone ${normalizedPhone} encontrado, ID existente: ${existingLeadId}`);
               
-              console.log(`Deve atualizar? ${shouldUpdate}`);
-              console.log(`Razões para atualização: 
-                Email diferente? ${leadData.email && existingLead.email !== leadData.email}
-                Tags não vazias? ${leadData.tags && leadData.tags.length > 0}
-                Status diferente? ${leadData.status && existingLead.status !== leadData.status}
-                Notas diferentes? ${leadData.notes && (!existingLead.notes || existingLead.notes !== leadData.notes)}
-              `);
+              // Se o email for diferente ou nome for diferente, permitir atualização
+              const existingLead = existingLeads.find(l => l.id === existingLeadId);
               
-              // Processamento específico para tags
-              if (typeof leadData.tags === 'string') {
-                // Se as tags vieram como string, converter para array
-                leadData.tags = leadData.tags.split(/[,;]/).map((tag: string) => tag.trim()).filter(Boolean);
-              } else if (!Array.isArray(leadData.tags)) {
-                // Se não for array nem string, inicializar como array vazio
-                leadData.tags = [];
-              }
+              if (existingLead) {
+                console.log(`Lead existente encontrado: ${existingLead.name}, email: ${existingLead.email}, status: ${existingLead.status}`);
+                console.log(`Novo lead: ${leadData.name}, email: ${leadData.email}, status: ${leadData.status}`);
               
-              // Combinar tags do lead existente com as novas tags (se existirem)
-              if (existingLead.tags && Array.isArray(existingLead.tags) && existingLead.tags.length > 0) {
-                console.log(`Tags existentes: ${JSON.stringify(existingLead.tags)}`);
-                console.log(`Novas tags: ${JSON.stringify(leadData.tags)}`);
+                // Verificar se campos importantes mudaram para justificar uma atualização
+                const shouldUpdate = (
+                  (leadData.email && existingLead.email !== leadData.email) ||
+                  (leadData.tags && leadData.tags.length > 0) ||
+                  (leadData.status && existingLead.status !== leadData.status) ||
+                  (leadData.notes && (!existingLead.notes || existingLead.notes !== leadData.notes))
+                );
                 
-                // Unir as tags e remover duplicatas
-                const combinedTags = [...new Set([...existingLead.tags, ...leadData.tags])];
-                leadData.tags = combinedTags.filter(tag => tag && tag.trim() !== '');
-                console.log(`Tags combinadas: ${JSON.stringify(leadData.tags)}`);
-              }
-              
-              // Sempre atualizar quando um número de telefone existente for encontrado
-              if (true) { // Alteração importante: sempre atualizar em vez de verificar condições
+                console.log(`Deve atualizar? ${shouldUpdate}`);
+                console.log(`Razões para atualização: 
+                  Email diferente? ${leadData.email && existingLead.email !== leadData.email}
+                  Tags não vazias? ${leadData.tags && leadData.tags.length > 0}
+                  Status diferente? ${leadData.status && existingLead.status !== leadData.status}
+                  Notas diferentes? ${leadData.notes && (!existingLead.notes || existingLead.notes !== leadData.notes)}
+                `);
+                
+                // Processamento específico para tags
+                if (typeof leadData.tags === 'string') {
+                  // Se as tags vieram como string, converter para array
+                  leadData.tags = leadData.tags.split(/[,;]/).map((tag: string) => tag.trim()).filter(Boolean);
+                } else if (!Array.isArray(leadData.tags)) {
+                  // Se não for array nem string, inicializar como array vazio
+                  leadData.tags = [];
+                }
+                
+                // Combinar tags do lead existente com as novas tags (se existirem)
+                if (existingLead.tags && Array.isArray(existingLead.tags) && existingLead.tags.length > 0) {
+                  console.log(`Tags existentes: ${JSON.stringify(existingLead.tags)}`);
+                  console.log(`Novas tags: ${JSON.stringify(leadData.tags)}`);
+                  
+                  // Unir as tags e remover duplicatas
+                  const combinedTags = Array.from(new Set([...existingLead.tags, ...leadData.tags]));
+                  leadData.tags = combinedTags.filter(tag => tag && tag.trim() !== '');
+                  console.log(`Tags combinadas: ${JSON.stringify(leadData.tags)}`);
+                }
+                
                 // Atualizar o lead existente em vez de criar um novo
                 console.log(`Atualizando lead ID ${existingLeadId} com novos dados`);
                 const updatedLead = await storage.updateLead(existingLeadId, leadData);
                 results.updated.push({
-                  index: i,
+                  index: globalIndex,
                   id: existingLeadId,
                   action: "atualizado",
                   phone: leadData.phone
                 });
                 continue;
               } else {
-                console.log(`Sem alterações significativas para atualizar`);
-                // Não há mudanças significativas para atualizar
-                throw new Error(`Telefone ${leadData.phone} já existe no sistema e não há alterações significativas para atualizar`);
+                console.log(`Lead com ID ${existingLeadId} não encontrado no array de leads.`);
+                throw new Error(`Telefone ${leadData.phone} já existe no sistema, mas o lead não foi encontrado.`);
               }
-            } else {
-              console.log(`Lead com ID ${existingLeadId} não encontrado no array de leads.`);
-              throw new Error(`Telefone ${leadData.phone} já existe no sistema, mas o lead não foi encontrado.`);
             }
-          }
-          
-          // Processamento específico para tags
-          if (typeof leadData.tags === 'string') {
-            // Se as tags vieram como string, converter para array
-            leadData.tags = leadData.tags.split(/[,;]/).map((tag: string) => tag.trim()).filter(Boolean);
-          } else if (!Array.isArray(leadData.tags)) {
-            // Se não for array nem string, inicializar como array vazio
-            leadData.tags = [];
-          }
-          
-          // Validar cada lead individualmente para melhor tratamento de erros
-          const validationResult = leadValidationSchema.safeParse(leadData);
-          
-          if (!validationResult.success) {
-            const validationError = fromZodError(validationResult.error);
-            throw new Error(`Erro de validação: ${validationError.message}`);
-          }
-          
-          const validatedLead = validationResult.data;
-          
-          // Converter qualquer string de data para objeto Date
-          if (validatedLead.entryDate) {
-            try {
-              if (typeof validatedLead.entryDate === 'string') {
-                // Formatar a data se estiver no padrão DD/MM/YYYY
-                if (/^\d{2}\/\d{2}\/\d{4}$/.test(validatedLead.entryDate)) {
-                  const [day, month, year] = validatedLead.entryDate.split('/');
-                  validatedLead.entryDate = new Date(`${year}-${month}-${day}`);
-                } else {
-                  validatedLead.entryDate = new Date(validatedLead.entryDate);
-                }
-                
-                // Verificar se a data é válida
-                if (isNaN(validatedLead.entryDate.getTime())) {
-                  // Se inválida, usar a data atual
-                  console.warn(`Data inválida: ${validatedLead.entryDate}, usando data atual`);
+            
+            // Processamento específico para tags
+            if (typeof leadData.tags === 'string') {
+              // Se as tags vieram como string, converter para array
+              leadData.tags = leadData.tags.split(/[,;]/).map((tag: string) => tag.trim()).filter(Boolean);
+            } else if (!Array.isArray(leadData.tags)) {
+              // Se não for array nem string, inicializar como array vazio
+              leadData.tags = [];
+            }
+            
+            // Validar cada lead individualmente para melhor tratamento de erros
+            const validationResult = leadValidationSchema.safeParse(leadData);
+            
+            if (!validationResult.success) {
+              const validationError = fromZodError(validationResult.error);
+              throw new Error(`Erro de validação: ${validationError.message}`);
+            }
+            
+            const validatedLead = validationResult.data;
+            
+            // Converter qualquer string de data para objeto Date
+            if (validatedLead.entryDate) {
+              try {
+                if (typeof validatedLead.entryDate === 'string') {
+                  // Formatar a data se estiver no padrão DD/MM/YYYY
+                  if (/^\d{2}\/\d{2}\/\d{4}$/.test(validatedLead.entryDate)) {
+                    const [day, month, year] = validatedLead.entryDate.split('/');
+                    validatedLead.entryDate = new Date(`${year}-${month}-${day}`);
+                  } else {
+                    validatedLead.entryDate = new Date(validatedLead.entryDate);
+                  }
+                  
+                  // Verificar se a data é válida
+                  if (isNaN(validatedLead.entryDate.getTime())) {
+                    // Se inválida, usar a data atual
+                    console.warn(`Data inválida: ${validatedLead.entryDate}, usando data atual`);
+                    validatedLead.entryDate = new Date();
+                  }
+                } else if (!(validatedLead.entryDate instanceof Date)) {
+                  // Se não for string nem Date, usar data atual
                   validatedLead.entryDate = new Date();
                 }
-              } else if (!(validatedLead.entryDate instanceof Date)) {
-                // Se não for string nem Date, usar data atual
+              } catch (e) {
+                console.error(`Erro ao converter data: ${validatedLead.entryDate}`, e);
                 validatedLead.entryDate = new Date();
               }
-            } catch (e) {
-              console.error(`Erro ao converter data: ${validatedLead.entryDate}`, e);
+            } else {
               validatedLead.entryDate = new Date();
             }
-          } else {
-            validatedLead.entryDate = new Date();
+            
+            const lead = await storage.createLead(validatedLead);
+            
+            // Adicionar o telefone normalizado ao mapa para verificações futuras
+            if (lead.phone) {
+              const normalizedNewPhone = normalizePhone(lead.phone);
+              phoneToLeadMap.set(normalizedNewPhone, lead.id);
+            }
+            
+            results.success.push({
+              index: globalIndex,
+              id: lead.id,
+              email: lead.email
+            });
+          } catch (error) {
+            console.error(`Erro ao processar lead #${globalIndex}:`, error);
+            results.errors.push({
+              index: globalIndex,
+              error: error instanceof Error ? error.message : 'Erro desconhecido',
+              data: currentBatch[i]
+            });
           }
-          
-          const lead = await storage.createLead(validatedLead);
-          
-          // Adicionar o telefone normalizado ao mapa para verificações futuras
-          if (lead.phone) {
-            const normalizedNewPhone = normalizePhone(lead.phone);
-            phoneToLeadMap.set(normalizedNewPhone, lead.id);
-          }
-          
-          results.success.push({
-            index: i,
-            id: lead.id,
-            email: lead.email
-          });
-        } catch (error) {
-          console.error(`Erro ao processar lead #${i}:`, error);
-          results.errors.push({
-            index: i,
-            error: error instanceof Error ? error.message : 'Erro desconhecido',
-            data: leads[i]
-          });
         }
       }
       

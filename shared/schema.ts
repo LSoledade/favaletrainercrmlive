@@ -133,7 +133,7 @@ export const leadValidationSchema = insertLeadSchema.extend({
   email: z.string().min(1, "O e-mail é obrigatório").email("E-mail inválido"),
   phone: z.string().min(1, "O telefone é obrigatório"),
   state: z.string().min(1, "O estado é obrigatório"),
-  campaign: z.string().min(1, "A campanha é obrigatória"),
+  campaign: z.string().default("Importação em Lote"),
   source: z.string().min(1, "A origem é obrigatória"),
   status: z.string().min(1, "O status é obrigatório"),
 });
