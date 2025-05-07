@@ -1539,9 +1539,21 @@ export default function LeadManagement() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Leads Selecionados</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir {selectedLeadIds.length} leads?
-              Esta ação não pode ser desfeita.
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Você está prestes a excluir <span className="font-bold text-red-600 dark:text-red-400">{selectedLeadIds.length}</span> leads.
+              </p>
+              <p>
+                {selectedLeadIds.length > 100 && 
+                  <span className="block font-semibold text-amber-600 dark:text-amber-400 mb-2">
+                    Atenção: Você selecionou um grande número de leads!
+                  </span>
+                }
+                Esta ação <span className="font-bold">não pode ser desfeita</span> e os dados serão excluídos permanentemente.
+              </p>
+              <p className="text-sm opacity-80">
+                Você tem certeza que deseja continuar?
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1550,7 +1562,7 @@ export default function LeadManagement() {
               onClick={confirmBatchDelete}
               className="bg-red-600 hover:bg-red-700 dark:glow-red-sm transition-all duration-200"
             >
-              Excluir
+              Excluir {selectedLeadIds.length} leads
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

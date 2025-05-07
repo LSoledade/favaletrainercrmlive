@@ -4,6 +4,14 @@ import { useLeadContext } from "@/context/LeadContext";
 import { useWhatsappContext } from "@/context/WhatsappContext";
 import { formatDate } from "@/utils/formatters";
 import WhatsappButton from "../whatsapp/WhatsappButton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface LeadTableProps {
   leads: Lead[];
@@ -21,6 +29,7 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
   const { openWhatsappChat } = useWhatsappContext();
   const [currentPage, setCurrentPage] = useState(1);
   const leadsPerPage = 10;
+  const [selectMode, setSelectMode] = useState<'page' | 'all'>('page');
   
   const handleEdit = (lead: Lead) => {
     setSelectedLead(lead);
@@ -37,8 +46,15 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
   
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allIds = currentLeads.map(lead => lead.id);
-      setSelectedLeadIds(allIds);
+      if (selectMode === 'page') {
+        // Selecionar apenas os leads da página atual
+        const allPageIds = currentLeads.map(lead => lead.id);
+        setSelectedLeadIds(allPageIds);
+      } else {
+        // Selecionar todos os leads
+        const allIds = leads.map(lead => lead.id);
+        setSelectedLeadIds(allIds);
+      }
     } else {
       setSelectedLeadIds([]);
     }
@@ -96,12 +112,47 @@ export default function LeadTable({ leads, isLoading, onDelete }: LeadTableProps
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 transition-colors duration-200">
               <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                <input 
-                  type="checkbox" 
-                  className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 rounded border-primary/30 text-primary focus:ring-primary/30 transition-all duration-200"
-                  checked={currentLeads.length > 0 && selectedLeadIds.length === currentLeads.length}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div className="flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 rounded border-primary/30 text-primary focus:ring-primary/30 transition-all duration-200"
+                        checked={selectMode === 'page' 
+                          ? (currentLeads.length > 0 && currentLeads.every(lead => selectedLeadIds.includes(lead.id)))
+                          : (leads.length > 0 && selectedLeadIds.length === leads.length)
+                        }
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className="material-icons text-xs text-gray-500 dark:text-gray-400">
+                        arrow_drop_down
+                      </span>
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuLabel>Seleção</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setSelectMode('page');
+                        setSelectedLeadIds([]);
+                      }}
+                    >
+                      Selecionar itens desta página
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setSelectMode('all');
+                        setSelectedLeadIds([]);
+                      }}
+                    >
+                      Selecionar todos os itens
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </th>
               <th className="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
                 Data
