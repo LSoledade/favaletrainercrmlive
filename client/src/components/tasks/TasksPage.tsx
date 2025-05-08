@@ -19,6 +19,20 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import KanbanBoard from "./KanbanBoard";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Link } from "wouter";
 
 // Função para gerar cor consistente com base em uma string
 function stringToColor(str: string) {
@@ -46,19 +60,6 @@ function stringToColor(str: string) {
   
   return colors[Math.abs(hash) % colors.length];
 }
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Link } from "wouter";
 
 export default function TasksPage() {
   const { 
@@ -74,6 +75,7 @@ export default function TasksPage() {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
+  const [selectedTaskStatus, setSelectedTaskStatus] = useState<string | undefined>(undefined);
   const [showTaskDetailDialog, setShowTaskDetailDialog] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("my-tasks");
@@ -90,7 +92,7 @@ export default function TasksPage() {
   }, [fetchTasks]);
   
   const handleStatusChange = async (taskId: number, newStatus: string) => {
-    await updateTask(taskId, { status: newStatus as "pending" | "in_progress" | "completed" | "cancelled" });
+    await updateTask(taskId, { status: newStatus as "backlog" | "pending" | "in_progress" | "completed" | "cancelled" });
   };
   
   const handleOpenTaskDetails = (taskId: number) => {
@@ -339,122 +341,6 @@ export default function TasksPage() {
     );
   };
   
-  // Render the board view
-  const renderBoardView = () => {
-    const statuses = ["pending", "in_progress", "completed"];
-    const taskColumns = {
-      pending: filteredPendingTasks,
-      in_progress: filteredInProgressTasks,
-      completed: filteredCompletedTasksList
-    };
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[500px]">
-        {statuses.map(status => (
-          <div key={status} className="flex flex-col">
-            <div className="flex items-center justify-between p-3 py-3 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 rounded-t-md">
-              <div className="flex items-center gap-3">
-                {status === "pending" && (
-                  <div className="h-5 w-5 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900">
-                    <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                  </div>
-                )}
-                {status === "in_progress" && (
-                  <div className="h-5 w-5 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-900">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-600 dark:text-blue-400">
-                      <path d="M7.49991 0.877075C3.84222 0.877075 0.877075 3.84222 0.877075 7.49991C0.877075 11.1576 3.84222 14.1227 7.49991 14.1227C11.1576 14.1227 14.1227 11.1576 14.1227 7.49991C14.1227 3.84222 11.1576 0.877075 7.49991 0.877075ZM7.49991 1.82708C10.6329 1.82708 13.1727 4.36689 13.1727 7.49991C13.1727 10.6329 10.6329 13.1727 7.49991 13.1727C4.36689 13.1727 1.82708 10.6329 1.82708 7.49991C1.82708 4.36689 4.36689 1.82708 7.49991 1.82708ZM7.50003 3.75C7.03964 3.75 6.66669 4.12295 6.66669 4.58334C6.66669 5.04373 7.03964 5.41667 7.50003 5.41667C7.96042 5.41667 8.33336 5.04373 8.33336 4.58334C8.33336 4.12295 7.96042 3.75 7.50003 3.75ZM4.24372 7.0617C4.37403 7.35711 4.4667 7.6666 4.50002 7.97917H6.16669V10.5C6.16669 10.9602 6.53936 11.3333 7.00002 11.3333C7.46068 11.3333 7.83335 10.9602 7.83335 10.5V7.16667C7.83335 6.70643 7.46068 6.33334 7.00002 6.33334H5.50002C5.50002 6.09952 5.4133 5.86334 5.23745 5.68749C4.91092 5.36095 4.37777 5.36095 4.05125 5.68749C3.72473 6.01402 3.72473 6.54717 4.05125 6.87369C4.10483 6.92726 4.16136 6.97514 4.24372 7.0617Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                    </svg>
-                  </div>
-                )}
-                {status === "completed" && (
-                  <div className="h-5 w-5 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-900">
-                    <CheckCircle className="h-3 w-3 text-green-600 dark:text-green-400" />
-                  </div>
-                )}
-                <div>
-                  <span className="font-medium text-sm text-gray-800 dark:text-gray-100">
-                    {getStatusLabel(status)}
-                  </span>
-                  <span className="ml-2 text-xs py-0.5 px-1.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
-                    {taskColumns[status as keyof typeof taskColumns].length}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                    >
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2.5 4C2.22386 4 2 4.22386 2 4.5C2 4.77614 2.22386 5 2.5 5H12.5C12.7761 5 13 4.77614 13 4.5C13 4.22386 12.7761 4 12.5 4H2.5ZM2 7.5C2 7.22386 2.22386 7 2.5 7H12.5C12.7761 7 13 7.22386 13 7.5C13 7.77614 12.7761 8 12.5 8H2.5C2.22386 8 2 7.77614 2 7.5ZM2 10.5C2 10.2239 2.22386 10 2.5 10H12.5C12.7761 10 13 10.2239 13 10.5C13 10.7761 12.7761 11 12.5 11H2.5C2.22386 11 2 10.7761 2 10.5Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                      </svg>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => {}}>
-                      Ordenar por prazo
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {}}>
-                      Ordenar por prioridade
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {}}>
-                      Agrupar por responsável
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                  onClick={() => {
-                    setShowCreateTaskDialog(true);
-                  }}
-                >
-                  <PlusCircle className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 dark:bg-gray-900 border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-md flex-1 p-3 overflow-auto min-h-[500px]">
-              {taskColumns[status as keyof typeof taskColumns].length > 0 ? (
-                <>
-                  {taskColumns[status as keyof typeof taskColumns].map(task => (
-                    <TaskBoardCard key={task.id} task={task} />
-                  ))}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-24 text-sm text-gray-500 dark:text-gray-400">
-                  <p>Nenhuma tarefa</p>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="mt-2"
-                    onClick={() => setShowCreateTaskDialog(true)}
-                  >
-                    <PlusCircle className="h-4 w-4 mr-1" />
-                    Adicionar
-                  </Button>
-                </div>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full mt-2 border border-dashed border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 flex items-center justify-center py-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                onClick={() => setShowCreateTaskDialog(true)}
-              >
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Adicionar Nova Tarefa
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-  
   const renderListView = (tasksList: any[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {tasksList.map((task) => (
@@ -475,6 +361,16 @@ export default function TasksPage() {
       ))}
     </div>
   );
+  
+  const handleCreateTask = (initialStatus?: string) => {
+    // Garantir que apenas status válidos são usados
+    if (initialStatus && ["backlog", "pending", "in_progress", "completed", "cancelled"].includes(initialStatus)) {
+      setSelectedTaskStatus(initialStatus);
+    } else {
+      setSelectedTaskStatus("pending"); // Default fallback
+    }
+    setShowCreateTaskDialog(true);
+  };
   
   return (
     <div className="container mx-auto p-4 md:p-6">
@@ -528,7 +424,7 @@ export default function TasksPage() {
           </Select>
           
           <Button 
-            onClick={() => setShowCreateTaskDialog(true)}
+            onClick={() => handleCreateTask()}
             className="flex items-center gap-2"
           >
             <PlusCircle className="h-4 w-4" />
@@ -579,7 +475,7 @@ export default function TasksPage() {
             ) : (
               <div className="flex flex-col justify-center items-center h-32 bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700 rounded-md">
                 <p className="text-gray-500 dark:text-gray-400 mb-2">Você não possui tarefas atribuídas</p>
-                <Button variant="outline" size="sm" onClick={() => setShowCreateTaskDialog(true)}>
+                <Button variant="outline" size="sm" onClick={() => handleCreateTask()}>
                   Criar nova tarefa
                 </Button>
               </div>
@@ -596,7 +492,7 @@ export default function TasksPage() {
             ) : (
               <div className="flex flex-col justify-center items-center h-32 bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700 rounded-md">
                 <p className="text-gray-500 dark:text-gray-400 mb-2">Você não delegou nenhuma tarefa</p>
-                <Button variant="outline" size="sm" onClick={() => setShowCreateTaskDialog(true)}>
+                <Button variant="outline" size="sm" onClick={() => handleCreateTask()}>
                   Delegar nova tarefa
                 </Button>
               </div>
@@ -618,13 +514,14 @@ export default function TasksPage() {
           </TabsContent>
         </Tabs>
       ) : (
-        renderBoardView()
+        <KanbanBoard onCreateTask={handleCreateTask} />
       )}
       
       {showCreateTaskDialog && (
         <TaskDialog 
           open={showCreateTaskDialog} 
-          onOpenChange={setShowCreateTaskDialog} 
+          onOpenChange={setShowCreateTaskDialog}
+          initialStatus={selectedTaskStatus}
         />
       )}
       

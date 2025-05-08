@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,7 +13,7 @@ interface Task {
   assignedToName?: string;
   dueDate?: Date;
   priority: "low" | "medium" | "high";
-  status: "pending" | "in_progress" | "completed" | "cancelled";
+  status: "backlog" | "pending" | "in_progress" | "completed" | "cancelled";
   // No longer using relatedLeadId and relatedLeadName
   // Tasks are now assigned to system users only
   createdAt: Date;
@@ -61,11 +61,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   const { user } = useAuth();
 
   // Carregar tarefas ao inicializar
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/tasks');
@@ -101,9 +97,13 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         description: "Não foi possível carregar as tarefas.",
       });
     }
-  };
+  }, [toast]);
 
-  const fetchTaskById = async (id: number) => {
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  const fetchTaskById = useCallback(async (id: number) => {
     try {
       const response = await fetch(`/api/tasks/${id}`);
       if (!response.ok) {
@@ -138,9 +138,9 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       
       return undefined;
     }
-  };
+  }, [toast]);
 
-  const createTask = async (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "comments">) => {
+  const createTask = useCallback(async (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "comments">) => {
     try {
       const response = await fetch('/api/tasks', {
         method: 'POST',
@@ -188,9 +188,9 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       
       throw err;
     }
-  };
+  }, [toast]);
 
-  const updateTask = async (id: number, taskUpdate: Partial<Task>) => {
+  const updateTask = useCallback(async (id: number, taskUpdate: Partial<Task>) => {
     try {
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
@@ -199,22 +199,48 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       });
       
       if (!response.ok) {
-        throw new Error(`Erro ao atualizar tarefa: ${response.status}`);
+        // Tenta obter detalhes do erro do backend
+        let errorDetail = '';
+        try {
+          // Tenta JSON
+          const errorData = await response.json();
+          errorDetail = errorData.message || errorData.details || '';
+        } catch (jsonError) {
+          // Se não for JSON, tenta texto puro
+          try {
+            const text = await response.text();
+            errorDetail = text || `${response.status}`;
+          } catch {
+            errorDetail = `${response.status}`;
+          }
+        }
+        console.error(`Server error response: ${errorDetail}`);
+        throw new Error(`Erro ao atualizar tarefa: ${errorDetail}`);
       }
       
-      const data = await response.json();
+      // Tentar processar a resposta com tratamento de erro robusto
+      let data;
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error("Erro ao processar resposta JSON:", parseError);
+        throw new Error("Formato de resposta inválido do servidor");
+      }
       
-      // Converter datas de string para Date
+      // Converter datas de string para Date com tratamento de valores inválidos
       const updatedTask = {
         ...data,
         dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-        createdAt: new Date(data.createdAt),
-        updatedAt: new Date(data.updatedAt),
-        comments: data.comments?.map((comment: any) => ({
-          ...comment,
-          createdAt: new Date(comment.createdAt),
-          updatedAt: new Date(comment.updatedAt),
-        })) || [],
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
+        comments: Array.isArray(data.comments) 
+          ? data.comments.map((comment: any) => ({
+              ...comment,
+              createdAt: comment.createdAt ? new Date(comment.createdAt) : new Date(),
+              updatedAt: comment.updatedAt ? new Date(comment.updatedAt) : new Date(),
+            }))
+          : [],
       };
       
       // Atualizar estado local
@@ -235,14 +261,14 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível atualizar a tarefa.",
+        description: `Não foi possível atualizar a tarefa. ${err instanceof Error ? err.message : ''}`,
       });
       
       throw err;
     }
-  };
+  }, [toast]);
 
-  const deleteTask = async (id: number) => {
+  const deleteTask = useCallback(async (id: number) => {
     try {
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'DELETE'
@@ -273,139 +299,117 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       
       return false;
     }
-  };
+  }, [toast]);
 
-  const addComment = async (taskId: number, content: string) => {
+  const addComment = useCallback(async (taskId: number, content: string) => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Você precisa estar logado para adicionar um comentário.",
+      });
+      return Promise.reject("Usuário não logado");
+    }
     try {
-      if (!user) {
-        throw new Error("Usuário não autenticado");
-      }
-      
-      // Usar informações do usuário autenticado
-      const currentUser = { id: user.id, name: user.username };
-      
-      const commentData = {
-        taskId,
-        userId: currentUser.id,
-        content
-      };
-      
       const response = await fetch(`/api/tasks/${taskId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(commentData)
+        body: JSON.stringify({ content, userId: user.id })
       });
-      
+
       if (!response.ok) {
         throw new Error(`Erro ao adicionar comentário: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
-      // Converter datas de string para Date
       const newComment = {
         ...data,
         createdAt: new Date(data.createdAt),
         updatedAt: new Date(data.updatedAt),
-        userName: currentUser.name, // Adicionar nome do usuário para exibição
       };
-      
-      // Atualizar estado local
-      setTasks(prev => 
-        prev.map(task => {
-          if (task.id === taskId) {
-            return {
-              ...task,
-              comments: [...(task.comments || []), newComment]
-            };
-          }
-          return task;
-        })
+
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId
+            ? { ...task, comments: [...(task.comments || []), newComment] }
+            : task
+        )
       );
-      
+
       toast({
-        title: "Comentário adicionado",
-        description: "O comentário foi adicionado com sucesso.",
+        title: "Sucesso",
+        description: "Comentário adicionado com sucesso.",
       });
-      
+
       return newComment;
     } catch (err) {
       console.error("Erro ao adicionar comentário:", err);
       setError("Erro ao adicionar comentário");
-      
       toast({
         variant: "destructive",
         title: "Erro",
         description: "Não foi possível adicionar o comentário.",
       });
-      
       throw err;
     }
-  };
+  }, [toast, user]);
   
-  const addTaskComment = async (taskId: number, comment: Partial<TaskComment>) => {
+  const addTaskComment = useCallback(async (taskId: number, comment: Partial<TaskComment>) => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Você precisa estar logado para adicionar um comentário.",
+      });
+      return Promise.reject("Usuário não logado");
+    }
     try {
-      if (!user) {
-        throw new Error("Usuário não autenticado");
-      }
-      
-      // Verificar se o comment já tem userId, senão adicionar
-      const commentWithUserId = {
-        ...comment,
-        userId: comment.userId || user.id
-      };
-      
+      // Assume comment object includes userId if needed by backend or add it here
       const response = await fetch(`/api/tasks/${taskId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(commentWithUserId)
+        body: JSON.stringify({ ...comment, userId: user.id }) // Ensure userId is sent
       });
-      
+
       if (!response.ok) {
-        throw new Error(`Erro ao adicionar comentário: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: `Erro ao adicionar comentário: ${response.status}` }));
+        throw new Error(errorData.message || `Erro ao adicionar comentário: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
-      // Converter datas de string para Date
       const newComment = {
         ...data,
         createdAt: new Date(data.createdAt),
         updatedAt: new Date(data.updatedAt),
+        // Ensure userName is populated if backend sends it, or fetch/construct it
+        userName: data.userName || user?.username || 'Usuário Desconhecido' 
       };
-      
-      // Atualizar estado local
-      setTasks(prev => 
-        prev.map(task => {
-          if (task.id === taskId) {
-            return {
-              ...task,
-              comments: [...(task.comments || []), newComment]
-            };
-          }
-          return task;
-        })
+
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId
+            ? { ...task, comments: [...(task.comments || []), newComment] }
+            : task
+        )
       );
-      
+
       toast({
-        title: "Comentário adicionado",
-        description: "O comentário foi adicionado com sucesso.",
+        title: "Sucesso",
+        description: "Comentário adicionado com sucesso.",
       });
-      
+
       return newComment;
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao adicionar comentário:", err);
-      setError("Erro ao adicionar comentário");
-      
+      setError(err.message || "Erro ao adicionar comentário");
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível adicionar o comentário.",
+        description: err.message || "Não foi possível adicionar o comentário.",
       });
-      
       throw err;
     }
-  };
+  }, [toast, user]);
 
   // Filtrar tarefas por usuário e status
   const currentUserId = user?.id || 0;

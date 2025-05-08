@@ -587,22 +587,72 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(insertTask: InsertTask): Promise<Task> {
+    // Log the incoming task data
+    console.log('Creating task with data:', JSON.stringify(insertTask, null, 2));
+    
+    // Create a new object with processed data
+    const processedTask = {
+      ...insertTask,
+    };
+    
+    // Ensure dueDate is a proper Date object if it exists
+    if (processedTask.dueDate !== undefined && processedTask.dueDate !== null) {
+      // If it's already a Date object, keep it; otherwise, try to create a new Date
+      if (!(processedTask.dueDate instanceof Date)) {
+        console.log('Converting dueDate to Date object:', processedTask.dueDate);
+        try {
+          processedTask.dueDate = new Date(processedTask.dueDate);
+          console.log('Converted dueDate:', processedTask.dueDate);
+        } catch (error) {
+          console.error('Failed to convert dueDate to Date object:', error);
+          // If conversion fails, set to null to avoid database errors
+          processedTask.dueDate = null;
+        }
+      }
+    }
+    
+    // Log the processed task data
+    console.log('Processed task data:', JSON.stringify(processedTask, null, 2));
+    
     const [task] = await db
       .insert(tasks)
-      .values({
-        ...insertTask,
-      })
+      .values(processedTask)
       .returning();
     return task;
   }
 
   async updateTask(id: number, updates: Partial<InsertTask>): Promise<Task | undefined> {
+    // Log the incoming update data
+    console.log('Updating task', id, 'with data:', JSON.stringify(updates, null, 2));
+    
+    // Create a new object with processed data
+    const processedUpdates = {
+      ...updates,
+      updatedAt: new Date()
+    };
+    
+    // Ensure dueDate is a proper Date object if it exists
+    if (processedUpdates.dueDate !== undefined && processedUpdates.dueDate !== null) {
+      // If it's already a Date object, keep it; otherwise, try to create a new Date
+      if (!(processedUpdates.dueDate instanceof Date)) {
+        console.log('Converting dueDate to Date object:', processedUpdates.dueDate);
+        try {
+          processedUpdates.dueDate = new Date(processedUpdates.dueDate);
+          console.log('Converted dueDate:', processedUpdates.dueDate);
+        } catch (error) {
+          console.error('Failed to convert dueDate to Date object:', error);
+          // If conversion fails, set to null to avoid database errors
+          processedUpdates.dueDate = null;
+        }
+      }
+    }
+    
+    // Log the processed update data
+    console.log('Processed update data:', JSON.stringify(processedUpdates, null, 2));
+
     const [updatedTask] = await db
       .update(tasks)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
+      .set(processedUpdates)
       .where(eq(tasks.id, id))
       .returning();
     return updatedTask || undefined;

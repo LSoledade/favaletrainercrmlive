@@ -3,8 +3,10 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { 
+  leads,
   insertLeadSchema, leadValidationSchema, whatsappMessageValidationSchema,
-  taskValidationSchema, taskCommentValidationSchema
+  taskValidationSchema, taskCommentValidationSchema,
+  type Session, type Student, type WhatsappMessage
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { setupAuth } from "./auth";
@@ -14,6 +16,7 @@ import { logAuditEvent, AuditEventType, getRecentAuditLogs } from "./audit-log";
 import { sendWhatsAppMessage, sendWhatsAppTemplate, checkWhatsAppConnection, formatPhoneNumber } from "./whatsapp-service";
 import { getWeatherByCity, checkWeatherService } from "./weather-service";
 import { log } from "./vite";
+import { sql } from 'drizzle-orm';
 
 const scryptAsync = promisify(scrypt);
 
@@ -647,13 +650,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Como não temos a tabela de sessões ainda, vamos obter sessões simuladas
       const response = await fetch('http://localhost:5000/api/sessions');
-      const sessions = await response.json();
+      const sessions: Session[] = await response.json();
       
       // Adicionar detalhes extras para as sessões
-      const sessionsWithDetails = sessions.map(session => ({
+      const sessionsWithDetails = sessions.map((session: Session) => ({
         ...session,
         trainerName: ['Amanda Silva', 'Ricardo Costa', 'Juliana Oliveira', 'Marcos Santos'][Math.floor(Math.random() * 4)],
-        location: session.type === 'Presencial' ? ['Studio Favale', 'Academia Pink', 'Centro Esportivo'][Math.floor(Math.random() * 3)] : 'Online',
+        location: (session as any).type === 'Presencial' ? ['Studio Favale', 'Academia Pink', 'Centro Esportivo'][Math.floor(Math.random() * 3)] : 'Online',
         feedback: session.status === 'Concluído' ? ['Excelente progresso', 'Bom desempenho', 'Precisa melhorar', 'Superou expectativas'][Math.floor(Math.random() * 4)] : null
       }));
       
@@ -671,10 +674,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Como não temos a tabela de sessões, obter as sessões simuladas
       const response = await fetch('http://localhost:5000/api/sessions');
-      const allSessions = await response.json();
+      const allSessions: Session[] = await response.json();
       
       // Filtrar por período
-      const filteredSessions = allSessions.filter(session => {
+      const filteredSessions = allSessions.filter((session: Session) => {
         const sessionDate = new Date(session.startTime);
         return sessionDate >= startDate && sessionDate <= endDate;
       });
@@ -807,11 +810,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Obter estudantes e leads
       const response = await fetch('http://localhost:5000/api/students');
-      const students = await response.json();
+      const students: Student[] = await response.json();
       const allLeads = await storage.getLeads();
       
       // Combinar estudantes com seus leads correspondentes
-      const studentsWithLeads = students.map(student => {
+      const studentsWithLeads = students.map((student: Student) => {
         const lead = allLeads.find(l => l.id === student.leadId);
         return {
           ...student,
@@ -1064,14 +1067,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY lead_id, timestamp DESC
       `;
       
-      const result = await db.execute(query);
+      // Let TypeScript infer the type from db.execute, or use a more generic type if known
+      const executionResult = await db.execute(query);
       
       // Transformar o resultado em um objeto com lead_id como chave
-      const messagesByLead = {};
+      const messagesByLead: Record<number, WhatsappMessage[]> = {};
       
-      if (Array.isArray(result)) {
-        result.forEach(message => {
-          const leadId = message.lead_id;
+      // Ensure executionResult is an array before iterating
+      // Drizzle's raw query result might be an array of objects (rows)
+      if (Array.isArray(executionResult)) {
+        executionResult.forEach(message => {
+          // Assuming 'message' is an object with the expected properties
+          const leadId = (message as any).lead_id as number;
+          if (!messagesByLead[leadId]) {
+            messagesByLead[leadId] = [];
+          }
+          messagesByLead[leadId].push({
+            id: (message as any).id,
+            leadId: (message as any).lead_id,
+            direction: (message as any).direction,
+            content: (message as any).content,
+            status: (message as any).status,
+            timestamp: (message as any).timestamp,
+            mediaUrl: (message as any).media_url,
+            mediaType: (message as any).media_type,
+            messageId: (message as any).message_id
+          } as WhatsappMessage);
+        });
+      } else if (executionResult && typeof executionResult === 'object' && 'rows' in executionResult && Array.isArray((executionResult as any).rows)) {
+        // Some drivers might return an object with a 'rows' property like { rows: [...] }
+        const rows = (executionResult as any).rows;
+        rows.forEach((message: any) => {
+          const leadId = message.lead_id as number;
           if (!messagesByLead[leadId]) {
             messagesByLead[leadId] = [];
           }
@@ -1085,7 +1112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mediaUrl: message.media_url,
             mediaType: message.media_type,
             messageId: message.message_id
-          });
+          } as WhatsappMessage);
         });
       }
       
@@ -1212,10 +1239,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Validar os dados com o schema do Zod
       const validatedData = taskValidationSchema.parse(req.body);
-      
+
+      // Corrigir campos de data para garantir que são objetos Date ou string ISO
+      if (validatedData.dueDate && !(validatedData.dueDate instanceof Date)) {
+        validatedData.dueDate = new Date(validatedData.dueDate);
+      }
+
       // Criar tarefa no banco de dados
       const newTask = await storage.createTask(validatedData);
-      
+
       res.status(201).json(newTask);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -1231,7 +1263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Atualizar tarefa existente
-  app.put('/api/tasks/:id', async (req, res) => {
+  app.patch('/api/tasks/:id', async (req, res) => {
     const id = parseInt(req.params.id);
     
     if (isNaN(id)) {
@@ -1318,7 +1350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { status } = req.params;
     
     // Validar status
-    if (!['pending', 'in_progress', 'completed', 'cancelled'].includes(status)) {
+    if (!['backlog', 'pending', 'in_progress', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({ message: 'Status inválido' });
     }
     

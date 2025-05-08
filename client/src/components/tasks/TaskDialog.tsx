@@ -22,7 +22,7 @@ interface TaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   taskId?: number;
-  initialStatus?: "pending" | "in_progress" | "completed" | "cancelled";
+  initialStatus?: string;
 }
 
 export default function TaskDialog({ open, onOpenChange, taskId, initialStatus = "pending" }: TaskDialogProps) {
@@ -34,7 +34,7 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
   const [description, setDescription] = useState("");
   const [assignedToId, setAssignedToId] = useState<number | null>(null);
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
-  const [status, setStatus] = useState<"pending" | "in_progress" | "completed" | "cancelled">(initialStatus);
+  const [status, setStatus] = useState<"backlog" | "pending" | "in_progress" | "completed" | "cancelled">((initialStatus as "backlog" | "pending" | "in_progress" | "completed" | "cancelled") || "pending");
   const [dueDate, setDueDate] = useState<Date | undefined>(addDays(new Date(), 3));
   const [isLoading, setIsLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -75,7 +75,7 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
           setDescription(task.description || "");
           setAssignedToId(task.assignedToId);
           setPriority(task.priority as "low" | "medium" | "high");
-          setStatus(task.status as "pending" | "in_progress" | "completed" | "cancelled");
+          setStatus(task.status as "backlog" | "pending" | "in_progress" | "completed" | "cancelled");
           if (task.dueDate) {
             setDueDate(new Date(task.dueDate));
           }
@@ -357,13 +357,14 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
                   </Label>
                   <Select
                     value={status}
-                    onValueChange={(value) => setStatus(value as "pending" | "in_progress" | "completed" | "cancelled")}
+                    onValueChange={(value) => setStatus(value as "backlog" | "pending" | "in_progress" | "completed" | "cancelled")}
                     disabled={isLoading}
                   >
                     <SelectTrigger id="status" className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="backlog">Backlog</SelectItem>
                       <SelectItem value="pending">Pendente</SelectItem>
                       <SelectItem value="in_progress">Em andamento</SelectItem>
                       <SelectItem value="completed">Concluída</SelectItem>

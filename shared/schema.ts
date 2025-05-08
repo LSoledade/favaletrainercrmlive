@@ -164,18 +164,24 @@ export const insertSessionSchema = createInsertSchema(sessions).omit({
 });
 
 export const sessionBaseValidationSchema = insertSessionSchema.extend({
-  startTime: z.union([
-    z.string().refine(value => !isNaN(Date.parse(value)), {
-      message: "Horário de início precisa ser uma data válida"
-    }),
+  startTime: z.preprocess((arg) => {
+    if (typeof arg === "string" || arg instanceof Date) return arg;
+    return undefined;
+  }, z.union([
+    z.string().transform(val => new Date(val)),
     z.date()
-  ]),
-  endTime: z.union([
-    z.string().refine(value => !isNaN(Date.parse(value)), {
-      message: "Horário de término precisa ser uma data válida"
-    }),
+  ])).refine(date => date instanceof Date && !isNaN(date.getTime()), {
+    message: "Horário de início precisa ser uma data válida"
+  }),
+  endTime: z.preprocess((arg) => {
+    if (typeof arg === "string" || arg instanceof Date) return arg;
+    return undefined;
+  }, z.union([
+    z.string().transform(val => new Date(val)),
     z.date()
-  ]),
+  ])).refine(date => date instanceof Date && !isNaN(date.getTime()), {
+    message: "Horário de término precisa ser uma data válida"
+  }),
   studentId: z.number().int().positive("ID do aluno inválido"),
   trainerId: z.number().int().positive("ID do professor inválido"),
   location: z.string().min(1, "O local é obrigatório"),
@@ -284,17 +290,23 @@ export const taskValidationSchema = insertTaskSchema.extend({
   description: z.string().optional(),
   assignedById: z.number().int().positive("ID do usuário que atribuiu a tarefa inválido"),
   assignedToId: z.number().int().positive("ID do usuário atribuído inválido"),
-  dueDate: z.union([
-    z.string().refine(value => !isNaN(Date.parse(value)), {
-      message: "Data de vencimento precisa ser uma data válida"
-    }),
+  dueDate: z.preprocess((arg) => {
+    if (typeof arg === "string" || arg instanceof Date) return arg;
+    // If arg is null or undefined, let it pass to be handled by .optional()
+    if (arg === null || arg === undefined) return arg;
+    // For other invalid types, return undefined to trigger validation error if not optional
+    return undefined;
+  }, z.union([
+    z.string().transform(val => new Date(val)),
     z.date()
-  ]).optional(),
+  ])).optional().refine(date => date ? (date instanceof Date && !isNaN(date.getTime())) : true, {
+    message: "Data de vencimento precisa ser uma data válida ou estar vazia"
+  }),
   priority: z.enum(["low", "medium", "high"], {
     errorMap: () => ({ message: "Prioridade deve ser 'low', 'medium' ou 'high'" })
   }),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"], {
-    errorMap: () => ({ message: "Status deve ser 'pending', 'in_progress', 'completed' ou 'cancelled'" })
+  status: z.enum(["backlog", "pending", "in_progress", "completed", "cancelled"], {
+    errorMap: () => ({ message: "Status deve ser 'backlog', 'pending', 'in_progress', 'completed' ou 'cancelled'" })
   }),
   relatedLeadId: z.number().int().positive("ID do lead inválido").optional(),
 });
