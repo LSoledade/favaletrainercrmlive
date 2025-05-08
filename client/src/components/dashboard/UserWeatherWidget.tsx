@@ -163,19 +163,38 @@ export default function UserWeatherWidget() {
 
 
   
-  // Determina o ícone apropriado com base no código de condição
+  // Determina o ícone apropriado com base no código de condição e se é dia ou noite
   const getWeatherIcon = (code: number) => {
+    // Verificar se é dia ou noite na resposta da API
+    const isDay = weather?.current?.is_day === 1;
+    
     // Códigos baseados na documentação da Weather API
-    if (code === 1000) return <Sun className="h-8 w-8 text-yellow-500" />; // Ensolarado
-    if ([1003, 1006, 1009].includes(code)) return <Cloud className="h-8 w-8 text-gray-400" />; // Nublado
+    if (code === 1000) {
+      // Céu limpo - Sol ou Lua dependendo se é dia ou noite
+      return isDay ? 
+        <Sun className="h-8 w-8 text-yellow-500" /> : 
+        <span className="material-icons text-indigo-300 text-3xl">nightlight</span>;
+    }
+    
+    if ([1003, 1006, 1009].includes(code)) {
+      // Nublado
+      return isDay ? 
+        <Cloud className="h-8 w-8 text-gray-400" /> : 
+        <span className="material-icons text-gray-400 text-3xl">nights_stay</span>;
+    }
+    
     if ([1063, 1180, 1183, 1186, 1189, 1192, 1195, 1240, 1243, 1246].includes(code)) 
       return <CloudRain className="h-8 w-8 text-blue-400" />; // Chuva
+      
     if ([1066, 1114, 1117, 1210, 1213, 1216, 1219, 1222, 1225, 1255, 1258].includes(code)) 
       return <CloudSnow className="h-8 w-8 text-blue-200" />; // Neve
+      
     if ([1087, 1273, 1276, 1279, 1282].includes(code)) 
       return <CloudLightning className="h-8 w-8 text-yellow-400" />; // Tempestade
+      
     if ([1030, 1135, 1147].includes(code)) 
       return <CloudFog className="h-8 w-8 text-gray-300" />; // Neblina
+      
     if ([1069, 1072, 1150, 1153, 1168, 1171, 1198, 1201, 1204, 1207, 1249, 1252, 1261, 1264].includes(code)) 
       return <CloudRain className="h-8 w-8 text-gray-400" />; // Garoa
       
