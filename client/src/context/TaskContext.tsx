@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Task {
   id: number;
@@ -57,6 +58,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Carregar tarefas ao inicializar
   useEffect(() => {
@@ -275,8 +277,12 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
 
   const addComment = async (taskId: number, content: string) => {
     try {
-      // Obter informações do usuário atual (simulado)
-      const currentUser = { id: 1, name: "Admin User" }; // Em produção, usar usuário autenticado
+      if (!user) {
+        throw new Error("Usuário não autenticado");
+      }
+      
+      // Usar informações do usuário autenticado
+      const currentUser = { id: user.id, name: user.username };
       
       const commentData = {
         taskId,
@@ -339,10 +345,20 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   
   const addTaskComment = async (taskId: number, comment: Partial<TaskComment>) => {
     try {
+      if (!user) {
+        throw new Error("Usuário não autenticado");
+      }
+      
+      // Verificar se o comment já tem userId, senão adicionar
+      const commentWithUserId = {
+        ...comment,
+        userId: comment.userId || user.id
+      };
+      
       const response = await fetch(`/api/tasks/${taskId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(comment)
+        body: JSON.stringify(commentWithUserId)
       });
       
       if (!response.ok) {
@@ -392,10 +408,13 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   };
 
   // Filtrar tarefas por usuário e status
-  const currentUserId = 2; // Em produção, usar o ID do usuário autenticado
+  const currentUserId = user?.id || 0;
   const myTasks = tasks.filter(task => task.assignedToId === currentUserId && task.status !== "completed");
-  const assignedTasks = tasks.filter(task => task.assignedById === 1 && task.status !== "completed");
-  const completedTasks = tasks.filter(task => task.status === "completed");
+  const assignedTasks = tasks.filter(task => task.assignedById === currentUserId && task.status !== "completed");
+  const completedTasks = tasks.filter(task => 
+    (task.assignedToId === currentUserId || task.assignedById === currentUserId) && 
+    task.status === "completed"
+  );
 
   return (
     <TaskContext.Provider
