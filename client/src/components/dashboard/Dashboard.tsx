@@ -5,6 +5,8 @@ import SourcePieChart from "./SourcePieChart";
 import StateBarChart from "./StateBarChart";
 import TimelineChart from "./TimelineChart";
 import RecentActivity from "./RecentActivity";
+import GreetingWidget from "./GreetingWidget";
+import WeatherWidget from "./WeatherWidget";
 import { Button } from "../ui/button";
 import { Filter } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
@@ -52,6 +54,16 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Greeting & Weather Widgets */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="md:col-span-2">
+          <GreetingWidget />
+        </div>
+        <div className="md:col-span-1">
+          <WeatherWidget city="São Paulo" />
+        </div>
+      </div>
+      
       {/* KPI Cards - Row 1 */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">

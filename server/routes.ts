@@ -9,6 +9,7 @@ import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { logAuditEvent, AuditEventType, getRecentAuditLogs } from "./audit-log";
 import { sendWhatsAppMessage, sendWhatsAppTemplate, checkWhatsAppConnection, formatPhoneNumber } from "./whatsapp-service";
+import { getWeatherByCity, checkWeatherService } from "./weather-service";
 import { log } from "./vite";
 
 const scryptAsync = promisify(scrypt);
@@ -1114,6 +1115,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`Erro ao verificar status da API: ${JSON.stringify(error)}`);
       res.status(500).json({ status: 'error', message: 'Erro ao verificar conexão com a API do WhatsApp' });
+    }
+  });
+  // API de clima - Verificar status do serviço
+  app.get('/api/weather/status', async (req, res) => {
+    try {
+      const statusResult = await checkWeatherService();
+      if (statusResult.status === 'connected') {
+        res.json(statusResult);
+      } else {
+        res.status(503).json(statusResult);
+      }
+    } catch (error: any) {
+      console.error("Erro ao verificar serviço de clima:", error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: `Erro ao verificar serviço de clima: ${error.message}` 
+      });
+    }
+  });
+  
+  // API de clima - Buscar clima por cidade
+  app.get('/api/weather/:city', async (req, res) => {
+    try {
+      const city = req.params.city;
+      
+      if (!city) {
+        return res.status(400).json({ message: "Nome da cidade é obrigatório" });
+      }
+      
+      const weatherData = await getWeatherByCity(city);
+      
+      if (weatherData.error) {
+        return res.status(400).json({ 
+          message: weatherData.error.message,
+          code: weatherData.error.code
+        });
+      }
+      
+      res.json(weatherData);
+    } catch (error: any) {
+      console.error("Erro ao obter dados de clima:", error);
+      res.status(500).json({ 
+        message: `Erro ao obter dados de clima: ${error.message}` 
+      });
     }
   });
   
