@@ -86,6 +86,38 @@ export interface IStorage {
   createSessionHistory(history: InsertSessionHistory): Promise<SessionHistory>;
   getSessionHistoryBySessionId(sessionId: number): Promise<SessionHistory[]>;
   
+  // Task methods
+  getTasks(): Promise<Task[]>;
+  getTasksByUserId(userId: number): Promise<Task[]>;
+  getTasksByStatus(status: string): Promise<Task[]>;
+  getTasksByPriority(priority: string): Promise<Task[]>;
+  getTasksByTag(tag: string): Promise<Task[]>;
+  getTaskByIdWithDetails(id: number): Promise<any>; // Task com detalhes, checklist, comentários, etc.
+  getTask(id: number): Promise<Task | undefined>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: number, task: Partial<InsertTask>): Promise<Task | undefined>;
+  deleteTask(id: number): Promise<boolean>;
+  
+  // Task watchers methods
+  getTaskWatchers(taskId: number): Promise<TaskWatcher[]>;
+  addTaskWatcher(watcher: InsertTaskWatcher): Promise<TaskWatcher>;
+  removeTaskWatcher(taskId: number, userId: number): Promise<boolean>;
+  
+  // Task checklist methods
+  getTaskChecklistItems(taskId: number): Promise<TaskChecklistItem[]>;
+  createTaskChecklistItem(item: InsertTaskChecklistItem): Promise<TaskChecklistItem>;
+  updateTaskChecklistItem(id: number, updates: Partial<InsertTaskChecklistItem>): Promise<TaskChecklistItem | undefined>;
+  deleteTaskChecklistItem(id: number): Promise<boolean>;
+  
+  // Task comments methods
+  getTaskComments(taskId: number, page?: number, limit?: number): Promise<TaskComment[]>;
+  createTaskComment(comment: InsertTaskComment): Promise<TaskComment>;
+  deleteTaskComment(id: number): Promise<boolean>;
+  
+  // Task history methods
+  createTaskHistory(history: InsertTaskHistory): Promise<TaskHistory>;
+  getTaskHistoryByTaskId(taskId: number): Promise<TaskHistory[]>;
+  
   // Session store for authentication
   sessionStore: session.Store;
 }
