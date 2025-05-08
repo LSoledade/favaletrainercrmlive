@@ -9,9 +9,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, ChevronLeft, Clock, User, BarChart3, Link as LinkIcon, AlertCircle } from "lucide-react";
+import { CalendarIcon, ChevronLeft, Clock, User, BarChart3, Users as UsersIcon, AlertCircle, Link } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTaskContext } from "@/context/TaskContext";
+import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -26,6 +27,7 @@ interface TaskDialogProps {
 
 export default function TaskDialog({ open, onOpenChange, taskId, initialStatus = "pending" }: TaskDialogProps) {
   const { createTask, fetchTaskById, updateTask } = useTaskContext();
+  const { user } = useAuth();
   const isEditing = !!taskId;
 
   const [title, setTitle] = useState("");
@@ -34,24 +36,36 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [status, setStatus] = useState<"pending" | "in_progress" | "completed" | "cancelled">(initialStatus);
   const [dueDate, setDueDate] = useState<Date | undefined>(addDays(new Date(), 3));
-  const [relatedLeadId, setRelatedLeadId] = useState<number | null>(null);
+  const [assignedToUserId, setAssignedToUserId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [timeTracking, setTimeTracking] = useState(false);
   const [showBackButton, setShowBackButton] = useState(false);
   const [currentStep, setCurrentStep] = useState<"details" | "assignment">("details");
+  const [users, setUsers] = useState<Array<{id: number, username: string, role: string}>>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Dados mockados para usuários e leads
-  const mockUsers = [
-    { id: 1, name: "Admin User", role: "admin" },
-    { id: 2, name: "João Silva", role: "user" },
-    { id: 3, name: "Maria Oliveira", role: "user" },
-  ];
+  // Carregar usuários do sistema
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        const response = await fetch('/api/users');
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data);
+        } else {
+          console.error('Erro ao buscar usuários:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar usuários:', error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
 
-  const mockLeads = [
-    { id: 101, name: "Carlos Mendes" },
-    { id: 102, name: "Lucia Ferreira" },
-  ];
+    fetchUsers();
+  }, []);
 
   // Carregar detalhes da tarefa se estiver editando
   useEffect(() => {
