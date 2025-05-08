@@ -105,8 +105,8 @@ export default function TasksPage() {
     return taskList.filter(task => 
       task.title.toLowerCase().includes(query) || 
       (task.description && task.description.toLowerCase().includes(query)) ||
-      (task.assignedToName && task.assignedToName.toLowerCase().includes(query)) ||
-      (task.relatedLeadName && task.relatedLeadName.toLowerCase().includes(query))
+      (task.assignedToName && task.assignedToName.toLowerCase().includes(query))
+      // No longer filtering by relatedLeadName as tasks are now assigned to system users only
     );
   };
   
