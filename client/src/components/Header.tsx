@@ -34,6 +34,8 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
         return "Campanhas";
       case "/config":
         return "Configurações";
+      case "/tarefas":
+        return "Tarefas";
       default:
         return "FavaleTrainer";
     }
