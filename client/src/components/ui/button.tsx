@@ -16,10 +16,10 @@ const buttonVariants = cva(
           "border border-input bg-background hover:bg-accent/60 hover:text-accent-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        ghost: "hover:bg-accent/60 hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         glow: "bg-primary text-primary-foreground hover:bg-primary/90 dark:glow-button-sm",
-        outlineGlow: "border border-input bg-background hover:bg-accent hover:text-accent-foreground dark:border-primary/30 dark:hover:border-primary/50 dark:hover:shadow-primary/30 dark:hover:shadow-sm",
+        outlineGlow: "border border-input bg-background hover:bg-accent/60 hover:text-accent-foreground dark:border-primary/30 dark:hover:border-primary/50 dark:hover:shadow-primary/30 dark:hover:shadow-sm",
         glowIntense: "bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-0.5 dark:text-white dark:shadow-glow-sm dark:hover:shadow-glow-md",
         glowSubtle: "bg-primary/90 text-primary-foreground hover:bg-primary hover:-translate-y-0.5 dark:glow-button-xs",
         outlineGlowIntense: "border border-primary/50 bg-background hover:bg-primary/10 hover:text-primary dark:text-primary-foreground dark:hover:border-primary/80 dark:hover:shadow-glow-md dark:hover:-translate-y-1",
