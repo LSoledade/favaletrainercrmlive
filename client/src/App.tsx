@@ -11,10 +11,13 @@ import SessionsPage from "@/pages/SessionsPage";
 import CalendarPage from "@/pages/CalendarPage";
 import WhatsappPage from "@/pages/WhatsappPage";
 import ReportPage from "@/pages/ReportPage";
+import TasksPage from "@/pages/TasksPage";
+import TaskDetailsPage from "@/pages/TaskDetailsPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LeadProvider } from "@/context/LeadContext";
 import { WhatsappProvider } from "@/context/WhatsappContext";
+import { TaskProvider } from "@/context/TaskContext";
 import { AuthProvider } from "@/hooks/use-auth";
 
 function Router() {
@@ -25,6 +28,8 @@ function Router() {
       <ProtectedRoute path="/agendamentos" component={SessionsPage} />
       <ProtectedRoute path="/calendario" component={CalendarPage} />
       <ProtectedRoute path="/whatsapp" component={WhatsappPage} />
+      <ProtectedRoute path="/tarefas" component={TasksPage} />
+      <ProtectedRoute path="/tarefas/:id" component={TaskDetailsPage} />
       <ProtectedRoute path="/config" component={ConfigPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
@@ -42,14 +47,16 @@ function App() {
         <AuthProvider>
           <LeadProvider>
             <WhatsappProvider>
-              {isAuthPage ? (
-                <Router />
-              ) : (
-                <Layout>
+              <TaskProvider>
+                {isAuthPage ? (
                   <Router />
-                </Layout>
-              )}
-              <Toaster />
+                ) : (
+                  <Layout>
+                    <Router />
+                  </Layout>
+                )}
+                <Toaster />
+              </TaskProvider>
             </WhatsappProvider>
           </LeadProvider>
         </AuthProvider>

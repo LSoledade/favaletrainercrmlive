@@ -255,3 +255,72 @@ export const whatsappMessageValidationSchema = insertWhatsappMessageSchema.exten
 
 export type InsertWhatsappMessage = z.infer<typeof insertWhatsappMessageSchema>;
 export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
+
+// Tabela de tarefas
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  assignedById: integer("assigned_by_id").references(() => users.id).notNull(),
+  assignedToId: integer("assigned_to_id").references(() => users.id).notNull(),
+  dueDate: timestamp("due_date"),
+  priority: text("priority").default("medium").notNull(), // low, medium, high
+  status: text("status").default("pending").notNull(), // pending, in_progress, completed, cancelled
+  relatedLeadId: integer("related_lead_id").references(() => leads.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const taskValidationSchema = insertTaskSchema.extend({
+  title: z.string().min(1, "O título é obrigatório"),
+  description: z.string().optional(),
+  assignedById: z.number().int().positive("ID do usuário que atribuiu a tarefa inválido"),
+  assignedToId: z.number().int().positive("ID do usuário atribuído inválido"),
+  dueDate: z.union([
+    z.string().refine(value => !isNaN(Date.parse(value)), {
+      message: "Data de vencimento precisa ser uma data válida"
+    }),
+    z.date()
+  ]).optional(),
+  priority: z.enum(["low", "medium", "high"], {
+    errorMap: () => ({ message: "Prioridade deve ser 'low', 'medium' ou 'high'" })
+  }),
+  status: z.enum(["pending", "in_progress", "completed", "cancelled"], {
+    errorMap: () => ({ message: "Status deve ser 'pending', 'in_progress', 'completed' ou 'cancelled'" })
+  }),
+  relatedLeadId: z.number().int().positive("ID do lead inválido").optional(),
+});
+
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type Task = typeof tasks.$inferSelect;
+
+// Tabela de comentários em tarefas
+export const taskComments = pgTable("task_comments", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertTaskCommentSchema = createInsertSchema(taskComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const taskCommentValidationSchema = insertTaskCommentSchema.extend({
+  taskId: z.number().int().positive("ID da tarefa inválido"),
+  userId: z.number().int().positive("ID do usuário inválido"),
+  content: z.string().min(1, "O conteúdo é obrigatório"),
+});
+
+export type InsertTaskComment = z.infer<typeof insertTaskCommentSchema>;
+export type TaskComment = typeof taskComments.$inferSelect;
