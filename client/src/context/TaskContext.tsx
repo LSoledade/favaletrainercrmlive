@@ -39,6 +39,7 @@ interface TaskContextType {
   updateTask: (id: number, task: Partial<Task>) => Promise<Task>;
   deleteTask: (id: number) => Promise<boolean>;
   addComment: (taskId: number, content: string) => Promise<TaskComment>;
+  addTaskComment: (taskId: number, comment: Partial<TaskComment>) => Promise<TaskComment>;
   myTasks: Task[];
   assignedTasks: Task[];
   completedTasks: Task[];
@@ -336,6 +337,58 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       throw err;
     }
   };
+  
+  const addTaskComment = async (taskId: number, comment: Partial<TaskComment>) => {
+    try {
+      // Em produção, substituir por uma chamada à API
+      // const response = await fetch(`/api/tasks/${taskId}/comments`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(comment)
+      // });
+      // const data = await response.json();
+      
+      // Simulando adição de comentário com dados mockados
+      const newComment: TaskComment = {
+        id: comment.id || Math.floor(Math.random() * 1000),
+        taskId,
+        userId: comment.userId || 1,
+        userName: comment.userName || "Admin User",
+        content: comment.content || "",
+        createdAt: comment.createdAt || new Date(),
+        updatedAt: comment.updatedAt || new Date(),
+      };
+      
+      setTasks(prev => 
+        prev.map(task => {
+          if (task.id === taskId) {
+            return {
+              ...task,
+              comments: [...(task.comments || []), newComment]
+            };
+          }
+          return task;
+        })
+      );
+      
+      toast({
+        title: "Comentário adicionado",
+        description: "O comentário foi adicionado com sucesso.",
+      });
+      
+      return newComment;
+    } catch (err) {
+      setError("Erro ao adicionar comentário");
+      
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível adicionar o comentário.",
+      });
+      
+      throw err;
+    }
+  };
 
   // Filtrar tarefas atribuídas ao usuário atual (simulado como userId = 2)
   const currentUserId = 2; // Em produção, usar o ID do usuário autenticado
@@ -359,6 +412,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         updateTask,
         deleteTask,
         addComment,
+        addTaskComment,
         myTasks,
         assignedTasks,
         completedTasks,
