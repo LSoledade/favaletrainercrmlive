@@ -13,7 +13,8 @@ import {
   LayoutGrid,
   LayoutList,
   ArrowUpDown,
-  Filter
+  Filter,
+  Calendar
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -164,16 +165,35 @@ export default function TasksPage() {
   
   // Compact task card component for board view
   const TaskBoardCard = ({ task }: { task: any }) => {
+    // Gerar um código e cor para o cartão baseado no seu status
+    const getCardCode = () => {
+      switch(task.status) {
+        case 'pending':
+          return { code: 'TD', color: 'text-yellow-700 bg-yellow-50' };
+        case 'in_progress':
+          return { code: 'IP', color: 'text-blue-700 bg-blue-50' };
+        case 'completed':
+          return { code: 'RV', color: 'text-green-700 bg-green-50' };
+        default:
+          return { code: 'TK', color: 'text-gray-700 bg-gray-50' };
+      }
+    };
+    
+    const { code, color } = getCardCode();
+    const cardId = `${code}-${String(task.id).padStart(3, '0')}`;
+    
+    // Determinar a cor da barra de prioridade
+    const priorityColor = task.priority === 'high' ? 'bg-orange-500' : 
+                         task.priority === 'medium' ? 'bg-yellow-400' : 'bg-green-500';
+                          
     return (
       <Card 
-        className={`p-3 border-l-4 mb-2 hover:shadow-md transition-all ${getTaskCardBorderColor(task.status)}`}
+        className="p-0 mb-3 overflow-hidden bg-white dark:bg-gray-800 hover:shadow-md transition-all cursor-pointer"
       >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex-1">
-            <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`} />
-              <h4 className="font-medium text-sm">{task.title}</h4>
-            </div>
+        {/* Cabeçalho do cartão com código e menu */}
+        <div className="flex items-center justify-between p-3 pb-1">
+          <div className={`text-xs ${color} px-1.5 py-0.5 rounded font-medium flex items-center`}>
+            {cardId}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -201,37 +221,76 @@ export default function TasksPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {task.description && (
-          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
-            {task.description}
-          </p>
-        )}
-        <div className="flex justify-between items-center mt-2">
-          <div className="flex items-center">
-            <Avatar className="h-5 w-5 mr-1.5">
-              <AvatarFallback className="text-[10px]">
+        
+        {/* Título da tarefa */}
+        <div className="px-3 pt-1 pb-2">
+          <h4 className="font-medium text-sm">{task.title}</h4>
+          {task.description && (
+            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">
+              {task.description}
+            </p>
+          )}
+        </div>
+        
+        {/* Indicador de prioridade como uma linha colorida no topo */}
+        <div className={`h-1 w-12 ${priorityColor} mb-2 rounded-sm ml-3`}></div>
+        
+        {/* Rodapé com metadados */}
+        <div className="flex justify-between items-center border-t border-gray-100 dark:border-gray-700 pt-2 px-3 pb-3">
+          <div className="flex items-center gap-1">
+            {task.relatedLeadName && (
+              <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-gray-50 dark:bg-gray-800">
+                {task.relatedLeadName.split(' ')[0]}
+              </Badge>
+            )}
+            
+            {task.dueDate && (
+              <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-gray-50 dark:bg-gray-800 flex items-center gap-1">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="10" 
+                  height="10" 
+                  viewBox="0 0 24 24" 
+                  fill="none"
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  className="h-2.5 w-2.5"
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                {format(new Date(task.dueDate), "dd/MM", { locale: ptBR })}
+              </Badge>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {task.comments?.length > 0 && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <svg 
+                  width="15" 
+                  height="15" 
+                  viewBox="0 0 15 15" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-3 w-3"
+                >
+                  <path d="M12.5 3L2.5 3.00002C1.67157 3.00002 1 3.6716 1 4.50002V9.50003C1 10.3285 1.67157 11 2.5 11H7.50003C7.63264 11 7.75982 11.0527 7.85358 11.1465L10 13.2929V11.5C10 11.2239 10.2239 11 10.5 11H12.5C13.3284 11 14 10.3285 14 9.50003V4.5C14 3.67157 13.3284 3 12.5 3ZM2.49999 2.00002L12.5 2C13.8807 2 15 3.11929 15 4.5V9.50003C15 10.8807 13.8807 12 12.5 12H11V14.5C11 14.7022 10.8782 14.8845 10.6913 14.9619C10.5045 15.0393 10.2894 14.9965 10.1464 14.8536L7.29292 12H2.5C1.11929 12 0 10.8807 0 9.50003V4.50002C0 3.11931 1.11928 2.00002 2.49999 2.00002Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+                </svg>
+                {task.comments.length}
+              </span>
+            )}
+            
+            <Avatar className="h-5 w-5">
+              <AvatarFallback className="text-[10px] bg-blue-100 text-blue-600">
                 {task.assignedToName?.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs text-gray-600 dark:text-gray-400">
-              {task.dueDate ? format(new Date(task.dueDate), "dd/MM", { locale: ptBR }) : ''}
-            </span>
           </div>
-          {task.comments?.length > 0 && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-              <svg 
-                width="15" 
-                height="15" 
-                viewBox="0 0 15 15" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="h-3 w-3 mr-1"
-              >
-                <path d="M12.5 3L2.5 3.00002C1.67157 3.00002 1 3.6716 1 4.50002V9.50003C1 10.3285 1.67157 11 2.5 11H7.50003C7.63264 11 7.75982 11.0527 7.85358 11.1465L10 13.2929V11.5C10 11.2239 10.2239 11 10.5 11H12.5C13.3284 11 14 10.3285 14 9.50003V4.5C14 3.67157 13.3284 3 12.5 3ZM2.49999 2.00002L12.5 2C13.8807 2 15 3.11929 15 4.5V9.50003C15 10.8807 13.8807 12 12.5 12H11V14.5C11 14.7022 10.8782 14.8845 10.6913 14.9619C10.5045 15.0393 10.2894 14.9965 10.1464 14.8536L7.29292 12H2.5C1.11929 12 0 10.8807 0 9.50003V4.50002C0 3.11931 1.11928 2.00002 2.49999 2.00002Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-              </svg>
-              {task.comments.length}
-            </span>
-          )}
         </div>
       </Card>
     );
@@ -250,26 +309,37 @@ export default function TasksPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[500px]">
         {statuses.map(status => (
           <div key={status} className="flex flex-col">
-            <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-md">
-              <div className="flex items-center">
-                {status === "pending" && <Clock className="h-4 w-4 mr-2 text-amber-500" />}
-                {status === "in_progress" && <AlertCircle className="h-4 w-4 mr-2 text-blue-500" />}
-                {status === "completed" && <CheckCircle className="h-4 w-4 mr-2 text-green-500" />}
-                <span className="font-medium">{getStatusLabel(status)}</span>
-                <Badge variant="outline" className="ml-2">
+            <div className="flex items-center justify-between p-3 pb-2 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 rounded-t-md">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-sm text-gray-700 dark:text-gray-200">
+                  {getStatusLabel(status)}
+                </span>
+                <span className="text-xs text-gray-500 font-normal">
                   {taskColumns[status as keyof typeof taskColumns].length}
-                </Badge>
+                </span>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => {
-                  setShowCreateTaskDialog(true);
-                }}
-              >
-                <PlusCircle className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                  onClick={() => {}}
+                >
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.5 4C2.22386 4 2 4.22386 2 4.5C2 4.77614 2.22386 5 2.5 5H12.5C12.7761 5 13 4.77614 13 4.5C13 4.22386 12.7761 4 12.5 4H2.5ZM2 7.5C2 7.22386 2.22386 7 2.5 7H12.5C12.7761 7 13 7.22386 13 7.5C13 7.77614 12.7761 8 12.5 8H2.5C2.22386 8 2 7.77614 2 7.5ZM2 10.5C2 10.2239 2.22386 10 2.5 10H12.5C12.7761 10 13 10.2239 13 10.5C13 10.7761 12.7761 11 12.5 11H2.5C2.22386 11 2 10.7761 2 10.5Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+                  </svg>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                  onClick={() => {
+                    setShowCreateTaskDialog(true);
+                  }}
+                >
+                  <PlusCircle className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             
             <div className="bg-gray-50 dark:bg-gray-900 border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-md flex-1 p-3 overflow-auto min-h-[500px]">
@@ -293,6 +363,15 @@ export default function TasksPage() {
                   </Button>
                 </div>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mt-2 border border-dashed border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 flex items-center justify-center py-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                onClick={() => setShowCreateTaskDialog(true)}
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Adicionar Nova Tarefa
+              </Button>
             </div>
           </div>
         ))}
