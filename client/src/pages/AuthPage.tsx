@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import gymBackgroundImage from "@/assets/gym-background.svg";
-import personalTrainingImage from "@/assets/personal-training.svg";
+import gymPixelImage from "@/assets/gym-pixel.png";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Nome de usuário é obrigatório"),
@@ -45,24 +44,42 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 p-4">
-      <div className="w-full max-w-md">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        backgroundImage: `url(${gymPixelImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        position: 'relative'
+      }}
+    >
+      {/* Overlay para melhorar legibilidade do formulário */}
+      <div 
+        className="absolute inset-0" 
+        style={{ 
+          backgroundColor: 'rgba(0,0,0,0.65)',
+          backdropFilter: 'blur(1px)'
+        }}
+      ></div>
+      
+      <div className="w-full max-w-md z-10 relative">
         <div className="text-center mb-8 sm:mb-10">
-          <h1 className="text-3xl sm:text-4xl font-bold text-primary">Favale & Pink</h1>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-2">
+          <h1 className="text-3xl sm:text-4xl font-bold text-white">Favale & Pink</h1>
+          <p className="text-sm sm:text-base text-gray-300 mt-2">
             Sistema de Gerenciamento de Leads
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 p-6 sm:p-8 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800">
+        <div className="bg-white/90 dark:bg-gray-900/90 p-6 sm:p-8 rounded-xl shadow-lg backdrop-blur-sm">
           <div className="flex flex-col items-center mb-6">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-primary">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-center">Login</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            <p className="text-gray-700 dark:text-gray-300 text-sm mt-1">
               Acesse o FavaleTrainer
             </p>
           </div>
