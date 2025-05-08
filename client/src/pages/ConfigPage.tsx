@@ -211,309 +211,399 @@ export default function ConfigPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground">
-          Gerencie suas configurações de conta, notificações e sistema.
-        </p>
-      </div>
-
-      <Separator className="my-6" />
-
-      <div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0">
-        <aside className="lg:w-1/5">
-          <Tabs
-            orientation="vertical"
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <TabsList className="flex flex-col w-full items-start bg-transparent h-auto p-0 space-y-1">
-              <TabsTrigger
-                value="profile"
-                className="w-full justify-start text-left px-3 py-2 data-[state=active]:bg-muted"
+    <div className="container mx-auto p-4 space-y-6">
+      <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">Configurações</CardTitle>
+          <CardDescription className="text-gray-500 dark:text-gray-400">
+            Gerencie as configurações da sua conta e do sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="bg-gray-100 dark:bg-gray-800 mb-4">
+              <TabsTrigger 
+                value="profile" 
+                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
               >
                 Perfil
               </TabsTrigger>
-              <TabsTrigger
-                value="notifications"
-                className="w-full justify-start text-left px-3 py-2 data-[state=active]:bg-muted"
+              <TabsTrigger 
+                value="notifications" 
+                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
               >
                 Notificações
               </TabsTrigger>
-              <TabsTrigger
-                value="system"
-                className="w-full justify-start text-left px-3 py-2 data-[state=active]:bg-muted"
+              <TabsTrigger 
+                value="system" 
+                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
               >
                 Sistema
               </TabsTrigger>
-              <TabsTrigger
-                value="users"
-                className="w-full justify-start text-left px-3 py-2 data-[state=active]:bg-muted"
+              <TabsTrigger 
+                value="users" 
+                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
               >
                 Usuários
               </TabsTrigger>
-              {user?.role === "admin" && (
-                <TabsTrigger
-                  value="security"
-                  className="w-full justify-start text-left px-3 py-2 data-[state=active]:bg-muted"
+              {user?.role === 'admin' && (
+                <TabsTrigger 
+                  value="audit" 
+                  className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
                 >
-                  <div className="flex items-center gap-1">
-                    <Shield className="h-4 w-4" />
-                    <span>Segurança</span>
-                  </div>
+                  Auditoria
                 </TabsTrigger>
               )}
             </TabsList>
-          </Tabs>
-        </aside>
-
-        <div className="flex-1 lg:max-w-4xl">
-          {/* Perfil de Usuário */}
-          {activeTab === "profile" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Perfil de Usuário</CardTitle>
-                <CardDescription>
-                  Atualize suas informações pessoais e senha.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...userProfileForm}>
-                  <form onSubmit={userProfileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
-                    <FormField
-                      control={userProfileForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome de Usuário</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormDescription>Este é seu nome de usuário público.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Separator className="my-4" />
-                    <h3 className="text-lg font-medium mb-4">Alterar Senha</h3>
-
-                    <FormField
-                      control={userProfileForm.control}
-                      name="currentPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Senha Atual</FormLabel>
-                          <FormControl>
-                            <Input type="password" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={userProfileForm.control}
-                        name="newPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nova Senha</FormLabel>
-                            <FormControl>
-                              <Input type="password" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={userProfileForm.control}
-                        name="confirmPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Confirmar Nova Senha</FormLabel>
-                            <FormControl>
-                              <Input type="password" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <Button type="submit" className="mt-4">
-                      Salvar Alterações
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Configurações de Notificações */}
-          {activeTab === "notifications" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Notificações</CardTitle>
-                <CardDescription>
-                  Configure como e quando você recebe notificações.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...notificationSettingsForm}>
-                  <form
-                    onSubmit={notificationSettingsForm.handleSubmit(onNotificationSettingsSubmit)}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Canais de Notificação</h3>
-
-                      <FormField
-                        control={notificationSettingsForm.control}
-                        name="emailNotifications"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                            <div className="space-y-0.5">
-                              <FormLabel>Notificações por Email</FormLabel>
-                              <FormDescription>
-                                Receba atualizações e alertas por email.
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={notificationSettingsForm.control}
-                        name="smsNotifications"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                            <div className="space-y-0.5">
-                              <FormLabel>Notificações por SMS</FormLabel>
-                              <FormDescription>
-                                Receba alertas importantes por SMS.
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <Separator className="my-4" />
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Tipos de Notificação</h3>
-
-                      <FormField
-                        control={notificationSettingsForm.control}
-                        name="leadAssignmentNotification"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                            <div className="space-y-0.5">
-                              <FormLabel>Atribuição de Leads</FormLabel>
-                              <FormDescription>
-                                Notificar quando um novo lead for atribuído a você.
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={notificationSettingsForm.control}
-                        name="statusChangeNotification"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                            <div className="space-y-0.5">
-                              <FormLabel>Mudanças de Status</FormLabel>
-                              <FormDescription>
-                                Notificar quando o status de um lead mudar.
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={notificationSettingsForm.control}
-                        name="marketingUpdates"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                            <div className="space-y-0.5">
-                              <FormLabel>Atualizações de Marketing</FormLabel>
-                              <FormDescription>
-                                Receba novidades sobre campanhas e promoções.
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <Button type="submit" className="mt-4">
-                      Salvar Preferências
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Gerência de Usuários */}
-          {activeTab === "users" && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Gerência de Usuários</CardTitle>
-                  <CardDescription>
-                    Crie, edite e exclua usuários do sistema.
+            
+            <TabsContent value="profile" className="space-y-4">
+              <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Alterar Senha</CardTitle>
+                  <CardDescription className="text-gray-500 dark:text-gray-400">
+                    Atualize sua senha para manter sua conta segura
                   </CardDescription>
-                </div>
+                </CardHeader>
+                <CardContent>
+                  <Form {...userProfileForm}>
+                    <form onSubmit={userProfileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                      <FormField
+                        control={userProfileForm.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome de Usuário</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormDescription>Este é seu nome de usuário público.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Separator className="my-4" />
+                      <h3 className="text-lg font-medium mb-4">Alterar Senha</h3>
+
+                      <FormField
+                        control={userProfileForm.control}
+                        name="currentPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Senha Atual</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={userProfileForm.control}
+                          name="newPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nova Senha</FormLabel>
+                              <FormControl>
+                                <Input type="password" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={userProfileForm.control}
+                          name="confirmPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Confirmar Nova Senha</FormLabel>
+                              <FormControl>
+                                <Input type="password" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <Button type="submit" className="mt-4">
+                        Salvar Alterações
+                      </Button>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="notifications" className="space-y-4">
+              <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Preferências de Notificação</CardTitle>
+                  <CardDescription className="text-gray-500 dark:text-gray-400">
+                    Configure como e quando deseja receber notificações
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Form {...notificationSettingsForm}>
+                    <form
+                      onSubmit={notificationSettingsForm.handleSubmit(onNotificationSettingsSubmit)}
+                      className="space-y-4"
+                    >
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Canais de Notificação</h3>
+
+                        <FormField
+                          control={notificationSettingsForm.control}
+                          name="emailNotifications"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
+                              <div className="space-y-0.5">
+                                <FormLabel>Notificações por Email</FormLabel>
+                                <FormDescription>
+                                  Receba atualizações e alertas por email.
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={notificationSettingsForm.control}
+                          name="smsNotifications"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
+                              <div className="space-y-0.5">
+                                <FormLabel>Notificações por SMS</FormLabel>
+                                <FormDescription>
+                                  Receba alertas importantes por SMS.
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <Separator className="my-4" />
+
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Tipos de Notificação</h3>
+
+                        <FormField
+                          control={notificationSettingsForm.control}
+                          name="leadAssignmentNotification"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
+                              <div className="space-y-0.5">
+                                <FormLabel>Atribuição de Leads</FormLabel>
+                                <FormDescription>
+                                  Notificar quando um novo lead for atribuído a você.
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={notificationSettingsForm.control}
+                          name="statusChangeNotification"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
+                              <div className="space-y-0.5">
+                                <FormLabel>Mudanças de Status</FormLabel>
+                                <FormDescription>
+                                  Notificar quando o status de um lead mudar.
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={notificationSettingsForm.control}
+                          name="marketingUpdates"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
+                              <div className="space-y-0.5">
+                                <FormLabel>Atualizações de Marketing</FormLabel>
+                                <FormDescription>
+                                  Receba novidades sobre campanhas e promoções.
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <Button type="submit" className="mt-4">
+                        Salvar Preferências
+                      </Button>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="system" className="space-y-4">
+              <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Configurações Gerais</CardTitle>
+                  <CardDescription className="text-gray-500 dark:text-gray-400">
+                    Configure os parâmetros gerais do sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Form {...systemSettingsForm}>
+                    <form
+                      onSubmit={systemSettingsForm.handleSubmit(onSystemSettingsSubmit)}
+                      className="space-y-4"
+                    >
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Informações da Empresa</h3>
+
+                        <FormField
+                          control={systemSettingsForm.control}
+                          name="companyName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nome da Empresa</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={systemSettingsForm.control}
+                            name="primaryPhone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Telefone Principal</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={systemSettingsForm.control}
+                            name="primaryEmail"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email Principal</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      <Separator className="my-4" />
+
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Configurações Padrão de Leads</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={systemSettingsForm.control}
+                            name="defaultLeadStatus"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Status Padrão de Lead</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                  Status atribuído a novos leads.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={systemSettingsForm.control}
+                            name="defaultLeadSource"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Fonte Padrão de Lead</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                  Fonte atribuída a novos leads.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      <Button type="submit" className="mt-4">
+                        Salvar Configurações
+                      </Button>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="users" className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-800 dark:text-white">Gerenciamento de Usuários</h3>
                 <Dialog open={isNewUserDialogOpen} onOpenChange={setIsNewUserDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button>
-                      <PlusCircle className="mr-2 h-4 w-4" />
+                    <Button className="bg-[#ff9810] hover:bg-[#ff9810]/90 text-white">
+                      <PlusCircle className="h-4 w-4 mr-2" />
                       Novo Usuário
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="sm:max-w-[480px] bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 rounded-xl">
                     <DialogHeader>
-                      <DialogTitle>Adicionar Usuário</DialogTitle>
-                      <DialogDescription>
-                        Crie um novo usuário para acessar o sistema.
+                      <DialogTitle className="text-gray-800 dark:text-white">Criar Novo Usuário</DialogTitle>
+                      <DialogDescription className="text-gray-500 dark:text-gray-400">
+                        Crie um novo usuário para acessar o sistema
                       </DialogDescription>
                     </DialogHeader>
                     
@@ -607,221 +697,82 @@ export default function ConfigPage() {
                     </Form>
                   </DialogContent>
                 </Dialog>
-              </CardHeader>
-              <CardContent>
-                {isLoadingUsers ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : (
-                  <div className="border rounded-md">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="py-3 px-4 text-left font-medium">Nome de Usuário</th>
-                          <th className="py-3 px-4 text-left font-medium">Perfil</th>
-                          <th className="py-3 px-4 text-right font-medium">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {users.length > 0 ? (
-                          users.map((user) => (
-                            <tr key={user.id} className="border-b hover:bg-muted/30">
-                              <td className="py-3 px-4">{user.username}</td>
-                              <td className="py-3 px-4">
-                                {{
-                                  admin: "Administrador",
-                                  marketing: "Marketing",
-                                  comercial: "Comercial",
-                                  trainer: "Personal Trainer"
-                                }[user.role || ""] || "Não definido"}
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteUser(user.id)}
-                                  disabled={user.id === currentUserId} // Não permite excluir o próprio usuário
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
+              </div>
+              
+              <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
+                <CardContent className="p-6">
+                  {isLoadingUsers ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="border rounded-md">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="py-3 px-4 text-left font-medium">Nome de Usuário</th>
+                            <th className="py-3 px-4 text-left font-medium">Perfil</th>
+                            <th className="py-3 px-4 text-right font-medium">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {users.length > 0 ? (
+                            users.map((user) => (
+                              <tr key={user.id} className="border-b hover:bg-muted/30">
+                                <td className="py-3 px-4">{user.username}</td>
+                                <td className="py-3 px-4">
+                                  {{
+                                    admin: "Administrador",
+                                    marketing: "Marketing",
+                                    comercial: "Comercial",
+                                    trainer: "Personal Trainer"
+                                  }[user.role || ""] || "Não definido"}
+                                </td>
+                                <td className="py-3 px-4 text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteUser(user.id)}
+                                    disabled={user.id === currentUserId} // Não permite excluir o próprio usuário
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="py-6 text-center text-muted-foreground">
+                                Nenhum usuário encontrado
                               </td>
                             </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={3} className="py-6 text-center text-muted-foreground">
-                              Nenhum usuário encontrado
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Configurações do Sistema */}
-          {/* Segurança e auditoria */}
-          {activeTab === "security" && user?.role === "admin" && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-primary" />
-                    <CardTitle>Segurança e Privacidade</CardTitle>
-                  </div>
-                  <CardDescription>
-                    Monitore e audite ações no sistema para garantir a segurança dos dados
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md">
-                      <h3 className="text-lg font-medium mb-2">Criptografia</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Senhas armazenadas com criptografia forte (scrypt) e proteção contra ataques
-                      </p>
+                          )}
+                        </tbody>
+                      </table>
                     </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md">
-                      <h3 className="text-lg font-medium mb-2">Auditoria</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Registro detalhado de ações sensíveis para rastreabilidade e segurança
-                      </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md">
-                      <h3 className="text-lg font-medium mb-2">Controle de Acesso</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Acesso baseado em perfis com isolamento de recursos e permissões
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6">
-                    <h3 className="text-xl font-medium mb-4">Logs de Auditoria</h3>
-                    <AuditLogViewer />
-                  </div>
+                  )}
                 </CardContent>
               </Card>
-            </div>
-          )}
-
-          {activeTab === "system" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Configurações do Sistema</CardTitle>
-                <CardDescription>
-                  Configure as opções globais do sistema.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...systemSettingsForm}>
-                  <form
-                    onSubmit={systemSettingsForm.handleSubmit(onSystemSettingsSubmit)}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Informações da Empresa</h3>
-
-                      <FormField
-                        control={systemSettingsForm.control}
-                        name="companyName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome da Empresa</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={systemSettingsForm.control}
-                          name="primaryPhone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Telefone Principal</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={systemSettingsForm.control}
-                          name="primaryEmail"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email Principal</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-
-                    <Separator className="my-4" />
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Configurações Padrão de Leads</h3>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={systemSettingsForm.control}
-                          name="defaultLeadStatus"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Status Padrão de Lead</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormDescription>
-                                Status atribuído a novos leads.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={systemSettingsForm.control}
-                          name="defaultLeadSource"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Fonte Padrão de Lead</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormDescription>
-                                Fonte atribuída a novos leads.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-
-                    <Button type="submit" className="mt-4">
-                      Salvar Configurações
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+            </TabsContent>
+            
+            {user?.role === 'admin' && (
+              <TabsContent value="audit" className="space-y-4">
+                <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Log de Auditoria</CardTitle>
+                    <CardDescription className="text-gray-500 dark:text-gray-400">
+                      Monitoramento de atividades do sistema
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AuditLogViewer />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }

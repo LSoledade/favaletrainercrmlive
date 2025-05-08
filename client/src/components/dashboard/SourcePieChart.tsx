@@ -24,7 +24,7 @@ export default function SourcePieChart({ data }: SourcePieChartProps) {
   }));
   
   // Define colors for the sources
-  const COLORS = ['#E91E63', '#311B92', '#FF5722', '#009688', '#3F51B5', '#FFC107'];
+  const COLORS = ['#ff9810', '#ed0180', '#FF5722', '#009688', '#3F51B5', '#FFC107'];
   
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {

@@ -1,17 +1,11 @@
 import { SessionManagement } from '@/components/scheduling/SessionManagement';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function SessionsPage() {
   return (
     <div className="container mx-auto p-4">
-      <Card className="w-full mb-6">
-        <CardHeader>
-          <CardTitle>Agendamentos e Relatórios</CardTitle>
-          <CardDescription>
-            Gerencie sessões de treinamento e emita relatórios para faturamento
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card className="w-full border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
+        <CardContent className="pt-6">
           <SessionManagement />
         </CardContent>
       </Card>
