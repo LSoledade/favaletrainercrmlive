@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle } from "lucide-react";
-import { Link } from "wouter";
 import { useState } from "react";
+import TaskDetailDialog from "./TaskDetailDialog";
 
 interface TaskCardProps {
   id: number;
@@ -35,6 +35,7 @@ export default function TaskCard({
   onStatusChange
 }: TaskCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [taskDetailOpen, setTaskDetailOpen] = useState(false);
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
@@ -185,10 +186,21 @@ export default function TaskCard({
         <div className="flex gap-2">
           {getStatusActions()}
         </div>
-        <Link href={`/tarefas/${id}`}>
-          <Button variant="outline" size="sm">Ver detalhes</Button>
-        </Link>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setTaskDetailOpen(true)}
+        >
+          Ver detalhes
+        </Button>
       </div>
+
+      {/* Dialog de detalhes da tarefa */}
+      <TaskDetailDialog 
+        open={taskDetailOpen} 
+        onOpenChange={setTaskDetailOpen} 
+        taskId={id} 
+      />
     </Card>
   );
 } 

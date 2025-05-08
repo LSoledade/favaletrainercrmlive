@@ -104,9 +104,13 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
   if (isLoading || !task) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent 
+          className="sm:max-w-[550px]" 
+          aria-describedby="task-details-loading"
+        >
           <DialogHeader>
             <DialogTitle>Detalhes da Tarefa</DialogTitle>
+            <p id="task-details-loading" className="sr-only">Carregando informações da tarefa selecionada.</p>
           </DialogHeader>
           <div className="flex items-center justify-center h-48">
             <p className="text-gray-500">Carregando detalhes...</p>
@@ -118,7 +122,10 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="sm:max-w-[550px] p-0 overflow-hidden max-h-[90vh] overflow-y-auto" 
+        aria-describedby="task-details-description"
+      >
         <DialogHeader className="p-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
           <div className="flex items-center justify-between">
             <DialogTitle>{task.title}</DialogTitle>
@@ -128,6 +135,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
               </Button>
             </DialogClose>
           </div>
+          <p id="task-details-description" className="sr-only">Este diálogo mostra informações detalhadas sobre a tarefa selecionada.</p>
         </DialogHeader>
         
         <div className="p-6 space-y-6">
