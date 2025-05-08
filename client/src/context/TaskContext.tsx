@@ -14,8 +14,8 @@ interface Task {
   dueDate?: Date;
   priority: "low" | "medium" | "high";
   status: "pending" | "in_progress" | "completed" | "cancelled";
-  relatedLeadId?: number;
-  relatedLeadName?: string;
+  // No longer using relatedLeadId and relatedLeadName
+  // Tasks are now assigned to system users only
   createdAt: Date;
   updatedAt: Date;
   comments?: TaskComment[];

@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, ChevronLeft, Clock, User, BarChart3, Users, AlertCircle, Link } from "lucide-react";
+import { CalendarIcon, ChevronLeft, Clock, User, BarChart3, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTaskContext } from "@/context/TaskContext";
 import { useAuth } from "@/hooks/use-auth";
@@ -158,8 +158,7 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
         return <CalendarIcon className="h-4 w-4 text-gray-400" />;
       case "priority":
         return <BarChart3 className="h-4 w-4 text-gray-400" />;
-      case "link":
-        return <Link className="h-4 w-4 text-gray-400" />;
+      // Removed lead linking functionality
       case "time":
         return <Clock className="h-4 w-4 text-gray-400" />;
       case "users":
