@@ -6,7 +6,7 @@ import StateBarChart from "./StateBarChart";
 import TimelineChart from "./TimelineChart";
 import RecentActivity from "./RecentActivity";
 import GreetingWidget from "./GreetingWidget";
-import WeatherWidget from "./WeatherWidget";
+import UserWeatherWidget from "./UserWeatherWidget";
 import { Button } from "../ui/button";
 import { Filter } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
@@ -60,7 +60,7 @@ export default function Dashboard() {
           <GreetingWidget />
         </div>
         <div className="md:col-span-1">
-          <WeatherWidget city="São Paulo" />
+          <UserWeatherWidget />
         </div>
       </div>
       
