@@ -188,10 +188,10 @@ export default function TasksPage() {
                           
     return (
       <Card 
-        className="p-0 mb-3 overflow-hidden bg-white dark:bg-gray-800 hover:shadow-md transition-all cursor-pointer"
+        className="p-0 mb-3 overflow-hidden bg-white dark:bg-gray-800 hover:shadow-md transition-all cursor-pointer border border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 relative"
       >
         {/* Cabeçalho do cartão com código e menu */}
-        <div className="flex items-center justify-between p-3 pb-1">
+        <div className="flex items-center justify-between p-3 pb-1 pl-4">
           <div className={`text-xs ${color} px-1.5 py-0.5 rounded font-medium flex items-center`}>
             {cardId}
           </div>
@@ -223,7 +223,7 @@ export default function TasksPage() {
         </div>
         
         {/* Título da tarefa */}
-        <div className="px-3 pt-1 pb-2">
+        <div className="px-4 pt-1 pb-2">
           <h4 className="font-medium text-sm">{task.title}</h4>
           {task.description && (
             <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">
@@ -232,20 +232,20 @@ export default function TasksPage() {
           )}
         </div>
         
-        {/* Indicador de prioridade como uma linha colorida no topo */}
-        <div className={`h-1 w-12 ${priorityColor} mb-2 rounded-sm ml-3`}></div>
+        {/* Indicador de prioridade como uma barra lateral */}
+        <div className={`absolute top-0 left-0 w-1 h-full ${priorityColor}`}></div>
         
         {/* Rodapé com metadados */}
-        <div className="flex justify-between items-center border-t border-gray-100 dark:border-gray-700 pt-2 px-3 pb-3">
+        <div className="flex justify-between items-center border-t border-gray-100 dark:border-gray-700 pt-2 px-4 pb-3">
           <div className="flex items-center gap-1">
             {task.relatedLeadName && (
-              <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-gray-50 dark:bg-gray-800">
+              <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800">
                 {task.relatedLeadName.split(' ')[0]}
               </Badge>
             )}
             
             {task.dueDate && (
-              <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-gray-50 dark:bg-gray-800 flex items-center gap-1">
+              <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-amber-50 text-amber-700 dark:bg-amber-900 dark:text-amber-300 border-amber-200 dark:border-amber-800 flex items-center gap-1">
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
                   width="10" 
@@ -285,9 +285,15 @@ export default function TasksPage() {
               </span>
             )}
             
-            <Avatar className="h-5 w-5">
-              <AvatarFallback className="text-[10px] bg-blue-100 text-blue-600">
-                {task.assignedToName?.substring(0, 2).toUpperCase()}
+            <Avatar className="h-5 w-5 ring-2 ring-white dark:ring-gray-800">
+              <AvatarFallback 
+                className="text-[10px] font-medium"
+                style={{
+                  background: stringToColor(task.assignedToName || 'User'),
+                  color: 'white'
+                }}
+              >
+                {task.assignedToName?.substring(0, 2).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
           </div>
