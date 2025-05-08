@@ -93,6 +93,11 @@ export default function TasksPage() {
     await updateTask(taskId, { status: newStatus as "pending" | "in_progress" | "completed" | "cancelled" });
   };
   
+  const handleOpenTaskDetails = (taskId: number) => {
+    setSelectedTaskId(taskId);
+    setShowTaskDetailDialog(true);
+  };
+  
   const filterTasks = (taskList: any[]) => {
     if (!searchQuery) return taskList;
     
@@ -219,6 +224,7 @@ export default function TasksPage() {
     return (
       <Card 
         className="p-0 mb-3 overflow-hidden bg-white dark:bg-gray-800 hover:shadow-md transition-all cursor-pointer border border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 relative"
+        onClick={() => handleOpenTaskDetails(task.id)}
       >
         {/* Cabeçalho do cartão com código e menu */}
         <div className="flex items-center justify-between p-3 pb-1 pl-4">
@@ -243,10 +249,11 @@ export default function TasksPage() {
               <DropdownMenuItem onClick={() => handleStatusChange(task.id, "completed")}>
                 Marcar como Concluída
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/tarefas/${task.id}`}>
-                  Ver detalhes
-                </Link>
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation(); // Prevenir que o clique propague para o cartão
+                handleOpenTaskDetails(task.id);
+              }}>
+                Ver detalhes
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -620,6 +627,12 @@ export default function TasksPage() {
           onOpenChange={setShowCreateTaskDialog} 
         />
       )}
+      
+      <TaskDetailDialog
+        open={showTaskDetailDialog}
+        onOpenChange={setShowTaskDetailDialog}
+        taskId={selectedTaskId}
+      />
     </div>
   );
 } 
