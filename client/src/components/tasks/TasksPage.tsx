@@ -18,6 +18,33 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Função para gerar cor consistente com base em uma string
+function stringToColor(str: string) {
+  let hash = 0;
+  if (!str) return '#70a0ea';
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    hash = hash & hash;
+  }
+  
+  const colors = [
+    '#3b82f6', // blue
+    '#ef4444', // red
+    '#10b981', // green
+    '#f59e0b', // amber
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#14b8a6', // teal
+    '#f43f5e', // rose
+    '#6366f1', // indigo
+    '#84cc16', // lime
+    '#06b6d4', // cyan
+    '#22c55e', // emerald
+  ];
+  
+  return colors[Math.abs(hash) % colors.length];
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
