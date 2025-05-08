@@ -275,7 +275,11 @@ export default function TasksPage() {
         {/* Rodapé com metadados */}
         <div className="flex justify-between items-center border-t border-gray-100 dark:border-gray-700 pt-2 px-4 pb-3">
           <div className="flex items-center gap-1">
-            {/* Lead badge removed - tasks are now assigned to system users only */}
+            {task.relatedLeadName && (
+              <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                {task.relatedLeadName.split(' ')[0]}
+              </Badge>
+            )}
             
             {task.dueDate && (
               <Badge variant="outline" className="text-[10px] px-1.5 h-4 bg-amber-50 text-amber-700 dark:bg-amber-900 dark:text-amber-300 border-amber-200 dark:border-amber-800 flex items-center gap-1">
@@ -464,7 +468,7 @@ export default function TasksPage() {
           dueDate={task.dueDate}
           priority={task.priority}
           status={task.status}
-          /* relatedLeadName removed - tasks are now assigned to system users only */
+          relatedLeadName={task.relatedLeadName}
           commentCount={task.comments?.length || 0}
           onStatusChange={handleStatusChange}
         />

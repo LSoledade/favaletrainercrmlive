@@ -16,7 +16,7 @@ interface TaskCardProps {
   dueDate?: Date;
   priority: "low" | "medium" | "high";
   status: "pending" | "in_progress" | "completed" | "cancelled";
-  // relatedLeadName removed - tasks are now assigned to system users only
+  relatedLeadName?: string;
   commentCount: number;
   onStatusChange?: (taskId: number, newStatus: string) => void;
 }
@@ -30,7 +30,7 @@ export default function TaskCard({
   dueDate,
   priority,
   status,
-  // relatedLeadName removed - tasks are now assigned to system users only
+  relatedLeadName,
   commentCount,
   onStatusChange
 }: TaskCardProps) {
