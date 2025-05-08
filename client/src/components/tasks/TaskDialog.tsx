@@ -303,15 +303,15 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
                   <span className="ml-2">Vincular a um Lead</span>
                 </Label>
                 <Select
-                  value={relatedLeadId?.toString() || ""}
-                  onValueChange={(value) => setRelatedLeadId(value ? parseInt(value) : null)}
+                  value={relatedLeadId?.toString() || "none"}
+                  onValueChange={(value) => setRelatedLeadId(value !== "none" ? parseInt(value) : null)}
                   disabled={isLoading}
                 >
                   <SelectTrigger id="related-lead" className="mt-2">
                     <SelectValue placeholder="Selecione um lead para vincular" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {mockLeads.map((lead) => (
                       <SelectItem key={lead.id} value={lead.id.toString()}>
                         {lead.name}
