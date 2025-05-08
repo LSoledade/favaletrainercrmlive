@@ -1,5 +1,6 @@
 import { 
   leads, students, trainers, sessions, sessionHistory, whatsappMessages,
+  tasks, taskWatchers, taskChecklistItems, taskComments, taskHistory,
   type Lead, type InsertLead, 
   type User, type InsertUser, 
   type Student, type InsertStudent,
@@ -7,6 +8,11 @@ import {
   type Session, type InsertSession,
   type SessionHistory, type InsertSessionHistory,
   type WhatsappMessage, type InsertWhatsappMessage,
+  type Task, type InsertTask,
+  type TaskWatcher, type InsertTaskWatcher,
+  type TaskChecklistItem, type InsertTaskChecklistItem,
+  type TaskComment, type InsertTaskComment,
+  type TaskHistory, type InsertTaskHistory,
   users 
 } from "@shared/schema";
 import { db, pool } from "./db";
@@ -133,6 +139,8 @@ export class DatabaseStorage implements IStorage {
       createTableIfMissing: true
     });
   }
+  
+  // Métodos de usuário
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -163,6 +171,335 @@ export class DatabaseStorage implements IStorage {
       console.error("Erro ao excluir usuário:", error);
       return false;
     }
+  }
+  
+  // Task methods
+  async getTasks(): Promise<Task[]> {
+    return await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByUserId(userId: number): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.assigneeId, userId))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByStatus(status: string): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.status, status))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByPriority(priority: string): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.priority, priority))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByTag(tag: string): Promise<Task[]> {
+    // Busca por tarefas que contenham a tag especificada
+    return await db
+      .select()
+      .from(tasks)
+      .where(sql`${tag} = ANY(${tasks.tags})`)
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTaskByIdWithDetails(id: number): Promise<any> {
+    // Obter a tarefa básica
+    const [task] = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.id, id));
+
+    if (!task) return undefined;
+
+    // Obter informações relacionadas
+    const checklistItems = await this.getTaskChecklistItems(id);
+    const watchers = await this.getTaskWatchers(id);
+    const comments = await this.getTaskComments(id);
+    const history = await this.getTaskHistoryByTaskId(id);
+
+    // Obter informações do criador e responsável
+    const createdBy = await this.getUser(task.createdById);
+    const assignee = await this.getUser(task.assigneeId);
+
+    // Obter entidades relacionadas se existirem
+    let relatedLead = null;
+    let relatedStudent = null;
+    let relatedTrainer = null;
+    let relatedSession = null;
+
+    if (task.relatedLeadId) {
+      relatedLead = await this.getLead(task.relatedLeadId);
+    }
+
+    if (task.relatedStudentId) {
+      relatedStudent = await this.getStudent(task.relatedStudentId);
+    }
+
+    if (task.relatedTrainerId) {
+      relatedTrainer = await this.getTrainer(task.relatedTrainerId);
+    }
+
+    if (task.relatedSessionId) {
+      relatedSession = await this.getSession(task.relatedSessionId);
+    }
+
+    // Retornar tudo em um único objeto
+    return {
+      ...task,
+      checklist: checklistItems,
+      watchers: watchers.map(w => ({
+        id: w.id,
+        userId: w.userId,
+        taskId: w.taskId,
+        createdAt: w.createdAt,
+      })),
+      comments,
+      history,
+      createdBy: createdBy ? {
+        id: createdBy.id,
+        username: createdBy.username,
+        role: createdBy.role,
+      } : null,
+      assignee: assignee ? {
+        id: assignee.id,
+        username: assignee.username,
+        role: assignee.role,
+      } : null,
+      relatedEntities: {
+        lead: relatedLead,
+        student: relatedStudent,
+        trainer: relatedTrainer,
+        session: relatedSession,
+      }
+    };
+  }
+
+  async getTask(id: number): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task || undefined;
+  }
+
+  async createTask(taskData: InsertTask): Promise<Task> {
+    try {
+      const [task] = await db
+        .insert(tasks)
+        .values({
+          ...taskData,
+        })
+        .returning();
+      
+      return task;
+    } catch (error) {
+      console.error('Erro ao criar tarefa:', error);
+      throw error;
+    }
+  }
+
+  async updateTask(id: number, updates: Partial<InsertTask>): Promise<Task | undefined> {
+    try {
+      const [updatedTask] = await db
+        .update(tasks)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(tasks.id, id))
+        .returning();
+      
+      return updatedTask || undefined;
+    } catch (error) {
+      console.error('Erro ao atualizar tarefa:', error);
+      throw error;
+    }
+  }
+
+  async deleteTask(id: number): Promise<boolean> {
+    try {
+      // Primeiro excluir registros relacionados
+      await db.delete(taskChecklistItems).where(eq(taskChecklistItems.taskId, id));
+      await db.delete(taskComments).where(eq(taskComments.taskId, id));
+      await db.delete(taskWatchers).where(eq(taskWatchers.taskId, id));
+      await db.delete(taskHistory).where(eq(taskHistory.taskId, id));
+      
+      // Por fim, excluir a tarefa
+      await db.delete(tasks).where(eq(tasks.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir tarefa:', error);
+      return false;
+    }
+  }
+
+  // Task watchers methods
+  async getTaskWatchers(taskId: number): Promise<TaskWatcher[]> {
+    return await db
+      .select()
+      .from(taskWatchers)
+      .where(eq(taskWatchers.taskId, taskId));
+  }
+
+  async addTaskWatcher(watcher: InsertTaskWatcher): Promise<TaskWatcher> {
+    try {
+      const [result] = await db
+        .insert(taskWatchers)
+        .values(watcher)
+        .returning();
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao adicionar observador à tarefa:', error);
+      throw error;
+    }
+  }
+
+  async removeTaskWatcher(taskId: number, userId: number): Promise<boolean> {
+    try {
+      await db
+        .delete(taskWatchers)
+        .where(
+          and(
+            eq(taskWatchers.taskId, taskId),
+            eq(taskWatchers.userId, userId)
+          )
+        );
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao remover observador da tarefa:', error);
+      return false;
+    }
+  }
+
+  // Task checklist methods
+  async getTaskChecklistItems(taskId: number): Promise<TaskChecklistItem[]> {
+    return await db
+      .select()
+      .from(taskChecklistItems)
+      .where(eq(taskChecklistItems.taskId, taskId))
+      .orderBy(asc(taskChecklistItems.position));
+  }
+
+  async createTaskChecklistItem(item: InsertTaskChecklistItem): Promise<TaskChecklistItem> {
+    try {
+      const [result] = await db
+        .insert(taskChecklistItems)
+        .values(item)
+        .returning();
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao criar item de checklist:', error);
+      throw error;
+    }
+  }
+
+  async updateTaskChecklistItem(id: number, updates: Partial<InsertTaskChecklistItem>): Promise<TaskChecklistItem | undefined> {
+    try {
+      // Se estamos marcando como concluído, definir completedAt e completedById
+      if (updates.isCompleted === true && !updates.completedAt) {
+        updates.completedAt = new Date();
+      }
+      
+      const [updatedItem] = await db
+        .update(taskChecklistItems)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(taskChecklistItems.id, id))
+        .returning();
+      
+      return updatedItem || undefined;
+    } catch (error) {
+      console.error('Erro ao atualizar item de checklist:', error);
+      throw error;
+    }
+  }
+
+  async deleteTaskChecklistItem(id: number): Promise<boolean> {
+    try {
+      await db
+        .delete(taskChecklistItems)
+        .where(eq(taskChecklistItems.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir item de checklist:', error);
+      return false;
+    }
+  }
+
+  // Task comments methods
+  async getTaskComments(taskId: number, page: number = 1, limit: number = 20): Promise<TaskComment[]> {
+    const offset = (page - 1) * limit;
+    
+    return await db
+      .select()
+      .from(taskComments)
+      .where(eq(taskComments.taskId, taskId))
+      .orderBy(desc(taskComments.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async createTaskComment(comment: InsertTaskComment): Promise<TaskComment> {
+    try {
+      const [result] = await db
+        .insert(taskComments)
+        .values(comment)
+        .returning();
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao criar comentário:', error);
+      throw error;
+    }
+  }
+
+  async deleteTaskComment(id: number): Promise<boolean> {
+    try {
+      await db
+        .delete(taskComments)
+        .where(eq(taskComments.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir comentário:', error);
+      return false;
+    }
+  }
+
+  // Task history methods
+  async createTaskHistory(history: InsertTaskHistory): Promise<TaskHistory> {
+    try {
+      const [result] = await db
+        .insert(taskHistory)
+        .values(history)
+        .returning();
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao criar histórico de tarefa:', error);
+      throw error;
+    }
+  }
+
+  async getTaskHistoryByTaskId(taskId: number): Promise<TaskHistory[]> {
+    return await db
+      .select()
+      .from(taskHistory)
+      .where(eq(taskHistory.taskId, taskId))
+      .orderBy(desc(taskHistory.createdAt));
   }
 
   // Lead methods
@@ -633,7 +970,418 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
+
+  // Task methods - métodos relacionados a tarefas foram movidos para task-storage.ts
+  async getTasks(): Promise<Task[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTasksByUserId(userId: number): Promise<Task[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTasksByStatus(status: string): Promise<Task[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTasksByPriority(priority: string): Promise<Task[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTasksByTag(tag: string): Promise<Task[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTaskByIdWithDetails(id: number): Promise<any> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTask(id: number): Promise<Task | undefined> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async createTask(taskData: InsertTask): Promise<Task> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async updateTask(id: number, updates: Partial<InsertTask>): Promise<Task | undefined> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async deleteTask(id: number): Promise<boolean> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTaskWatchers(taskId: number): Promise<TaskWatcher[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async addTaskWatcher(watcher: InsertTaskWatcher): Promise<TaskWatcher> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async removeTaskWatcher(taskId: number, userId: number): Promise<boolean> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTaskChecklistItems(taskId: number): Promise<TaskChecklistItem[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async createTaskChecklistItem(item: InsertTaskChecklistItem): Promise<TaskChecklistItem> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async updateTaskChecklistItem(id: number, updates: Partial<InsertTaskChecklistItem>): Promise<TaskChecklistItem | undefined> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async deleteTaskChecklistItem(id: number): Promise<boolean> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTaskComments(taskId: number, page: number = 1, limit: number = 20): Promise<TaskComment[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async createTaskComment(comment: InsertTaskComment): Promise<TaskComment> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async deleteTaskComment(id: number): Promise<boolean> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async createTaskHistory(history: InsertTaskHistory): Promise<TaskHistory> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+
+  async getTaskHistoryByTaskId(taskId: number): Promise<TaskHistory[]> {
+    throw new Error("Método transferido para task-storage.ts");
+  }
+}
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.assigneeId, userId))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByStatus(status: string): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.status, status))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByPriority(priority: string): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.priority, priority))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByTag(tag: string): Promise<Task[]> {
+    // Busca por tarefas que contenham a tag especificada
+    return await db
+      .select()
+      .from(tasks)
+      .where(sql`${tag} = ANY(${tasks.tags})`)
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTaskByIdWithDetails(id: number): Promise<any> {
+    // Obter a tarefa básica
+    const [task] = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.id, id));
+
+    if (!task) return undefined;
+
+    // Obter informações relacionadas
+    const checklistItems = await this.getTaskChecklistItems(id);
+    const watchers = await this.getTaskWatchers(id);
+    const comments = await this.getTaskComments(id);
+    const history = await this.getTaskHistoryByTaskId(id);
+
+    // Obter informações do criador e responsável
+    const createdBy = await this.getUser(task.createdById);
+    const assignee = await this.getUser(task.assigneeId);
+
+    // Obter entidades relacionadas se existirem
+    let relatedLead = null;
+    let relatedStudent = null;
+    let relatedTrainer = null;
+    let relatedSession = null;
+
+    if (task.relatedLeadId) {
+      relatedLead = await this.getLead(task.relatedLeadId);
+    }
+
+    if (task.relatedStudentId) {
+      relatedStudent = await this.getStudent(task.relatedStudentId);
+    }
+
+    if (task.relatedTrainerId) {
+      relatedTrainer = await this.getTrainer(task.relatedTrainerId);
+    }
+
+    if (task.relatedSessionId) {
+      relatedSession = await this.getSession(task.relatedSessionId);
+    }
+
+    // Retornar tudo em um único objeto
+    return {
+      ...task,
+      checklist: checklistItems,
+      watchers: watchers.map(w => ({
+        id: w.id,
+        userId: w.userId,
+        taskId: w.taskId,
+        createdAt: w.createdAt,
+      })),
+      comments,
+      history,
+      createdBy: createdBy ? {
+        id: createdBy.id,
+        username: createdBy.username,
+        role: createdBy.role,
+      } : null,
+      assignee: assignee ? {
+        id: assignee.id,
+        username: assignee.username,
+        role: assignee.role,
+      } : null,
+      relatedEntities: {
+        lead: relatedLead,
+        student: relatedStudent,
+        trainer: relatedTrainer,
+        session: relatedSession,
+      }
+    };
+  }
+
+  async getTask(id: number): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task || undefined;
+  }
+
+  async createTask(taskData: InsertTask): Promise<Task> {
+    try {
+      const [task] = await db
+        .insert(tasks)
+        .values({
+          ...taskData,
+        })
+        .returning();
+      
+      return task;
+    } catch (error) {
+      console.error('Erro ao criar tarefa:', error);
+      throw error;
+    }
+  }
+
+  async updateTask(id: number, updates: Partial<InsertTask>): Promise<Task | undefined> {
+    try {
+      const [updatedTask] = await db
+        .update(tasks)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(tasks.id, id))
+        .returning();
+      
+      return updatedTask || undefined;
+    } catch (error) {
+      console.error('Erro ao atualizar tarefa:', error);
+      throw error;
+    }
+  }
+
+  async deleteTask(id: number): Promise<boolean> {
+    try {
+      // Primeiro excluir registros relacionados
+      await db.delete(taskChecklistItems).where(eq(taskChecklistItems.taskId, id));
+      await db.delete(taskComments).where(eq(taskComments.taskId, id));
+      await db.delete(taskWatchers).where(eq(taskWatchers.taskId, id));
+      await db.delete(taskHistory).where(eq(taskHistory.taskId, id));
+      
+      // Por fim, excluir a tarefa
+      await db.delete(tasks).where(eq(tasks.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir tarefa:', error);
+      return false;
+    }
+  }
+
+  // Task watchers methods
+  async getTaskWatchers(taskId: number): Promise<TaskWatcher[]> {
+    return await db
+      .select()
+      .from(taskWatchers)
+      .where(eq(taskWatchers.taskId, taskId));
+  }
+
+  async addTaskWatcher(watcher: InsertTaskWatcher): Promise<TaskWatcher> {
+    try {
+      const [result] = await db
+        .insert(taskWatchers)
+        .values(watcher)
+        .returning();
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao adicionar observador à tarefa:', error);
+      throw error;
+    }
+  }
+
+  async removeTaskWatcher(taskId: number, userId: number): Promise<boolean> {
+    try {
+      await db
+        .delete(taskWatchers)
+        .where(
+          and(
+            eq(taskWatchers.taskId, taskId),
+            eq(taskWatchers.userId, userId)
+          )
+        );
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao remover observador da tarefa:', error);
+      return false;
+    }
+  }
+
+  // Task checklist methods
+  async getTaskChecklistItems(taskId: number): Promise<TaskChecklistItem[]> {
+    return await db
+      .select()
+      .from(taskChecklistItems)
+      .where(eq(taskChecklistItems.taskId, taskId))
+      .orderBy(asc(taskChecklistItems.position));
+  }
+
+  async createTaskChecklistItem(item: InsertTaskChecklistItem): Promise<TaskChecklistItem> {
+    try {
+      const [result] = await db
+        .insert(taskChecklistItems)
+        .values(item)
+        .returning();
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao criar item de checklist:', error);
+      throw error;
+    }
+  }
+
+  async updateTaskChecklistItem(id: number, updates: Partial<InsertTaskChecklistItem>): Promise<TaskChecklistItem | undefined> {
+    try {
+      // Se estamos marcando como concluído, definir completedAt e completedById
+      if (updates.isCompleted === true && !updates.completedAt) {
+        updates.completedAt = new Date();
+      }
+      
+      const [updatedItem] = await db
+        .update(taskChecklistItems)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(taskChecklistItems.id, id))
+        .returning();
+      
+      return updatedItem || undefined;
+    } catch (error) {
+      console.error('Erro ao atualizar item de checklist:', error);
+      throw error;
+    }
+  }
+
+  async deleteTaskChecklistItem(id: number): Promise<boolean> {
+    try {
+      await db
+        .delete(taskChecklistItems)
+        .where(eq(taskChecklistItems.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir item de checklist:', error);
+      return false;
+    }
+  }
+
+  // Task comments methods
+  async getTaskComments(taskId: number, page: number = 1, limit: number = 20): Promise<TaskComment[]> {
+    const offset = (page - 1) * limit;
+    
+    return await db
+      .select()
+      .from(taskComments)
+      .where(eq(taskComments.taskId, taskId))
+      .orderBy(desc(taskComments.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async createTaskComment(comment: InsertTaskComment): Promise<TaskComment> {
+    try {
+      const [result] = await db
+        .insert(taskComments)
+        .values(comment)
+        .returning();
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao criar comentário:', error);
+      throw error;
+    }
+  }
+
+  async deleteTaskComment(id: number): Promise<boolean> {
+    try {
+      await db
+        .delete(taskComments)
+        .where(eq(taskComments.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir comentário:', error);
+      return false;
+    }
+  }
+
+  // Task history methods
+  async createTaskHistory(history: InsertTaskHistory): Promise<TaskHistory> {
+    try {
+      const [result] = await db
+        .insert(taskHistory)
+        .values(history)
+        .returning();
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao criar histórico de tarefa:', error);
+      throw error;
+    }
+  }
+
+  async getTaskHistoryByTaskId(taskId: number): Promise<TaskHistory[]> {
+    return await db
+      .select()
+      .from(taskHistory)
+      .where(eq(taskHistory.taskId, taskId))
+      .orderBy(desc(taskHistory.createdAt));
+  }
 }
 
-// Inicializa o armazenamento usando o banco de dados PostgreSQL
 export const storage = new DatabaseStorage();
