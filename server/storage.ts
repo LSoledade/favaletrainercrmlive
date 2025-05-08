@@ -1,5 +1,6 @@
 import { 
   leads, students, trainers, sessions, sessionHistory, whatsappMessages,
+  tasks, taskComments,
   type Lead, type InsertLead, 
   type User, type InsertUser, 
   type Student, type InsertStudent,
@@ -7,6 +8,8 @@ import {
   type Session, type InsertSession,
   type SessionHistory, type InsertSessionHistory,
   type WhatsappMessage, type InsertWhatsappMessage,
+  type Task, type InsertTask,
+  type TaskComment, type InsertTaskComment,
   users 
 } from "@shared/schema";
 import { db, pool } from "./db";
@@ -85,6 +88,22 @@ export interface IStorage {
   // Session history methods
   createSessionHistory(history: InsertSessionHistory): Promise<SessionHistory>;
   getSessionHistoryBySessionId(sessionId: number): Promise<SessionHistory[]>;
+  
+  // Task methods
+  getTasks(): Promise<Task[]>;
+  getTask(id: number): Promise<Task | undefined>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: number, task: Partial<InsertTask>): Promise<Task | undefined>;
+  deleteTask(id: number): Promise<boolean>;
+  getTasksByAssignedToId(userId: number): Promise<Task[]>;
+  getTasksByAssignedById(userId: number): Promise<Task[]>;
+  getTasksByStatus(status: string): Promise<Task[]>;
+  getTasksByRelatedLeadId(leadId: number): Promise<Task[]>;
+  
+  // Task comments methods
+  getTaskCommentsByTaskId(taskId: number): Promise<TaskComment[]>;
+  createTaskComment(comment: InsertTaskComment): Promise<TaskComment>;
+  deleteTaskComment(id: number): Promise<boolean>;
   
   // Session store for authentication
   sessionStore: session.Store;
