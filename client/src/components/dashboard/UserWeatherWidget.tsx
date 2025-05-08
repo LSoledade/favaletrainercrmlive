@@ -38,6 +38,24 @@ const capitalCities: Record<string, string> = {
 // Lista de estados que ocorrem com mais frequência para usar como fallback
 const popularStates = ['SP', 'RJ', 'MG', 'BA', 'RS'];
 
+// Mapeamento de nomes de cidades em inglês para português
+const cityNameMapping: Record<string, string> = {
+  "San Paulo": "São Paulo",
+  "Rio De Janeiro": "Rio de Janeiro",
+  "Belo Horizonte": "Belo Horizonte",
+  "Brazilia": "Brasília",
+  "Recife": "Recife",
+  "Salvador": "Salvador",
+  "Porto Allegre": "Porto Alegre",
+  "Fortaleza": "Fortaleza",
+  "Curitiba": "Curitiba"
+};
+
+// Converte nomes de cidades para português quando disponível
+const getCityName = (apiCityName: string): string => {
+  return cityNameMapping[apiCityName] || apiCityName;
+};
+
 export default function UserWeatherWidget() {
   const [userCity, setUserCity] = useState('São Paulo');
   
@@ -143,6 +161,8 @@ export default function UserWeatherWidget() {
     enabled: !!userCity, // Só busca se tiver uma cidade definida
   });
 
+
+  
   // Determina o ícone apropriado com base no código de condição
   const getWeatherIcon = (code: number) => {
     // Códigos baseados na documentação da Weather API
@@ -203,7 +223,7 @@ export default function UserWeatherWidget() {
       <CardContent className="p-4">
         <div className="flex flex-col">
           <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">
-            Clima em {weather.location.name}
+            Clima em {getCityName(weather.location.name)}
           </h3>
           
           <div className="mt-2 mb-2 flex items-center space-x-3">

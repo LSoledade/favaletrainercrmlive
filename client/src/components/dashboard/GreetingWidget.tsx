@@ -6,6 +6,7 @@ import { Sun, Moon, Sunrise, Coffee } from 'lucide-react';
 
 export default function GreetingWidget() {
   const [greeting, setGreeting] = useState('');
+  const [welcomeMessage, setWelcomeMessage] = useState('');
   const [icon, setIcon] = useState<JSX.Element>(<Coffee className="h-8 w-8 text-primary" />);
   
   // Busca os dados do usuário logado
@@ -20,12 +21,15 @@ export default function GreetingWidget() {
       
       if (currentHour >= 5 && currentHour < 12) {
         setGreeting('Bom dia');
+        setWelcomeMessage('Comece seu dia com energia e foco!');
         setIcon(<Sunrise className="h-8 w-8 text-amber-500" />);
       } else if (currentHour >= 12 && currentHour < 18) {
         setGreeting('Boa tarde');
+        setWelcomeMessage('Aproveite a produtividade da tarde!');
         setIcon(<Sun className="h-8 w-8 text-yellow-500" />);
       } else {
         setGreeting('Boa noite');
+        setWelcomeMessage('Descanse bem após um dia produtivo!');
         setIcon(<Moon className="h-8 w-8 text-indigo-400" />);
       }
     };
@@ -65,7 +69,7 @@ export default function GreetingWidget() {
               {greeting}, {user?.username || 'usuário'}!
             </h2>
             <p className="text-gray-600 dark:text-gray-300">
-              Bem-vindo ao seu painel de controle Favale&Pink
+              {welcomeMessage}
             </p>
           </div>
         </div>
