@@ -191,7 +191,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   const updateTask = async (id: number, taskUpdate: Partial<Task>) => {
     try {
       const response = await fetch(`/api/tasks/${id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taskUpdate)
       });
