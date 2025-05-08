@@ -4,7 +4,7 @@ import ChartCard from "./ChartCard";
 import SourcePieChart from "./SourcePieChart";
 import StateBarChart from "./StateBarChart";
 import TimelineChart from "./TimelineChart";
-import RecentActivity from "./RecentActivity";
+import TodayAppointmentCard from "./TodayAppointmentCard";
 import GreetingWidget from "./GreetingWidget";
 import UserWeatherWidget from "./UserWeatherWidget";
 import { Button } from "../ui/button";
@@ -246,10 +246,7 @@ export default function Dashboard() {
         </div>
         
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 md:col-span-2 lg:col-span-1">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-medium text-gray-800 dark:text-white">Atividades Recentes</h3>
-          </div>
-          <RecentActivity />
+          <TodayAppointmentCard />
         </div>
       </div>
     </div>
