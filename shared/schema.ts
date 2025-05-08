@@ -266,6 +266,8 @@ export const tasks = pgTable("tasks", {
   dueDate: timestamp("due_date"),
   priority: text("priority").default("medium").notNull(), // low, medium, high
   status: text("status").default("pending").notNull(), // pending, in_progress, completed, cancelled
+  // relatedLeadId is kept for backward compatibility but will be phased out
+  // Tasks are now assigned to system users only
   relatedLeadId: integer("related_lead_id").references(() => leads.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

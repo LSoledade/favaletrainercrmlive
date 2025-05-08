@@ -158,7 +158,6 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
         return <CalendarIcon className="h-4 w-4 text-gray-400" />;
       case "priority":
         return <BarChart3 className="h-4 w-4 text-gray-400" />;
-      // Removed lead linking functionality
       case "time":
         return <Clock className="h-4 w-4 text-gray-400" />;
       case "users":
