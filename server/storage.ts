@@ -576,6 +576,113 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sessionHistory.changedAt));
   }
 
+  // Task methods
+  async getTasks(): Promise<Task[]> {
+    return await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  }
+
+  async getTask(id: number): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task || undefined;
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const [task] = await db
+      .insert(tasks)
+      .values({
+        ...insertTask,
+      })
+      .returning();
+    return task;
+  }
+
+  async updateTask(id: number, updates: Partial<InsertTask>): Promise<Task | undefined> {
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+    return updatedTask || undefined;
+  }
+
+  async deleteTask(id: number): Promise<boolean> {
+    try {
+      // Primeiro excluir comentários associados
+      await db.delete(taskComments).where(eq(taskComments.taskId, id));
+      
+      // Depois excluir a tarefa
+      await db.delete(tasks).where(eq(tasks.id, id));
+      return true;
+    } catch (error) {
+      console.error("Erro ao excluir tarefa:", error);
+      return false;
+    }
+  }
+
+  async getTasksByAssignedToId(userId: number): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.assignedToId, userId))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByAssignedById(userId: number): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.assignedById, userId))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByStatus(status: string): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.status, status))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getTasksByRelatedLeadId(leadId: number): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.relatedLeadId, leadId))
+      .orderBy(desc(tasks.createdAt));
+  }
+  
+  // Task comments methods
+  async getTaskCommentsByTaskId(taskId: number): Promise<TaskComment[]> {
+    return await db
+      .select()
+      .from(taskComments)
+      .where(eq(taskComments.taskId, taskId))
+      .orderBy(asc(taskComments.createdAt));
+  }
+
+  async createTaskComment(insertComment: InsertTaskComment): Promise<TaskComment> {
+    const [comment] = await db
+      .insert(taskComments)
+      .values({
+        ...insertComment,
+      })
+      .returning();
+    return comment;
+  }
+
+  async deleteTaskComment(id: number): Promise<boolean> {
+    try {
+      await db.delete(taskComments).where(eq(taskComments.id, id));
+      return true;
+    } catch (error) {
+      console.error("Erro ao excluir comentário:", error);
+      return false;
+    }
+  }
+  
   // WhatsApp methods
   async getWhatsappMessages(leadId: number): Promise<WhatsappMessage[]> {
     return await db
