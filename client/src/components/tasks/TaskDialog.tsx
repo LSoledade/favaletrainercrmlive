@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, ChevronLeft, Clock, User, BarChart3, Users as UsersIcon, AlertCircle, Link } from "lucide-react";
+import { CalendarIcon, ChevronLeft, Clock, User, BarChart3, Users, AlertCircle, Link } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTaskContext } from "@/context/TaskContext";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,10 +36,8 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [status, setStatus] = useState<"pending" | "in_progress" | "completed" | "cancelled">(initialStatus);
   const [dueDate, setDueDate] = useState<Date | undefined>(addDays(new Date(), 3));
-  const [assignedToUserId, setAssignedToUserId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [timeTracking, setTimeTracking] = useState(false);
   const [showBackButton, setShowBackButton] = useState(false);
   const [currentStep, setCurrentStep] = useState<"details" | "assignment">("details");
   const [users, setUsers] = useState<Array<{id: number, username: string, role: string}>>([]);
@@ -76,11 +74,15 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
           setTitle(task.title);
           setDescription(task.description || "");
           setAssignedToId(task.assignedToId);
-          setPriority(task.priority);
-          setStatus(task.status);
-          setDueDate(task.dueDate);
-          setRelatedLeadId(task.relatedLeadId || null);
+          setPriority(task.priority as "low" | "medium" | "high");
+          setStatus(task.status as "pending" | "in_progress" | "completed" | "cancelled");
+          if (task.dueDate) {
+            setDueDate(new Date(task.dueDate));
+          }
         }
+        setIsLoading(false);
+      }).catch(error => {
+        console.error("Erro ao carregar tarefa:", error);
         setIsLoading(false);
       });
     }
@@ -105,18 +107,17 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
 
     setIsLoading(true);
     try {
+      // Usar o ID do usuário autenticado como criador da tarefa
+      const assignedById = user?.id || 1;
+      
       const taskData = {
         title,
         description,
-        assignedById: 1, // Assumindo usuário admin como o criador
+        assignedById,
         assignedToId,
         dueDate,
         priority,
-        status,
-        relatedLeadId: relatedLeadId || undefined,
-        assignedByName: "Admin User", // Mockado para demo
-        assignedToName: mockUsers.find(user => user.id === assignedToId)?.name,
-        relatedLeadName: relatedLeadId ? mockLeads.find(lead => lead.id === relatedLeadId)?.name : undefined
+        status
       };
 
       if (isEditing && taskId) {
@@ -158,12 +159,19 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
       case "priority":
         return <BarChart3 className="h-4 w-4 text-gray-400" />;
       case "link":
-        return <LinkIcon className="h-4 w-4 text-gray-400" />;
+        return <Link className="h-4 w-4 text-gray-400" />;
       case "time":
         return <Clock className="h-4 w-4 text-gray-400" />;
+      case "users":
+        return <Users className="h-4 w-4 text-gray-400" />;
       default:
         return null;
     }
+  };
+
+  // Função para formatar iniciais do nome do usuário para o avatar
+  const getUserInitials = (username: string) => {
+    return username.substring(0, 2).toUpperCase() || "UN";
   };
 
   return (
@@ -184,7 +192,7 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
                 <span className="text-sm text-gray-500">Atribuído para:</span>
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
-                    {mockUsers.find(u => u.id === assignedToId)?.name.substring(0, 2).toUpperCase() || "UN"}
+                    {users.find(u => u.id === assignedToId)?.username.substring(0, 2).toUpperCase() || "UN"}
                   </AvatarFallback>
                 </Avatar>
               </div>
@@ -312,28 +320,60 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
               </div>
 
               <div>
-                <Label htmlFor="related-lead" className="text-sm font-medium flex items-center text-gray-700 dark:text-gray-300">
-                  {renderIcon("link")}
-                  <span className="ml-2">Vincular a um Lead</span>
+                <Label htmlFor="assigned-to" className="text-sm font-medium flex items-center text-gray-700 dark:text-gray-300">
+                  {renderIcon("users")}
+                  <span className="ml-2">Atribuir para</span>
                 </Label>
                 <Select
-                  value={relatedLeadId?.toString() || "none"}
-                  onValueChange={(value) => setRelatedLeadId(value !== "none" ? parseInt(value) : null)}
-                  disabled={isLoading}
+                  value={assignedToId?.toString() || ""}
+                  onValueChange={(value) => setAssignedToId(parseInt(value))}
+                  disabled={isLoading || loadingUsers}
                 >
-                  <SelectTrigger id="related-lead" className="mt-2">
-                    <SelectValue placeholder="Selecione um lead para vincular" />
+                  <SelectTrigger id="assigned-to" className="mt-1">
+                    <SelectValue placeholder="Selecione um usuário" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
-                    {mockLeads.map((lead) => (
-                      <SelectItem key={lead.id} value={lead.id.toString()}>
-                        {lead.name}
-                      </SelectItem>
-                    ))}
+                    {loadingUsers ? (
+                      <div className="p-2 text-sm text-center text-muted-foreground">
+                        Carregando usuários...
+                      </div>
+                    ) : users.length > 0 ? (
+                      users.map((user) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.username} {user.role === "admin" && "(Admin)"}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-sm text-center text-muted-foreground">
+                        Nenhum usuário encontrado
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
+
+              {isEditing && (
+                <div>
+                  <Label htmlFor="status" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Status
+                  </Label>
+                  <Select
+                    value={status}
+                    onValueChange={(value) => setStatus(value as "pending" | "in_progress" | "completed" | "cancelled")}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="status" className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="in_progress">Em andamento</SelectItem>
+                      <SelectItem value="completed">Concluída</SelectItem>
+                      <SelectItem value="cancelled">Cancelada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -347,124 +387,75 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
                   <span className="ml-2">Atribuir para</span>
                 </Label>
                 <div className="grid grid-cols-1 gap-3 mt-3">
-                  {mockUsers.map((user) => (
-                    <div 
-                      key={user.id}
-                      className={`flex items-center p-3 rounded-lg border cursor-pointer ${
-                        assignedToId === user.id 
-                          ? "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800" 
-                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                      }`}
-                      onClick={() => setAssignedToId(user.id)}
-                    >
-                      <Avatar className="h-8 w-8 mr-3">
-                        <AvatarFallback className={`${
-                          assignedToId === user.id 
-                            ? "bg-blue-100 text-blue-600" 
-                            : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200"
-                        }`}>
-                          {user.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{user.role === "admin" ? "Administrador" : "Usuário"}</p>
-                      </div>
-                      {assignedToId === user.id && (
-                        <div className="flex-shrink-0 ml-2">
-                          <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                        </div>
-                      )}
+                  {loadingUsers ? (
+                    <div className="flex justify-center items-center p-6 text-gray-500">
+                      <div className="animate-spin h-6 w-6 border-2 border-gray-500 border-opacity-50 border-t-transparent rounded-full mr-2"></div>
+                      Carregando usuários...
                     </div>
-                  ))}
+                  ) : users.length > 0 ? (
+                    users.map((user) => (
+                      <div 
+                        key={user.id}
+                        className={`flex items-center p-3 rounded-lg border cursor-pointer ${
+                          assignedToId === user.id 
+                            ? "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800" 
+                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                        }`}
+                        onClick={() => setAssignedToId(user.id)}
+                      >
+                        <Avatar className="h-8 w-8 mr-3">
+                          <AvatarFallback className={`${
+                            assignedToId === user.id 
+                              ? "bg-blue-100 text-blue-600" 
+                              : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                          }`}>
+                            {getUserInitials(user.username)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{user.username}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {user.role === "admin" ? "Administrador" : "Usuário"}
+                          </p>
+                        </div>
+                        {assignedToId === user.id && (
+                          <div className="flex-shrink-0 ml-2">
+                            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-center text-sm text-gray-500">
+                      Nenhum usuário encontrado no sistema
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium flex items-center text-gray-700 dark:text-gray-300">
-                  {renderIcon("time")}
-                  <span className="ml-2">Acompanhamento de tempo</span>
-                </Label>
-                <div className="mt-2 flex items-center">
-                  <input
-                    type="checkbox"
-                    id="time-tracking"
-                    checked={timeTracking}
-                    onChange={(e) => setTimeTracking(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
-                  />
-                  <label htmlFor="time-tracking" className="ml-2 text-sm text-gray-600 dark:text-gray-300">
-                    Habilitar contagem de tempo para esta tarefa
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium flex items-center text-gray-700 dark:text-gray-300">
-                  <AlertCircle className="h-4 w-4 text-gray-400" />
-                  <span className="ml-2">Status inicial</span>
-                </Label>
-                <RadioGroup 
-                  value={status} 
-                  onValueChange={(value) => setStatus(value as "pending" | "in_progress" | "completed" | "cancelled")}
-                  className="flex flex-wrap mt-2 gap-2"
-                >
-                  <div className="flex items-center">
-                    <RadioGroupItem value="pending" id="pending" className="sr-only" />
-                    <Label
-                      htmlFor="pending"
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full border cursor-pointer ${
-                        status === "pending" 
-                          ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400" 
-                          : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      A fazer
-                    </Label>
-                  </div>
-                  <div className="flex items-center">
-                    <RadioGroupItem value="in_progress" id="in_progress" className="sr-only" />
-                    <Label
-                      htmlFor="in_progress"
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full border cursor-pointer ${
-                        status === "in_progress" 
-                          ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400" 
-                          : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      Em andamento
-                    </Label>
-                  </div>
-                </RadioGroup>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex items-center justify-between p-4 border-t bg-gray-50 dark:bg-gray-800/50">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading} size="sm">
-            Cancelar
-          </Button>
-          
-          {currentStep === "details" ? (
-            <Button 
-              onClick={handleNextStep} 
-              disabled={isLoading || !title} 
-              size="sm"
-            >
-              Continuar
+        <DialogFooter className="p-4 border-t">
+          <div className="flex justify-between w-full">
+            <DialogClose asChild>
+              <Button variant="outline" disabled={isLoading}>
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button onClick={handleSubmit} disabled={isLoading || !title || !assignedToId}>
+              {isLoading ? 
+                <div className="flex items-center">
+                  <span className="mr-2">Salvando</span>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-opacity-50 border-t-transparent rounded-full"></div>
+                </div>
+                : 
+                isEditing ? "Atualizar" : "Criar Tarefa"
+              }
             </Button>
-          ) : (
-            <Button 
-              onClick={handleSubmit} 
-              disabled={isLoading || !title || !assignedToId} 
-              size="sm"
-            >
-              {isLoading ? "Salvando..." : isEditing ? "Atualizar" : "Criar Tarefa"}
-            </Button>
-          )}
-        </div>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-} 
+}
