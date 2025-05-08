@@ -11,7 +11,6 @@ import { logAuditEvent, AuditEventType, getRecentAuditLogs } from "./audit-log";
 import { sendWhatsAppMessage, sendWhatsAppTemplate, checkWhatsAppConnection, formatPhoneNumber } from "./whatsapp-service";
 import { getWeatherByCity, checkWeatherService } from "./weather-service";
 import { log } from "./vite";
-import { registerTaskRoutes } from "./task-routes-fixed";
 
 const scryptAsync = promisify(scrypt);
 
@@ -24,9 +23,6 @@ async function hashPassword(password: string) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes and middleware
   setupAuth(app);
-  
-  // Registrar rotas de tarefas
-  registerTaskRoutes(app);
   
   // Middleware para checar se é administrador
   function isAdmin(req: Request, res: Response, next: NextFunction) {
