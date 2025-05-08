@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { format, isToday } from "date-fns";
+import { format, isToday, setHours, setMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarClock, MapPin, User, Clock } from "lucide-react";
 import { Link } from "wouter";
@@ -8,20 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useState, useEffect } from "react";
+
+type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show';
 
 interface Session {
   id: number;
-  startTime: string;
-  endTime: string;
-  studentId: number;
+  startTime: Date;
+  endTime: Date;
+  studentId: string;
   studentName: string;
-  trainerId: number;
-  trainerName?: string;
+  trainerId: string;
+  trainerName: string;
   location: string;
-  status: string;
-  source: string;
-  type?: string;
+  status: SessionStatus;
+  source: 'Favale' | 'Pink';
   notes?: string;
+  calendarEventId?: string;
 }
 
 interface TodayAppointmentCardProps {
@@ -29,9 +32,59 @@ interface TodayAppointmentCardProps {
 }
 
 export default function TodayAppointmentCard({ className = "" }: TodayAppointmentCardProps) {
-  const { data: sessions, isLoading } = useQuery<Session[]>({
-    queryKey: ["/api/sessions"],
-  });
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Dados mockados para demonstração
+  useEffect(() => {
+    setIsLoading(true);
+    // Simulando carregamento de dados
+    setTimeout(() => {
+      setSessions([
+        {
+          id: 1,
+          startTime: setMinutes(setHours(new Date(), 9), 0),
+          endTime: setMinutes(setHours(new Date(), 10), 0),
+          location: 'Academia Central',
+          source: 'Favale',
+          notes: 'Foco em treinamento de força',
+          status: 'scheduled',
+          studentId: '101',
+          studentName: 'Carlos Oliveira',
+          trainerId: '201',
+          trainerName: 'Ana Silva',
+          calendarEventId: 'event123',
+        },
+        {
+          id: 2,
+          startTime: setMinutes(setHours(new Date(), 15), 0),
+          endTime: setMinutes(setHours(new Date(), 16), 0),
+          location: 'Estúdio Zona Norte',
+          source: 'Pink',
+          notes: 'Treino de cardio e flexibilidade',
+          status: 'scheduled',
+          studentId: '102',
+          studentName: 'Maria Santos',
+          trainerId: '202',
+          trainerName: 'Pedro Costa',
+        },
+        {
+          id: 4,
+          startTime: setMinutes(setHours(new Date(), 17), 30),
+          endTime: setMinutes(setHours(new Date(), 18), 30),
+          location: 'Condomínio Green Parks',
+          source: 'Pink',
+          notes: 'Sessão de alongamento e mobilidade',
+          status: 'scheduled',
+          studentId: '104',
+          studentName: 'Juliana Mendes',
+          trainerId: '203',
+          trainerName: 'Fernanda Lima',
+        },
+      ]);
+      setIsLoading(false);
+    }, 1000);
+  }, []);
 
   // Filtrar sessões para hoje e ordená-las por horário
   const todaySessions = sessions
