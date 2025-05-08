@@ -2,7 +2,10 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { insertLeadSchema, leadValidationSchema, whatsappMessageValidationSchema } from "@shared/schema";
+import { 
+  insertLeadSchema, leadValidationSchema, whatsappMessageValidationSchema,
+  taskValidationSchema, taskCommentValidationSchema
+} from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { setupAuth } from "./auth";
 import { scrypt, randomBytes } from "crypto";
@@ -1159,6 +1162,233 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: `Erro ao obter dados de clima: ${error.message}` 
       });
+    }
+  });
+  
+  // API de tarefas
+  
+  // Listar todas as tarefas
+  app.get('/api/tasks', async (req, res) => {
+    try {
+      const tasks = await storage.getTasks();
+      res.json(tasks);
+    } catch (error) {
+      console.error('Erro ao buscar tarefas:', error);
+      res.status(500).json({ message: 'Erro ao buscar tarefas' });
+    }
+  });
+  
+  // Buscar tarefa por ID
+  app.get('/api/tasks/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+    
+    try {
+      const task = await storage.getTask(id);
+      
+      if (!task) {
+        return res.status(404).json({ message: 'Tarefa não encontrada' });
+      }
+      
+      // Buscar comentários da tarefa
+      const comments = await storage.getTaskCommentsByTaskId(id);
+      
+      // Retornar tarefa com comentários
+      res.json({
+        ...task,
+        comments
+      });
+    } catch (error) {
+      console.error(`Erro ao buscar tarefa ${id}:`, error);
+      res.status(500).json({ message: 'Erro ao buscar detalhes da tarefa' });
+    }
+  });
+  
+  // Criar nova tarefa
+  app.post('/api/tasks', async (req, res) => {
+    try {
+      // Validar os dados com o schema do Zod
+      const validatedData = taskValidationSchema.parse(req.body);
+      
+      // Criar tarefa no banco de dados
+      const newTask = await storage.createTask(validatedData);
+      
+      res.status(201).json(newTask);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: 'Dados inválidos', 
+          details: error.errors 
+        });
+      }
+      
+      console.error('Erro ao criar tarefa:', error);
+      res.status(500).json({ message: 'Erro ao criar tarefa' });
+    }
+  });
+  
+  // Atualizar tarefa existente
+  app.put('/api/tasks/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+    
+    try {
+      // Verificar se a tarefa existe
+      const existingTask = await storage.getTask(id);
+      
+      if (!existingTask) {
+        return res.status(404).json({ message: 'Tarefa não encontrada' });
+      }
+      
+      // Validar dados de atualização
+      const validatedData = taskValidationSchema.partial().parse(req.body);
+      
+      // Atualizar tarefa
+      const updatedTask = await storage.updateTask(id, validatedData);
+      
+      res.json(updatedTask);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: 'Dados inválidos', 
+          details: error.errors 
+        });
+      }
+      
+      console.error(`Erro ao atualizar tarefa ${id}:`, error);
+      res.status(500).json({ message: 'Erro ao atualizar tarefa' });
+    }
+  });
+  
+  // Excluir tarefa
+  app.delete('/api/tasks/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+    
+    try {
+      // Verificar se a tarefa existe
+      const existingTask = await storage.getTask(id);
+      
+      if (!existingTask) {
+        return res.status(404).json({ message: 'Tarefa não encontrada' });
+      }
+      
+      // Excluir tarefa (comentários são excluídos em cascata na implementação do storage)
+      const deleted = await storage.deleteTask(id);
+      
+      if (deleted) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: 'Erro ao excluir tarefa' });
+      }
+    } catch (error) {
+      console.error(`Erro ao excluir tarefa ${id}:`, error);
+      res.status(500).json({ message: 'Erro ao excluir tarefa' });
+    }
+  });
+  
+  // Buscar tarefas por usuário designado
+  app.get('/api/tasks/assigned-to/:userId', async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: 'ID de usuário inválido' });
+    }
+    
+    try {
+      const tasks = await storage.getTasksByAssignedToId(userId);
+      res.json(tasks);
+    } catch (error) {
+      console.error(`Erro ao buscar tarefas atribuídas ao usuário ${userId}:`, error);
+      res.status(500).json({ message: 'Erro ao buscar tarefas' });
+    }
+  });
+  
+  // Buscar tarefas por status
+  app.get('/api/tasks/status/:status', async (req, res) => {
+    const { status } = req.params;
+    
+    // Validar status
+    if (!['pending', 'in_progress', 'completed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ message: 'Status inválido' });
+    }
+    
+    try {
+      const tasks = await storage.getTasksByStatus(status);
+      res.json(tasks);
+    } catch (error) {
+      console.error(`Erro ao buscar tarefas com status ${status}:`, error);
+      res.status(500).json({ message: 'Erro ao buscar tarefas' });
+    }
+  });
+  
+  // Adicionar comentário a uma tarefa
+  app.post('/api/tasks/:id/comments', async (req, res) => {
+    const taskId = parseInt(req.params.id);
+    
+    if (isNaN(taskId)) {
+      return res.status(400).json({ message: 'ID de tarefa inválido' });
+    }
+    
+    try {
+      // Verificar se a tarefa existe
+      const existingTask = await storage.getTask(taskId);
+      
+      if (!existingTask) {
+        return res.status(404).json({ message: 'Tarefa não encontrada' });
+      }
+      
+      // Validar dados do comentário
+      const validatedData = taskCommentValidationSchema.parse({
+        ...req.body,
+        taskId
+      });
+      
+      // Criar comentário
+      const newComment = await storage.createTaskComment(validatedData);
+      
+      res.status(201).json(newComment);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: 'Dados inválidos', 
+          details: error.errors 
+        });
+      }
+      
+      console.error(`Erro ao adicionar comentário à tarefa ${taskId}:`, error);
+      res.status(500).json({ message: 'Erro ao adicionar comentário' });
+    }
+  });
+  
+  // Excluir comentário
+  app.delete('/api/tasks/comments/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+    
+    try {
+      const deleted = await storage.deleteTaskComment(id);
+      
+      if (deleted) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: 'Erro ao excluir comentário' });
+      }
+    } catch (error) {
+      console.error(`Erro ao excluir comentário ${id}:`, error);
+      res.status(500).json({ message: 'Erro ao excluir comentário' });
     }
   });
   
