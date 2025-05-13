@@ -113,6 +113,54 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
       endOfMessagesRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+  
+  // Verificar status das mensagens recentes periodicamente
+  useEffect(() => {
+    if (!messages.length) return;
+    
+    // Função para verificar status das mensagens enviadas recentemente
+    const checkRecentMessageStatus = async () => {
+      // Selecionar mensagens enviadas nas últimas 24 horas que têm messageId e não estão com status final
+      const recentMessages = messages.filter(msg => {
+        // Verifica se tem messageId, é de saída e não está em status final
+        if (!msg.messageId || msg.direction !== 'outgoing') return false;
+        if (msg.status === 'read' || msg.status === 'failed') return false;
+        
+        // Verifica se é recente (últimas 24 horas)
+        const messageTime = new Date(msg.timestamp).getTime();
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        return messageTime > oneDayAgo;
+      });
+      
+      // Verificar status de cada mensagem
+      for (const message of recentMessages) {
+        try {
+          const response = await fetch(`/api/whatsapp/message-status/${message.messageId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.status !== message.status) {
+              // Se o status mudou, atualizar as mensagens
+              queryClient.invalidateQueries({ queryKey: [`/api/whatsapp/lead/${lead.id}`] });
+              break; // Uma atualização é suficiente para recarregar todas as mensagens
+            }
+          }
+        } catch (error) {
+          console.warn('Erro ao verificar status da mensagem:', error);
+        }
+      }
+    };
+    
+    // Verificar inicialmente após 10 segundos
+    const initialTimeout = setTimeout(checkRecentMessageStatus, 10000);
+    
+    // Depois verificar a cada 30 segundos
+    const interval = setInterval(checkRecentMessageStatus, 30000);
+    
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [messages, lead.id, queryClient]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();

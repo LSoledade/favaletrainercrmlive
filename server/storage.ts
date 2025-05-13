@@ -46,6 +46,8 @@ export interface IStorage {
   
   // WhatsApp methods
   getWhatsappMessages(leadId: number): Promise<WhatsappMessage[]>;
+  getWhatsappMessageById(id: number): Promise<WhatsappMessage | undefined>;
+  getWhatsappMessageByApiId(messageId: string): Promise<WhatsappMessage | undefined>;
   createWhatsappMessage(message: InsertWhatsappMessage): Promise<WhatsappMessage>;
   updateWhatsappMessageStatus(id: number, status: string): Promise<WhatsappMessage | undefined>;
   updateWhatsappMessageId(id: number, messageId: string): Promise<WhatsappMessage | undefined>;
@@ -740,6 +742,26 @@ export class DatabaseStorage implements IStorage {
       .from(whatsappMessages)
       .where(eq(whatsappMessages.leadId, leadId))
       .orderBy(asc(whatsappMessages.timestamp));
+  }
+
+  async getWhatsappMessageById(id: number): Promise<WhatsappMessage | undefined> {
+    const messages = await db
+      .select()
+      .from(whatsappMessages)
+      .where(eq(whatsappMessages.id, id))
+      .limit(1);
+    
+    return messages[0];
+  }
+
+  async getWhatsappMessageByApiId(messageId: string): Promise<WhatsappMessage | undefined> {
+    const messages = await db
+      .select()
+      .from(whatsappMessages)
+      .where(eq(whatsappMessages.messageId, messageId))
+      .limit(1);
+    
+    return messages[0];
   }
 
   async createWhatsappMessage(message: InsertWhatsappMessage): Promise<WhatsappMessage> {
