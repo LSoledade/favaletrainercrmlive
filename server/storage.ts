@@ -39,6 +39,7 @@ export interface IStorage {
   getLeadsByStatus(status: string): Promise<Lead[]>;
   getLeadsByCampaign(campaign: string): Promise<Lead[]>;
   getLeadsByState(state: string): Promise<Lead[]>;
+  getLeadsByPhone(phone: string): Promise<Lead[]>;
   
   // Batch operations
   updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number>;
@@ -244,6 +245,25 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(leads)
       .where(eq(leads.state, state));
+  }
+  
+  async getLeadsByPhone(phone: string): Promise<Lead[]> {
+    // Remove qualquer formatação do número antes de buscar
+    const cleanPhone = phone.replace(/\D/g, '');
+    return await db
+      .select()
+      .from(leads)
+      .where(
+        // Verifica padrões diferentes do telefone (com e sem código do país/DDD)
+        or(
+          like(leads.phone, `%${cleanPhone}%`),
+          // Se o número passado parece já ter código de país (mais de 10 dígitos)
+          // tenta buscar versão sem código de país também
+          cleanPhone.length > 10 
+            ? like(leads.phone, `%${cleanPhone.substring(2)}%`) 
+            : sql`false`
+        )
+      );
   }
 
   // Batch operations
