@@ -1173,28 +1173,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Buscar a mensagem no banco para atualizar seu status
+      const message = await storage.getWhatsappMessageByApiId(messageId);
+      
       const statusResult = await checkMessageStatus(messageId);
       
       if (statusResult.success) {
+        // Se a mensagem foi encontrada no banco, atualizar seu status se necessário
+        if (message && statusResult.details?.status) {
+          const newStatus = statusResult.details.status;
+          if (message.status !== newStatus) {
+            await storage.updateWhatsappMessageStatus(message.id, newStatus);
+          }
+        }
+        
         res.json({ 
           success: true, 
           status: statusResult.details?.status || 'sent',
           originalStatus: statusResult.details?.originalStatus,
-          timestamp: statusResult.details?.timestamp
+          timestamp: statusResult.details?.timestamp,
+          message: message ? {
+            id: message.id,
+            leadId: message.leadId,
+            content: message.content,
+            mediaUrl: message.mediaUrl,
+            mediaType: message.mediaType,
+            previousStatus: message.status,
+            updated: message && message.status !== statusResult.details?.status
+          } : null
         });
       } else {
         console.warn(`Falha ao verificar status da mensagem: ${statusResult.error}`);
         res.status(400).json({ 
           success: false, 
           message: statusResult.error || 'Falha ao verificar status da mensagem',
-          details: statusResult.details || {}
+          details: statusResult.details || {},
+          messageId: messageId
         });
       }
     } catch (error) {
       console.error('Erro ao verificar status da mensagem:', error);
       res.status(500).json({ 
         success: false, 
-        message: 'Erro interno ao verificar status da mensagem' 
+        message: 'Erro interno ao verificar status da mensagem',
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -1685,7 +1707,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Enviar template pelo WhatsApp
+  // Webhook para receber eventos da Evolution API
+  app.post('/api/whatsapp/webhook', async (req, res) => {
+    try {
+      const data = req.body;
+      console.log('Webhook recebido da Evolution API:', JSON.stringify(data));
+      
+      // Verificar se é uma mensagem recebida
+      if (data.event === 'messages.upsert' || data.type === 'message') {
+        // Extrair dados da mensagem recebida
+        const message = data.message || data.data;
+        const from = message?.from || message?.sender || data.from;
+        const content = message?.text?.body || message?.body || message?.content || message?.caption || '[Mensagem sem texto]';
+        const messageId = message?.id || data.messageId || `incoming_${Date.now()}`;
+        const mediaUrl = message?.mediaUrl || message?.url;
+        const mediaType = message?.mediaType || (mediaUrl ? 'image' : null);
+        
+        if (!from) {
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Número de origem não encontrado na mensagem' 
+          });
+        }
+        
+        // Encontrar o lead pelo número de telefone
+        const cleanPhone = from.replace(/[^\d]/g, '');
+        const leads = await storage.getLeadsByPhone(cleanPhone);
+        
+        if (!leads || leads.length === 0) {
+          console.warn(`Mensagem recebida de número não cadastrado: ${from}`);
+          return res.status(404).json({ 
+            success: false, 
+            message: 'Lead não encontrado para este número' 
+          });
+        }
+        
+        // Usar o primeiro lead encontrado com este número
+        const lead = leads[0];
+        
+        // Criar a mensagem no banco de dados
+        const messageData = {
+          leadId: lead.id,
+          direction: 'incoming',
+          content,
+          status: 'received',
+          messageId,
+          mediaUrl: mediaUrl || null,
+          mediaType: mediaType || null
+        };
+        
+        await storage.createWhatsappMessage(messageData);
+        
+        res.status(201).json({ 
+          success: true, 
+          message: 'Mensagem recebida e salva com sucesso',
+          leadId: lead.id
+        });
+      } 
+      // Verificar se é uma atualização de status
+      else if (data.event === 'messages.update' || data.type === 'status') {
+        const messageId = data.messageId || data.id;
+        const status = data.status || data.newStatus || 'unknown';
+        
+        if (!messageId) {
+          return res.status(400).json({ 
+            success: false, 
+            message: 'ID da mensagem não encontrado na atualização de status' 
+          });
+        }
+        
+        // Encontrar a mensagem pelo ID da API
+        const message = await storage.getWhatsappMessageByApiId(messageId);
+        
+        if (!message) {
+          console.warn(`Atualização de status para mensagem desconhecida: ${messageId}`);
+          return res.status(404).json({ 
+            success: false, 
+            message: 'Mensagem não encontrada' 
+          });
+        }
+        
+        // Atualizar o status da mensagem
+        await storage.updateWhatsappMessageStatus(message.id, status);
+        
+        res.json({ 
+          success: true, 
+          message: 'Status da mensagem atualizado',
+          previousStatus: message.status,
+          newStatus: status
+        });
+      } else {
+        // Outros tipos de eventos, apenas confirmar recebimento
+        res.json({ 
+          success: true, 
+          message: 'Evento recebido',
+          eventType: data.event || data.type || 'unknown'
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao processar webhook WhatsApp:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao processar webhook',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+// Enviar template pelo WhatsApp
   app.post('/api/whatsapp/template', async (req, res) => {
     try {
       const { leadId, templateName, language } = req.body;
