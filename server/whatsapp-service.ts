@@ -235,7 +235,7 @@ export async function checkWhatsAppConnection(): Promise<WhatsAppResult> {
     }
 
     // Endpoint específico para verificar o status da instância
-    const statusEndpoint = `${EVOLUTION_API_URL}/instance/connectionState/${EVOLUTION_API_INSTANCE}`;
+    const statusEndpoint = `${EVOLUTION_API_URL}/instances/fetchInstances`;
     
     log(`Verificando conexão com a Evolution API: ${statusEndpoint}`, 'info');
     
@@ -253,8 +253,12 @@ export async function checkWhatsAppConnection(): Promise<WhatsAppResult> {
     if (response.status >= 200 && response.status < 300) {
       log(`Resposta Evolution API: ${JSON.stringify(response.data)}`, 'info');
       
+      // Buscar nossa instância na lista de instâncias
+      const instances = response.data?.data || [];
+      const ourInstance = instances.find((instance: any) => instance.instance === EVOLUTION_API_INSTANCE);
+      
       // Verificar o estado da conexão na resposta
-      const state = response.data?.state || response.data?.status;
+      const state = ourInstance?.status || 'DISCONNECTED';
       const connected = state === 'CONNECTED' || state === 'ONLINE' || state === true;
       
       if (connected) {
