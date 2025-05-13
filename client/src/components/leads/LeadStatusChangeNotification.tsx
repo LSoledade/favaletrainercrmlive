@@ -47,7 +47,9 @@ export default function LeadStatusChangeNotification({
     mutationFn: async () => {
       return apiRequest('POST', '/api/whatsapp/send', {
         leadId: lead.id,
-        message,
+        content: message,
+        direction: 'outgoing',
+        status: 'pending'
       });
     },
     onSuccess: () => {
