@@ -10,6 +10,7 @@ import ConfigPage from "@/pages/ConfigPage";
 import SessionsPage from "@/pages/SessionsPage";
 import CalendarPage from "@/pages/CalendarPage";
 import WhatsappPage from "@/pages/WhatsappPage";
+import WhatsappConfigPage from "@/pages/WhatsappConfigPage";
 import ReportPage from "@/pages/ReportPage";
 import TasksPage from "@/pages/TasksPage";
 import TaskDetailsPage from "@/pages/TaskDetailsPage";
@@ -29,6 +30,7 @@ function Router() {
       <ProtectedRoute path="/agendamentos" component={SessionsPage} />
       <ProtectedRoute path="/calendario" component={CalendarPage} />
       <ProtectedRoute path="/whatsapp" component={WhatsappPage} />
+      <ProtectedRoute path="/whatsapp/config" component={WhatsappConfigPage} />
       <ProtectedRoute path="/tarefas" component={TasksPage} />
       <ProtectedRoute path="/tarefas/:id" component={TaskDetailsPage} />
       <ProtectedRoute path="/config" component={ConfigPage} />

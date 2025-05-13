@@ -207,16 +207,26 @@ export default function WhatsappPage() {
                 connectionStatus.message || 'Falha na conexão com a API do WhatsApp'}
             </span>
           </div>
-          <Button 
-            onClick={() => refreshConnectionStatus()} 
-            variant="ghost" 
-            size="sm"
-            className="h-7 px-2"
-            disabled={connectionStatus.status === 'checking'}
-          >
-            <RefreshCw className="h-3.5 w-3.5 mr-1" />
-            Verificar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => refreshConnectionStatus()} 
+              variant="ghost" 
+              size="sm"
+              className="h-7 px-2"
+              disabled={connectionStatus.status === 'checking'}
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              Verificar
+            </Button>
+            <Button 
+              onClick={() => window.location.href = '/whatsapp/config'} 
+              variant="outline" 
+              size="sm"
+              className="h-7"
+            >
+              Configurações
+            </Button>
+          </div>
         </div>
       </Alert>
       
