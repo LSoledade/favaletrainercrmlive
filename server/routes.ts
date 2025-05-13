@@ -964,58 +964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enviar mensagem de WhatsApp
-  app.post('/api/whatsapp/send', async (req, res) => {
-    try {
-      const validationResult = whatsappMessageValidationSchema.safeParse(req.body);
-      
-      if (!validationResult.success) {
-        const validationError = fromZodError(validationResult.error);
-        return res.status(400).json({ message: validationError.message });
-      }
-      
-      const messageData = validationResult.data;
-      
-      // Verificar se o lead existe
-      const lead = await storage.getLead(messageData.leadId);
-      if (!lead) {
-        return res.status(404).json({ message: "Lead não encontrado" });
-      }
-      
-      // Criar a mensagem no banco de dados com status 'pending'
-      const messageWithPendingStatus = {
-        ...messageData,
-        status: 'pending'
-      };
-      
-      const message = await storage.createWhatsappMessage(messageWithPendingStatus);
-      
-      // Enviar a mensagem via API do WhatsApp
-      const result = await sendWhatsAppMessage(lead, messageData.content);
-      
-      // Atualizar o status com base na resposta da API
-      if (result.success) {
-        await storage.updateWhatsappMessageStatus(message.id, 'sent');
-        message.status = 'sent';
-        
-        // Se temos um ID da mensagem da API do WhatsApp, salvamos no banco
-        if (result.messageId) {
-          await storage.updateWhatsappMessageId(message.id, result.messageId);
-          message.messageId = result.messageId;
-        }
-      } else {
-        await storage.updateWhatsappMessageStatus(message.id, 'failed');
-        message.status = 'failed';
-        // Registrar o erro para debug
-        console.error(`Falha ao enviar mensagem WhatsApp: ${result.error}`);
-      }
-      
-      res.status(201).json(message);
-    } catch (error) {
-      console.error('Erro ao enviar mensagem de WhatsApp:', error);
-      res.status(500).json({ message: "Erro ao enviar mensagem de WhatsApp" });
-    }
-  });
+  // Rota migrada para uma implementação mais completa em outro local
 
   // Atualizar status de uma mensagem
   app.patch('/api/whatsapp/messages/:id/status', async (req, res) => {
@@ -1550,7 +1499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Enviar mensagem pelo WhatsApp
+  // Enviar mensagem de texto pelo WhatsApp
   app.post('/api/whatsapp/send', async (req, res) => {
     try {
       const { leadId, content, direction, status } = req.body;
@@ -1636,6 +1585,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Erro ao enviar mensagem WhatsApp:', error);
       res.status(500).json({ message: "Erro ao enviar mensagem", error: String(error) });
+    }
+  });
+  
+  // Enviar imagem pelo WhatsApp
+  app.post('/api/whatsapp/send-image', async (req, res) => {
+    try {
+      const { leadId, imageUrl, caption } = req.body;
+      
+      if (!leadId || !imageUrl) {
+        return res.status(400).json({ 
+          message: "ID do lead e URL da imagem são obrigatórios" 
+        });
+      }
+      
+      // Verificar se o lead existe
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead não encontrado" });
+      }
+      
+      // Validar número de telefone
+      const formattedPhone = formatPhoneNumber(lead.phone);
+      if (!formattedPhone) {
+        return res.status(400).json({ 
+          message: "Número de telefone inválido ou não encontrado para o lead" 
+        });
+      }
+      
+      // Criar a mensagem no banco de dados com status 'pending'
+      const message = await storage.createWhatsappMessage({
+        leadId,
+        direction: 'outgoing',
+        content: caption || '[Imagem enviada]',
+        status: 'pending',
+        mediaUrl: imageUrl,
+        mediaType: 'image'
+      });
+      
+      // Enviar a imagem via API do WhatsApp
+      const result = await sendWhatsAppImage(lead, imageUrl, caption || '');
+      
+      // Atualizar o status com base na resposta da API
+      if (result.success) {
+        await storage.updateWhatsappMessageStatus(message.id, 'sent');
+        
+        // Se temos um ID da mensagem da API do WhatsApp, salvamos no banco
+        if (result.messageId) {
+          await storage.updateWhatsappMessageId(message.id, result.messageId);
+        }
+        
+        res.status(201).json({
+          id: message.id,
+          leadId: message.leadId,
+          content: message.content,
+          status: 'sent',
+          timestamp: message.timestamp,
+          mediaUrl: imageUrl,
+          mediaType: 'image',
+          messageId: result.messageId,
+          success: true
+        });
+      } else {
+        await storage.updateWhatsappMessageStatus(message.id, 'failed');
+        
+        // Verificar se o erro é por causa de número não autorizado
+        const errorMessage = result.error || 'Erro desconhecido';
+        const isNotAuthorizedNumber = errorMessage.includes('not in allowed list');
+        
+        console.error(`Falha ao enviar imagem WhatsApp: ${errorMessage}`);
+        
+        res.status(400).json({
+          id: message.id,
+          leadId: message.leadId,
+          content: message.content,
+          status: 'failed',
+          timestamp: message.timestamp,
+          mediaUrl: imageUrl,
+          mediaType: 'image',
+          error: errorMessage,
+          unauthorizedNumber: isNotAuthorizedNumber,
+          success: false
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao enviar imagem WhatsApp:', error);
+      res.status(500).json({ 
+        message: "Erro ao enviar imagem", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
   
