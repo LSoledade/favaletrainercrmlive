@@ -14,7 +14,7 @@ const columns = [
   { id: "done", name: "Done", color: "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200", icon: <CheckCircle className="h-4 w-4" /> },
 ];
 
-export default function KanbanBoard({ onCreateTask }: { onCreateTask: (initialStatus?: string) => void }) {
+export default function KanbanBoard({ onCreateTask, onOpenDetails }: { onCreateTask: (initialStatus?: string) => void, onOpenDetails?: (taskId: number) => void }) {
   const { tasks, updateTask } = useTaskContext();
   const [localTasks, setLocalTasks] = useState<any[]>([]);
   const { toast } = useToast();
@@ -90,14 +90,14 @@ export default function KanbanBoard({ onCreateTask }: { onCreateTask: (initialSt
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-h-[500px]">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 min-h-[500px]">
         {columns.map(col => (
           <Droppable droppableId={col.id} key={col.id}>
             {(provided: any) => (
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="flex flex-col bg-slate-50 dark:bg-slate-900 rounded-lg min-h-[500px] max-h-[calc(100vh-200px)] overflow-hidden"
+                className={`flex flex-col ${col.color} rounded-2xl min-h-[500px] max-h-[calc(100vh-200px)] overflow-hidden`}
               >
                 {/* Header da coluna */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 bg-slate-50 dark:bg-slate-900">
@@ -125,9 +125,9 @@ export default function KanbanBoard({ onCreateTask }: { onCreateTask: (initialSt
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             style={{ ...provided.draggableProps.style }}
-                            className="bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow duration-200"
+                            className="rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow duration-200 p-0"
                           >
-                            <TaskCard {...task} />
+                            <TaskCard {...task} onOpenDetails={onOpenDetails} />
                           </div>
                         )}
                       </Draggable>

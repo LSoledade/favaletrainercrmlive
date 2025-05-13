@@ -15,7 +15,10 @@ import {
   LayoutList,
   ArrowUpDown,
   Filter,
-  Calendar
+  Calendar,
+  MessageSquare,
+  Paperclip,
+  Bell
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -77,7 +80,7 @@ export default function TasksPage() {
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
   const [selectedTaskStatus, setSelectedTaskStatus] = useState<string | undefined>(undefined);
   const [showTaskDetailDialog, setShowTaskDetailDialog] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>(undefined);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("my-tasks");
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [sortBy, setSortBy] = useState<"due" | "priority" | "recent">("recent");
@@ -223,11 +226,34 @@ export default function TasksPage() {
     const priorityColor = task.priority === 'high' ? 'bg-orange-500' : 
                          task.priority === 'medium' ? 'bg-yellow-400' : 'bg-green-500';
                           
+    const hasComments = task.comments?.length > 0 || false;
+    const hasAttachments = task.attachments?.length > 0 || false;
+    const commentCount = task.comments?.length || 0;
+                          
     return (
       <Card 
         className="p-0 mb-3 overflow-hidden bg-white dark:bg-gray-800 hover:shadow-md transition-all cursor-pointer border border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 relative"
         onClick={() => handleOpenTaskDetails(task.id)}
       >
+        {/* Notification indicator */}
+        {(hasComments || hasAttachments) && (
+          <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md z-10" title={
+            hasComments && hasAttachments 
+              ? "Possui comentários e anexos"
+              : hasComments 
+              ? `${commentCount} comentário${commentCount > 1 ? 's' : ''}`
+              : "Possui anexos"
+          }>
+            {hasComments && hasAttachments ? (
+              "+"
+            ) : hasComments ? (
+              <MessageSquare className="h-3 w-3" />
+            ) : (
+              <Paperclip className="h-3 w-3" />
+            )}
+          </div>
+        )}
+        
         {/* Cabeçalho do cartão com código e menu */}
         <div className="flex items-center justify-between p-3 pb-1 pl-4">
           <div className={`text-xs ${color} px-1.5 py-0.5 rounded font-medium flex items-center`}>
@@ -308,21 +334,20 @@ export default function TasksPage() {
           </div>
           
           <div className="flex items-center gap-2">
-            {task.comments?.length > 0 && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <svg 
-                  width="15" 
-                  height="15" 
-                  viewBox="0 0 15 15" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-3 w-3"
-                >
-                  <path d="M12.5 3L2.5 3.00002C1.67157 3.00002 1 3.6716 1 4.50002V9.50003C1 10.3285 1.67157 11 2.5 11H7.50003C7.63264 11 7.75982 11.0527 7.85358 11.1465L10 13.2929V11.5C10 11.2239 10.2239 11 10.5 11H12.5C13.3284 11 14 10.3285 14 9.50003V4.5C14 3.67157 13.3284 3 12.5 3ZM2.49999 2.00002L12.5 2C13.8807 2 15 3.11929 15 4.5V9.50003C15 10.8807 13.8807 12 12.5 12H11V14.5C11 14.7022 10.8782 14.8845 10.6913 14.9619C10.5045 15.0393 10.2894 14.9965 10.1464 14.8536L7.29292 12H2.5C1.11929 12 0 10.8807 0 9.50003V4.50002C0 3.11931 1.11928 2.00002 2.49999 2.00002Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                </svg>
-                {task.comments.length}
+            <div className="flex gap-1.5 items-center">
+              <span className="flex items-center gap-0.5" title={task.comments?.length > 0 ? `${task.comments.length} comentário${task.comments.length !== 1 ? 's' : ''}` : "Sem comentários"}>
+                <MessageSquare className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+                {task.comments?.length > 0 && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{task.comments.length}</span>
+                )}
               </span>
-            )}
+              <span className="flex items-center gap-0.5" title={task.attachments?.length > 0 ? "Possui anexos" : "Sem anexos"}>
+                <Paperclip className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+                {task.attachments?.length > 0 && (
+                  <span className="block h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                )}
+              </span>
+            </div>
             
             <Avatar className="h-5 w-5 ring-2 ring-white dark:ring-gray-800">
               <AvatarFallback 
@@ -356,7 +381,9 @@ export default function TasksPage() {
           status={task.status}
           relatedLeadName={task.relatedLeadName}
           commentCount={task.comments?.length || 0}
+          hasAttachments={task.attachments?.length > 0 || false}
           onStatusChange={handleStatusChange}
+          onOpenDetails={handleOpenTaskDetails}
         />
       ))}
     </div>
@@ -514,7 +541,7 @@ export default function TasksPage() {
           </TabsContent>
         </Tabs>
       ) : (
-        <KanbanBoard onCreateTask={handleCreateTask} />
+        <KanbanBoard onCreateTask={handleCreateTask} onOpenDetails={handleOpenTaskDetails} />
       )}
       
       {showCreateTaskDialog && (
@@ -528,7 +555,7 @@ export default function TasksPage() {
       <TaskDetailDialog
         open={showTaskDetailDialog}
         onOpenChange={setShowTaskDetailDialog}
-        taskId={selectedTaskId}
+        taskId={selectedTaskId ?? undefined}
       />
     </div>
   );

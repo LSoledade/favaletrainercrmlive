@@ -3,9 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle, Paperclip, Bell } from "lucide-react";
 import { useState } from "react";
 import TaskDetailDialog from "./TaskDetailDialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface TaskCardProps {
   id: number;
@@ -18,7 +19,9 @@ interface TaskCardProps {
   status: "pending" | "in_progress" | "completed" | "cancelled";
   relatedLeadName?: string;
   commentCount: number;
+  hasAttachments?: boolean;
   onStatusChange?: (taskId: number, newStatus: string) => void;
+  onOpenDetails?: (taskId: number) => void;
 }
 
 export default function TaskCard({
@@ -32,11 +35,10 @@ export default function TaskCard({
   status,
   relatedLeadName,
   commentCount,
-  onStatusChange
+  hasAttachments = false,
+  onStatusChange,
+  onOpenDetails
 }: TaskCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [taskDetailOpen, setTaskDetailOpen] = useState(false);
-
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "high":
@@ -131,76 +133,124 @@ export default function TaskCard({
     }
   };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "border-l-4 border-red-500";
+      case "medium":
+        return "border-l-4 border-amber-400";
+      case "low":
+        return "border-l-4 border-green-500";
+      default:
+        return "border-l-4 border-gray-300";
+    }
+  };
+
+  // Gerador de cor para avatar baseado no nome do usuário
+  const getAvatarColor = (name: string): string => {
+    if (!name) return "#64748b";
+    
+    const colors = [
+      "#3b82f6", // blue
+      "#ef4444", // red
+      "#10b981", // green
+      "#f59e0b", // amber
+      "#8b5cf6", // violet
+      "#ec4899", // pink
+      "#14b8a6", // teal
+      "#f43f5e", // rose
+      "#6366f1", // indigo
+      "#84cc16", // lime
+    ];
+    
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      hash = hash & hash;
+    }
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
+
   return (
-    <Card 
-      className={`p-4 transition-all duration-200 ${status === "completed" ? "opacity-75" : ""}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+    <Card
+      className={`relative p-2.5 transition-all duration-200 rounded-md shadow-sm border border-white/30 dark:border-slate-700/40 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md min-h-[75px] ${getPriorityColor(priority)} ${status === "completed" ? "opacity-75" : ""} hover:shadow-md hover:bg-white/80 dark:hover:bg-slate-800/80 cursor-pointer`}
+      onClick={() => onOpenDetails && onOpenDetails(id)}
     >
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center gap-3">
-          {getStatusIcon()}
-          <h3 className="font-medium text-gray-900 dark:text-white">{title}</h3>
+      {/* Notification indicator */}
+      {(commentCount > 0 || hasAttachments) && (
+        <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm z-10" title={
+          commentCount > 0 && hasAttachments 
+            ? "Possui comentários e anexos"
+            : commentCount > 0 
+            ? `${commentCount} comentário${commentCount > 1 ? 's' : ''}`
+            : "Possui anexos"
+        }>
+          {commentCount > 0 && hasAttachments ? (
+            "+"
+          ) : commentCount > 0 ? (
+            <MessageSquare className="h-3 w-3" />
+          ) : (
+            <Paperclip className="h-3 w-3" />
+          )}
         </div>
-        <div className="flex gap-2">
+      )}
+      
+      {/* Badge/tag no topo */}
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex gap-1">
           {getPriorityBadge(priority)}
           {getStatusBadge(status)}
         </div>
       </div>
-      
+      {/* Título */}
+      <h3 className="font-medium text-gray-900 dark:text-white text-sm mb-0.5">{title}</h3>
+      {/* Descrição */}
       {description && (
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{description}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5 line-clamp-1">{description}</p>
       )}
-      
-      <div className="flex flex-col gap-1.5 text-sm">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-gray-400" />
-          <span className="text-gray-700 dark:text-gray-200">Responsável: {assignedToName}</span>
-        </div>
-        
-        {dueDate && (
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-200">
-              Prazo: {format(new Date(dueDate), "dd/MM/yyyy", { locale: ptBR })}
+      {/* Avatar e metadados */}
+      <div className="flex items-center justify-between mt-1.5">
+        <div className="flex gap-2 text-xs text-gray-400 dark:text-gray-500 items-center">
+          {dueDate && (
+            <span className="flex items-center gap-0.5">
+              <Calendar className="h-3 w-3" />
+              {format(new Date(dueDate), "dd/MM", { locale: ptBR })}
             </span>
-          </div>
-        )}
-        
-        {relatedLeadName && (
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-200">Lead: {relatedLeadName}</span>
-          </div>
-        )}
-        
-        {commentCount > 0 && (
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-200">{commentCount} comentário{commentCount > 1 ? 's' : ''}</span>
-          </div>
-        )}
+          )}
+          <span className="flex items-center gap-0.5" title={commentCount > 0 ? `${commentCount} comentário${commentCount !== 1 ? 's' : ''}` : "Sem comentários"}>
+            <MessageSquare className="h-3 w-3" />
+            {commentCount > 0 && (
+              <span className="text-xs">{commentCount}</span>
+            )}
+          </span>
+          <span className="flex items-center gap-0.5" title={hasAttachments ? "Possui anexos" : "Sem anexos"}>
+            <Paperclip className="h-3 w-3" />
+            {hasAttachments && (
+              <span className="block h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+            )}
+          </span>
+        </div>
+        <Avatar className="h-6 w-6" title={`Responsável: ${assignedToName}`}>
+          <AvatarFallback 
+            style={{ 
+              background: getAvatarColor(assignedToName), 
+              color: 'white', 
+              fontSize: 11,
+              fontWeight: 'bold' 
+            }}
+          >
+            {assignedToName ? assignedToName.substring(0, 2).toUpperCase() : "?"}
+          </AvatarFallback>
+        </Avatar>
       </div>
       
-      <div className={`flex justify-between items-center mt-4 ${isHovered ? "opacity-100" : "opacity-0"} transition-opacity duration-200`}>
-        <div className="flex gap-2">
+      {/* Ações de status só aparecem em hover */}
+      {onStatusChange && (
+        <div className="absolute top-0 left-0 right-0 bottom-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm opacity-0 hover:opacity-100 flex items-center justify-center gap-1 transition-opacity duration-200 rounded-md">
           {getStatusActions()}
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => setTaskDetailOpen(true)}
-        >
-          Ver detalhes
-        </Button>
-      </div>
-
-      {/* Dialog de detalhes da tarefa */}
-      <TaskDetailDialog 
-        open={taskDetailOpen} 
-        onOpenChange={setTaskDetailOpen} 
-        taskId={id} 
-      />
+      )}
     </Card>
   );
 } 

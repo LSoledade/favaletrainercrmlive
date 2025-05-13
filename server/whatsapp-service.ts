@@ -12,6 +12,10 @@ const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
 const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID || '6536281892435135';
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v18.0';
 
+// Evolution API configs
+const EVOLUTION_API_URL = 'https://n8n-n8n.okkagk.easypanel.host/webhook/152f761e-e0b5-4ef4-9493-7f4abad80ed8';
+const EVOLUTION_API_TOKEN = '7f3b2c4d1e6a8f0b9d3c5e7a2f4b6d8c';
+
 // Interface para resposta da API
 interface WhatsAppAPIResponse {
   messaging_product: string;
@@ -37,83 +41,57 @@ interface WhatsAppResult {
   messageId?: string;
   error?: string;
   details?: any;
-  isUnauthorizedNumber?: boolean;
 }
 
 /**
- * Envia mensagem de texto via WhatsApp API
+ * Envia mensagem de texto via Evolution API
  */
 export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<WhatsAppResult> {
-  if (!WHATSAPP_API_TOKEN) {
-    log('WhatsApp API token não configurado', 'error');
-    return { success: false, error: 'WhatsApp API token não configurado' };
-  }
-
-  // Formatar o número de telefone
   const phoneNumber = formatPhoneNumber(lead.phone);
   if (!phoneNumber) {
     return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
   }
-  
-  log(`Enviando mensagem WhatsApp para ${lead.name} (${phoneNumber})`, 'info');
-  
+
+  log(`Enviando mensagem Evolution API para ${lead.name} (${phoneNumber})`, 'info');
+
   try {
-    const response = await axios.post<WhatsAppAPIResponse>(
-      `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_ID}/messages`,
+    const response = await axios.post(
+      EVOLUTION_API_URL,
       {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: phoneNumber,
-        type: 'text',
-        text: { body: message }
+        number: phoneNumber,
+        message: message
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`
+          'Authorization': `Bearer ${EVOLUTION_API_TOKEN}`
         },
-        timeout: 10000 // 10 segundos de timeout
+        timeout: 10000
       }
     );
 
-    if (response.data.messages && response.data.messages.length > 0) {
-      const messageId = response.data.messages[0].id;
-      log(`Mensagem enviada com sucesso. ID: ${messageId}`, 'info');
-      return { success: true, messageId, details: response.data };
+    if (response.status === 200 && response.data) {
+      log(`Mensagem enviada com sucesso via Evolution API.`, 'info');
+      return { success: true, messageId: response.data.messageId || undefined, details: response.data };
     }
-    
-    log(`Mensagem enviada, mas sem ID retornado`, 'warn');
+    log(`Mensagem enviada, mas sem dados retornados`, 'warn');
     return { success: true, details: response.data };
   } catch (error) {
-    log(`Erro ao enviar mensagem WhatsApp: ${JSON.stringify(error)}`, 'error');
+    log(`Erro ao enviar mensagem Evolution API: ${JSON.stringify(error)}`, 'error');
     let errorMessage = 'Erro desconhecido ao enviar mensagem';
     let details = null;
-    let isUnauthorizedNumber = false;
-    
+
     if (axios.isAxiosError(error)) {
       if (error.response) {
-        // A requisição foi feita e o servidor respondeu com um status de erro
-        errorMessage = error.response.data?.error?.message || 
-                       error.response.data?.message || 
-                       `Erro ${error.response.status}: ${error.message}`;
+        errorMessage = error.response.data?.error || error.response.data?.message || `Erro ${error.response.status}: ${error.message}`;
         details = error.response.data;
-        
-        // Verificar se o erro é relacionado a número não autorizado (comum em contas de teste)
-        if (errorMessage.toLowerCase().includes('not in allowed list') || 
-            errorMessage.toLowerCase().includes('to phone number not approved')) {
-          isUnauthorizedNumber = true;
-          errorMessage = `Número de telefone não autorizado. No ambiente de teste, apenas números verificados podem receber mensagens. Use o número 5511996356454 para testar ou adicione o número ${phoneNumber} à lista de números permitidos.`;
-        }
       } else if (error.request) {
-        // A requisição foi feita mas não recebeu resposta
-        errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
+        errorMessage = 'Não foi possível conectar ao servidor Evolution API. Verifique sua conexão.';
       } else {
-        // Algo aconteceu na configuração da requisição que causou o erro
         errorMessage = `Erro na configuração da requisição: ${error.message}`;
       }
     }
-    
-    return { success: false, error: errorMessage, details, isUnauthorizedNumber };
+    return { success: false, error: errorMessage, details };
   }
 }
 
@@ -127,7 +105,6 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
     return { success: false, error: 'WhatsApp API token não configurado' };
   }
 
-  // Formatar o número de telefone
   const phoneNumber = formatPhoneNumber(lead.phone);
   if (!phoneNumber) {
     return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
@@ -171,113 +148,65 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
     log(`Erro ao enviar template WhatsApp: ${JSON.stringify(error)}`, 'error');
     let errorMessage = 'Erro desconhecido ao enviar mensagem';
     let details = null;
-    let isUnauthorizedNumber = false;
     
     if (axios.isAxiosError(error)) {
       if (error.response) {
-        // A requisição foi feita e o servidor respondeu com um status de erro
         errorMessage = error.response.data?.error?.message || 
                        error.response.data?.message || 
                        `Erro ${error.response.status}: ${error.message}`;
         details = error.response.data;
-        
-        // Verificar se o erro é relacionado a número não autorizado (comum em contas de teste)
-        if (errorMessage.toLowerCase().includes('not in allowed list') || 
-            errorMessage.toLowerCase().includes('to phone number not approved')) {
-          isUnauthorizedNumber = true;
-          errorMessage = `Número de telefone não autorizado. No ambiente de teste, apenas números verificados podem receber mensagens. Use o número 5511996356454 para testar ou adicione o número ${phoneNumber} à lista de números permitidos.`;
-        }
-        
-        // Verificar se o template existe
-        if (errorMessage.toLowerCase().includes('template not found')) {
-          errorMessage = `Template "${templateName}" não encontrado. Verifique se o template foi aprovado na WhatsApp Business Platform.`;
-        }
       } else if (error.request) {
-        // A requisição foi feita mas não recebeu resposta
         errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
       } else {
-        // Algo aconteceu na configuração da requisição que causou o erro
         errorMessage = `Erro na configuração da requisição: ${error.message}`;
       }
     }
     
-    return { success: false, error: errorMessage, details, isUnauthorizedNumber };
+    return { success: false, error: errorMessage, details };
   }
 }
 
 /**
- * Verifica se existe conexão com a API do WhatsApp
+ * Checa conexão com Evolution API (simples: faz um request GET e espera 200)
  */
 export async function checkWhatsAppConnection(): Promise<WhatsAppResult> {
-  if (!WHATSAPP_API_TOKEN) {
-    log('WhatsApp API token não configurado ou inválido', 'error');
-    return { 
-      success: false, 
-      error: 'WhatsApp API token não configurado. Configure o token no arquivo .env'
-    };
-  }
-  
   try {
-    // Tenta obter informações do número de telefone para verificar a conexão
-    log(`Verificando conexão com WhatsApp: ${WHATSAPP_API_URL}/${WHATSAPP_PHONE_ID}`, 'info');
-    
+    // A Evolution API não tem um endpoint padrão de healthcheck, então testamos um envio simulado (ou GET se suportado)
     const response = await axios.get(
-      `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_ID}?fields=verified_name,display_phone_number,quality_rating`,
+      EVOLUTION_API_URL,
       {
         headers: {
-          'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
+          'Authorization': `Bearer ${EVOLUTION_API_TOKEN}`,
           'Content-Type': 'application/json'
         },
-        timeout: 10000 // 10 segundos de timeout
+        timeout: 10000
       }
     );
-    
-    if (!response.data || !response.data.id) {
-      return { 
-        success: false, 
-        error: 'Resposta da API sem informações do número',
-        details: response.data
+    if (response.status === 200) {
+      return {
+        success: true,
+        details: {
+          name: 'Evolution API',
+          phone: 'Conexão OK',
+          quality: 'N/A'
+        }
       };
     }
-    
-    // Retorna sucesso com detalhes do número
-    log(`Conexão com WhatsApp estabelecida: ${JSON.stringify(response.data)}`, 'info');
-    return { 
-      success: true,
-      details: {
-        name: response.data.verified_name || 'Conta WhatsApp',
-        phone: response.data.display_phone_number || WHATSAPP_PHONE_ID,
-        quality: response.data.quality_rating
-      }
-    };
+    return { success: false, error: 'Resposta inesperada da Evolution API', details: response.data };
   } catch (error) {
-    log(`Erro ao verificar conexão WhatsApp: ${JSON.stringify(error)}`, 'error');
-    let errorMessage = 'Erro ao verificar conexão com a API do WhatsApp';
+    log(`Erro ao verificar conexão Evolution API: ${JSON.stringify(error)}`, 'error');
+    let errorMessage = 'Erro ao verificar conexão com a Evolution API';
     let details = null;
-    
     if (axios.isAxiosError(error)) {
       if (error.response) {
-        // A requisição foi feita e o servidor respondeu com um status de erro
-        errorMessage = error.response.data?.error?.message || 
-                       error.response.data?.message || 
-                       `Erro ${error.response.status}: ${error.message}`;
+        errorMessage = error.response.data?.error || error.response.data?.message || `Erro ${error.response.status}: ${error.message}`;
         details = error.response.data;
-        
-        // Verificar se é um erro de token expirado
-        if (error.response.status === 401 && 
-            (errorMessage.includes('expired') || errorMessage.includes('Session has expired'))) {
-          log('Token de acesso do WhatsApp expirado. É necessário atualizá-lo.', 'error');
-          errorMessage = 'Token de acesso expirado. Entre em contato com o administrador para atualizar o token.';
-        }
       } else if (error.request) {
-        // A requisição foi feita mas não recebeu resposta
-        errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
+        errorMessage = 'Não foi possível conectar ao servidor Evolution API. Verifique sua conexão.';
       } else {
-        // Algo aconteceu na configuração da requisição que causou o erro
         errorMessage = `Erro na configuração da requisição: ${error.message}`;
       }
     }
-    
     return { success: false, error: errorMessage, details };
   }
 }

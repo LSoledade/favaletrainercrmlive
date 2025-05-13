@@ -42,6 +42,7 @@ interface TaskContextType {
   deleteTask: (id: number) => Promise<boolean>;
   addComment: (taskId: number, content: string) => Promise<TaskComment>;
   addTaskComment: (taskId: number, comment: Partial<TaskComment>) => Promise<TaskComment>;
+  deleteTaskComment: (commentId: number) => Promise<boolean>;
   myTasks: Task[];
   assignedTasks: Task[];
   completedTasks: Task[];
@@ -411,6 +412,48 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     }
   }, [toast, user]);
 
+  const deleteTaskComment = useCallback(async (commentId: number) => {
+    try {
+      const response = await fetch(`/api/tasks/comments/${commentId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao excluir comentário: ${response.status}`);
+      }
+      
+      // Update the tasks state to remove the comment
+      setTasks(prevTasks => 
+        prevTasks.map(task => {
+          if (!task.comments) return task;
+          
+          return {
+            ...task,
+            comments: task.comments.filter(comment => comment.id !== commentId)
+          };
+        })
+      );
+      
+      toast({
+        title: "Sucesso",
+        description: "Comentário excluído com sucesso.",
+      });
+      
+      return true;
+    } catch (err) {
+      console.error("Erro ao excluir comentário:", err);
+      setError("Erro ao excluir comentário");
+      
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível excluir o comentário.",
+      });
+      
+      return false;
+    }
+  }, [toast]);
+
   // Filtrar tarefas por usuário e status
   const currentUserId = user?.id || 0;
   const myTasks = tasks.filter(task => task.assignedToId === currentUserId && task.status !== "completed");
@@ -433,6 +476,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         deleteTask,
         addComment,
         addTaskComment,
+        deleteTaskComment,
         myTasks,
         assignedTasks,
         completedTasks,

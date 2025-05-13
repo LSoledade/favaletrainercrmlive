@@ -146,6 +146,16 @@ export default function AuthPage() {
             <p className="text-sm text-center text-gray-500 dark:text-gray-400">
               Entre em contato com o administrador do sistema para solicitar acesso.
             </p>
+            <p className="text-xs text-center mt-4">
+              <a
+                href="/politica-de-privacidade"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline dark:text-blue-400"
+              >
+                Política de Privacidade
+              </a>
+            </p>
           </div>
         </div>
       </div>

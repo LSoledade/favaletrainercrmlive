@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, type IStorage } from "./storage";
 import { db } from "./db";
 import { 
   leads,
@@ -26,9 +26,36 @@ async function hashPassword(password: string) {
   return `${buf.toString("hex")}.${salt}`;
 }
 
+// Helper para adicionar nomes de usuários às tarefas
+async function addUserNamesToTasks(tasks: any[], storage: IStorage) {
+  // Buscar todos os usuários para preencher os nomes
+  const users = await storage.getAllUsers();
+  
+  // Criar mapa de IDs -> nomes de usuários para busca rápida
+  const userMap = users.reduce((acc: Record<number, string>, user: { id: number, username: string }) => {
+    acc[user.id] = user.username;
+    return acc;
+  }, {});
+  
+  // Adicionar nomes de usuários às tarefas
+  return tasks.map(task => ({
+    ...task,
+    assignedToName: userMap[task.assignedToId] || 'Usuário não encontrado',
+    assignedByName: userMap[task.assignedById] || 'Usuário não encontrado'
+  }));
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes and middleware
   setupAuth(app);
+  
+  // Middleware para checar autenticação sem exigir admin
+  function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    next();
+  }
   
   // Middleware para checar se é administrador
   function isAdmin(req: Request, res: Response, next: NextFunction) {
@@ -41,8 +68,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   }
 
-  // Endpoints de usuários (apenas para administradores)
-  app.get("/api/users", isAdmin, async (_req, res) => {
+  // Endpoints de usuários
+  // Lista de usuários - permitido para qualquer usuário autenticado (para atribuição de tarefas)
+  app.get("/api/users", isAuthenticated, async (_req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -1197,15 +1225,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Listar todas as tarefas
   app.get('/api/tasks', async (req, res) => {
     try {
+      // Buscar todas as tarefas
       const tasks = await storage.getTasks();
-      res.json(tasks);
+      
+      // Adicionar nomes de usuários às tarefas
+      const tasksWithUserNames = await addUserNamesToTasks(tasks, storage);
+      
+      res.json(tasksWithUserNames);
     } catch (error) {
       console.error('Erro ao buscar tarefas:', error);
       res.status(500).json({ message: 'Erro ao buscar tarefas' });
     }
   });
   
-  // Buscar tarefa por ID
+  // Buscar tarefa pelo ID
   app.get('/api/tasks/:id', async (req, res) => {
     const id = parseInt(req.params.id);
     
@@ -1214,19 +1247,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
+      // Buscar tarefa
       const task = await storage.getTask(id);
       
       if (!task) {
         return res.status(404).json({ message: 'Tarefa não encontrada' });
       }
       
+      // Buscar usuários relacionados à tarefa
+      const assignedTo = await storage.getUser(task.assignedToId);
+      const assignedBy = await storage.getUser(task.assignedById);
+      
       // Buscar comentários da tarefa
       const comments = await storage.getTaskCommentsByTaskId(id);
       
-      // Retornar tarefa com comentários
+      // Adicionar informações de nome de usuário a cada comentário
+      const commentsWithUserInfo = await Promise.all(comments.map(async comment => {
+        if (comment.userId) {
+          const commentUser = await storage.getUser(comment.userId);
+          return {
+            ...comment,
+            userName: commentUser?.username || 'Usuário não encontrado'
+          };
+        }
+        return comment;
+      }));
+      
+      // Retornar tarefa com nomes de usuários e comentários
       res.json({
         ...task,
-        comments
+        assignedToName: assignedTo?.username || 'Usuário não encontrado',
+        assignedByName: assignedBy?.username || 'Usuário não encontrado',
+        comments: commentsWithUserInfo
       });
     } catch (error) {
       console.error(`Erro ao buscar tarefa ${id}:`, error);
@@ -1338,7 +1390,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const tasks = await storage.getTasksByAssignedToId(userId);
-      res.json(tasks);
+      
+      // Adicionar nomes de usuários às tarefas
+      const tasksWithUserNames = await addUserNamesToTasks(tasks, storage);
+      
+      res.json(tasksWithUserNames);
     } catch (error) {
       console.error(`Erro ao buscar tarefas atribuídas ao usuário ${userId}:`, error);
       res.status(500).json({ message: 'Erro ao buscar tarefas' });
@@ -1356,7 +1412,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const tasks = await storage.getTasksByStatus(status);
-      res.json(tasks);
+      
+      // Adicionar nomes de usuários às tarefas
+      const tasksWithUserNames = await addUserNamesToTasks(tasks, storage);
+      
+      res.json(tasksWithUserNames);
     } catch (error) {
       console.error(`Erro ao buscar tarefas com status ${status}:`, error);
       res.status(500).json({ message: 'Erro ao buscar tarefas' });

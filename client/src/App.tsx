@@ -19,6 +19,7 @@ import { LeadProvider } from "@/context/LeadContext";
 import { WhatsappProvider } from "@/context/WhatsappContext";
 import { TaskProvider } from "@/context/TaskContext";
 import { AuthProvider } from "@/hooks/use-auth";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 
 function Router() {
   return (
@@ -32,6 +33,7 @@ function Router() {
       <ProtectedRoute path="/tarefas/:id" component={TaskDetailsPage} />
       <ProtectedRoute path="/config" component={ConfigPage} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/politica-de-privacidade" component={PrivacyPolicyPage} />
       <Route component={NotFound} />
     </Switch>
   );

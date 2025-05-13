@@ -123,18 +123,8 @@ const WhatsappTemplateSelector = ({ lead, onSuccess }: WhatsappTemplateSelectorP
     },
   });
 
-  // Verificar se o número é autorizado (apenas para ambiente de teste)
-  const isAuthorizedNumber = lead.phone === '5511996356454';
-
   const handleSendTemplate = () => {
     if (templateId) {
-      // No ambiente de teste, mostrar uma confirmação se tentando enviar para número não autorizado
-      if (!isAuthorizedNumber) {
-        if (!confirm(`ATENÇÃO: O número ${lead.phone} não está na lista de números autorizados do WhatsApp. No ambiente de desenvolvimento, apenas o número 5511996356454 está autorizado para receber mensagens.\n\nDeseja continuar mesmo assim? (A mensagem de template provavelmente falhará)`)) {
-          return;
-        }
-      }
-      
       sendTemplateMutation.mutate(templateId);
     }
   };
@@ -167,19 +157,6 @@ const WhatsappTemplateSelector = ({ lead, onSuccess }: WhatsappTemplateSelectorP
         </DialogHeader>
         
         <div className="py-4">
-          {/* Aviso sobre número não autorizado */}
-          {!isAuthorizedNumber && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 flex items-start">
-              <div className="bg-amber-100 rounded-full p-1 mr-2 mt-0.5">
-                <AlertCircle className="h-4 w-4 text-amber-800" />
-              </div>
-              <div className="text-xs">
-                <p className="font-medium mb-1">Atenção</p>
-                <p>O número <span className="font-mono">{lead.phone}</span> não está autorizado no ambiente de teste. Apenas o número <span className="font-mono">5511996356454</span> está autorizado.</p>
-              </div>
-            </div>
-          )}
-          
           <Select value={templateId} onValueChange={setTemplateId}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Escolha um template" />
