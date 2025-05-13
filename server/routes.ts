@@ -13,7 +13,15 @@ import { setupAuth } from "./auth";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { logAuditEvent, AuditEventType, getRecentAuditLogs } from "./audit-log";
-import { sendWhatsAppMessage, sendWhatsAppTemplate, checkWhatsAppConnection, formatPhoneNumber } from "./whatsapp-service";
+import { 
+  sendWhatsAppMessage, 
+  sendWhatsAppTemplate, 
+  checkWhatsAppConnection, 
+  formatPhoneNumber, 
+  sendWhatsAppImage,
+  getWhatsAppQRCode,
+  checkMessageStatus
+} from "./whatsapp-service";
 import { getWeatherByCity, checkWeatherService } from "./weather-service";
 import { log } from "./vite";
 import { sql } from 'drizzle-orm';
