@@ -579,3 +579,75 @@ export function formatPhoneNumber(phoneNumber: string | null | undefined): strin
   
   return digits;
 }
+
+/**
+ * Salva as configurações da Evolution API
+ * @param apiUrl URL base da API
+ * @param apiToken Token de autenticação (opcional)
+ * @param apiInstance Nome da instância
+ * @returns Objeto com resultado da operação
+ */
+export async function saveConfigSettings(apiUrl: string, apiToken?: string, apiInstance = 'default'): Promise<WhatsAppResult> {
+  try {
+    log(`Salvando configurações: URL=${apiUrl}, Instância=${apiInstance}`, 'info');
+    
+    // Usar variáveis de ambiente em desenvolvimento
+    if (process.env.NODE_ENV === 'development') {
+      // Atualizar as variáveis (em memória apenas)
+      if (apiUrl) {
+        (global as any).EVOLUTION_API_URL = apiUrl;
+      }
+      if (apiToken) {
+        (global as any).EVOLUTION_API_TOKEN = apiToken;
+      }
+      if (apiInstance) {
+        (global as any).EVOLUTION_API_INSTANCE = apiInstance;
+      }
+      
+      return {
+        success: true,
+        details: {
+          message: 'Configurações salvas com sucesso (modo de desenvolvimento)'
+        }
+      };
+    }
+    
+    // Em produção, atualizar as variáveis globais
+    if (apiUrl) {
+      (global as any).EVOLUTION_API_URL = apiUrl;
+    }
+    if (apiToken) {
+      (global as any).EVOLUTION_API_TOKEN = apiToken;
+    }
+    if (apiInstance) {
+      (global as any).EVOLUTION_API_INSTANCE = apiInstance;
+    }
+    
+    return {
+      success: true,
+      details: {
+        message: 'Configurações salvas com sucesso'
+      }
+    };
+  } catch (error: any) {
+    log(`Erro ao salvar configurações do WhatsApp: ${error}`, 'error');
+    return {
+      success: false,
+      error: error.message || 'Erro ao salvar configurações do WhatsApp'
+    };
+  }
+}
+
+/**
+ * Obtém as configurações atuais da Evolution API
+ * @returns Objeto com as configurações atuais
+ */
+export async function getConfigSettings(): Promise<any> {
+  // Retornar configurações (sem expor o token completo)
+  return {
+    apiUrl: EVOLUTION_API_URL,
+    apiInstance: EVOLUTION_API_INSTANCE,
+    hasToken: !!EVOLUTION_API_TOKEN,
+    lastUpdated: new Date().toISOString()
+  };
+}

@@ -20,7 +20,9 @@ import {
   formatPhoneNumber, 
   sendWhatsAppImage,
   getWhatsAppQRCode,
-  checkMessageStatus
+  checkMessageStatus,
+  saveConfigSettings,
+  getConfigSettings
 } from "./whatsapp-service";
 import { getWeatherByCity, checkWeatherService } from "./weather-service";
 import { log } from "./vite";
