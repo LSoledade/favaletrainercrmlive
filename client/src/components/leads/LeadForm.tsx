@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { Lead, InsertLead, leadValidationSchema } from "@shared/schema";
 import TagInput from "./TagInput";
+import LeadStatusChangeNotification from "./LeadStatusChangeNotification";
 
 interface LeadFormProps {
   lead?: Lead | null;

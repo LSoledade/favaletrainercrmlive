@@ -42,20 +42,26 @@ interface Template {
 const availableTemplates: Template[] = [
   {
     id: 'hello_world',
-    name: 'Hello World',
-    description: 'Mensagem simples de boas-vindas',
+    name: 'Boas-vindas',
+    description: 'Mensagem de boas-vindas para novos leads',
     category: 'MARKETING'
   },
   {
-    id: 'sample_purchase_feedback',
-    name: 'Feedback de Compra',
-    description: 'Solicitar feedback sobre uma compra recente',
+    id: 'welcome_personal_training',
+    name: 'Boas-vindas Treinamento',
+    description: 'Mensagem de boas-vindas específica para treinamento pessoal',
     category: 'MARKETING'
   },
   {
-    id: 'sample_shipping_confirmation',
-    name: 'Confirmação de Envio',
-    description: 'Confirmar que um pedido foi enviado',
+    id: 'special_offer',
+    name: 'Oferta Especial',
+    description: 'Informar sobre promoção ou pacote especial',
+    category: 'MARKETING'
+  },
+  {
+    id: 'workout_plan',
+    name: 'Plano de Treino',
+    description: 'Confirmação de envio do plano de treino personalizado',
     category: 'UTILITY'
   },
   {
@@ -68,6 +74,18 @@ const availableTemplates: Template[] = [
     id: 'lembrete_sessao',
     name: 'Lembrete de Sessão',
     description: 'Lembrar o cliente sobre uma sessão agendada',
+    category: 'UTILITY'
+  },
+  {
+    id: 'nutritional_plan',
+    name: 'Plano Nutricional',
+    description: 'Confirmação de envio do plano nutricional',
+    category: 'UTILITY'
+  },
+  {
+    id: 'progress_update',
+    name: 'Atualização de Progresso',
+    description: 'Solicitar atualização de progresso do aluno',
     category: 'UTILITY'
   }
 ];
