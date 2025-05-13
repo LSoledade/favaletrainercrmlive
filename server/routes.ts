@@ -1175,6 +1175,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ status: 'error', message: 'Erro ao verificar conexão com a API do WhatsApp' });
     }
   });
+  
+  // Obter QR Code para conexão com WhatsApp
+  app.get('/api/whatsapp/qrcode', async (req, res) => {
+    try {
+      const qrCodeResult = await getWhatsAppQRCode();
+      
+      if (qrCodeResult.success && qrCodeResult.details?.qrcode) {
+        res.json({ 
+          success: true, 
+          qrcode: qrCodeResult.details.qrcode,
+          status: qrCodeResult.details.status || 'DISCONNECTED'
+        });
+      } else {
+        console.warn(`Falha ao obter QR Code: ${qrCodeResult.error}`);
+        res.status(400).json({ 
+          success: false, 
+          message: qrCodeResult.error || 'Não foi possível obter o QR Code',
+          details: qrCodeResult.details || {}
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao obter QR Code:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro interno ao obter QR Code' 
+      });
+    }
+  });
+  
+  // Verificar status de uma mensagem enviada
+  app.get('/api/whatsapp/message-status/:messageId', async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      
+      if (!messageId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'ID da mensagem é obrigatório' 
+        });
+      }
+      
+      const statusResult = await checkMessageStatus(messageId);
+      
+      if (statusResult.success) {
+        res.json({ 
+          success: true, 
+          status: statusResult.details?.status || 'sent',
+          originalStatus: statusResult.details?.originalStatus,
+          timestamp: statusResult.details?.timestamp
+        });
+      } else {
+        console.warn(`Falha ao verificar status da mensagem: ${statusResult.error}`);
+        res.status(400).json({ 
+          success: false, 
+          message: statusResult.error || 'Falha ao verificar status da mensagem',
+          details: statusResult.details || {}
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status da mensagem:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro interno ao verificar status da mensagem' 
+      });
+    }
+  });
   // API de clima - Verificar status do serviço
   app.get('/api/weather/status', async (req, res) => {
     try {
