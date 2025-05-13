@@ -7,6 +7,9 @@ import { Paperclip, Send, Image, Mic, AlertCircle, MoreVertical, ChevronLeft } f
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import WhatsappTemplateSelector from './WhatsappTemplateSelector';
 
 interface WhatsappChatProps {
@@ -17,6 +20,9 @@ interface WhatsappChatProps {
 const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
   const [message, setMessage] = useState('');
   const [attaching, setAttaching] = useState(false);
+  const [showImageDialog, setShowImageDialog] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageCaption, setImageCaption] = useState('');
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -27,7 +33,7 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
     refetchInterval: 10000, // Atualizar a cada 10 segundos
   });
 
-  // Mutação para enviar mensagem
+  // Mutação para enviar mensagem de texto
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       return apiRequest('POST', '/api/whatsapp/send', {
@@ -61,6 +67,45 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
       });
     },
   });
+  
+  // Mutação para enviar imagem
+  const sendImageMutation = useMutation({
+    mutationFn: async ({ url, caption }: { url: string; caption: string }) => {
+      return apiRequest('POST', '/api/whatsapp/send-image', {
+        leadId: lead.id,
+        imageUrl: url,
+        caption
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/whatsapp/lead/${lead.id}`] });
+      setShowImageDialog(false);
+      setImageUrl('');
+      setImageCaption('');
+      toast({
+        title: 'Imagem enviada',
+        description: 'Imagem enviada com sucesso'
+      });
+    },
+    onError: (error: any) => {
+      console.error('Erro ao enviar imagem:', error);
+      
+      let errorMessage = 'Não foi possível enviar a imagem';
+      
+      // Verificar se é um erro específico de número não autorizado
+      if (error?.response?.data?.isUnauthorizedNumber) {
+        errorMessage = `Número ${lead.phone} não autorizado. Apenas números verificados podem receber mensagens no ambiente de teste.`;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      toast({
+        title: 'Erro no envio da imagem',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Rolar para o final das mensagens quando novas mensagens chegarem
   useEffect(() => {
@@ -75,6 +120,22 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
     if (message.trim()) {
       sendMessageMutation.mutate(message.trim());
     }
+  };
+  
+  const handleSendImage = () => {
+    if (!imageUrl) {
+      toast({
+        title: 'URL da imagem obrigatória',
+        description: 'Por favor, insira uma URL válida para a imagem',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    sendImageMutation.mutate({ 
+      url: imageUrl, 
+      caption: imageCaption 
+    });
   };
 
   const formatTime = (timestamp: string | Date) => {
@@ -191,7 +252,23 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
               <div 
                 className={`max-w-xs md:max-w-md rounded-lg p-3 ${msg.direction === 'outgoing' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-gray-100 dark:bg-muted text-gray-900 dark:text-muted-foreground rounded-bl-none'}`}
               >
-                <p className="whitespace-pre-wrap break-words text-sm">{msg.content}</p>
+                {msg.mediaUrl && msg.mediaType === 'image' ? (
+                  <div className="space-y-2">
+                    <img 
+                      src={msg.mediaUrl} 
+                      alt="Imagem" 
+                      className="max-w-full rounded-md"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://via.placeholder.com/300x200?text=Erro+ao+carregar+imagem';
+                      }} 
+                    />
+                    {msg.content && msg.content !== '[Imagem enviada]' && (
+                      <p className="whitespace-pre-wrap break-words text-sm">{msg.content}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap break-words text-sm">{msg.content}</p>
+                )}
                 <div className="text-xs opacity-80 text-right mt-1 flex justify-end items-center">
                   {formatTime(msg.timestamp)}
                   {msg.direction === 'outgoing' && (
@@ -239,7 +316,13 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9">
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-9 w-9"
+                    onClick={() => setShowImageDialog(true)}
+                  >
                     <Image size={18} className="text-muted-foreground" />
                   </Button>
                 </TooltipTrigger>
@@ -298,6 +381,68 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
           </Tooltip>
         </TooltipProvider>
       </form>
+      
+      {/* Dialog para upload de imagem */}
+      <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar Imagem</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="imageUrl">URL da Imagem</Label>
+              <Input
+                id="imageUrl"
+                placeholder="https://exemplo.com/imagem.jpg"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Insira a URL de uma imagem pública disponível na internet
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="caption">Legenda (opcional)</Label>
+              <Input
+                id="caption"
+                placeholder="Escreva uma legenda para a imagem..."
+                value={imageCaption}
+                onChange={(e) => setImageCaption(e.target.value)}
+              />
+            </div>
+            
+            {imageUrl && (
+              <div className="border rounded-md p-2 mt-2">
+                <img 
+                  src={imageUrl} 
+                  alt="Pré-visualização" 
+                  className="max-w-full h-auto rounded" 
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://via.placeholder.com/300x200?text=Erro+ao+carregar+imagem';
+                    toast({
+                      title: 'Erro ao carregar imagem',
+                      description: 'Verifique se a URL é válida e acessível',
+                      variant: 'destructive'
+                    });
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setShowImageDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSendImage} 
+              disabled={!imageUrl || sendImageMutation.isPending}
+            >
+              Enviar Imagem
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
