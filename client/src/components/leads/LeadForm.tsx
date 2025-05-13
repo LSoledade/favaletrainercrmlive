@@ -13,13 +13,17 @@ interface LeadFormProps {
 
 export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
   const [tags, setTags] = useState<string[]>(lead?.tags || []);
+  const [showStatusNotification, setShowStatusNotification] = useState(false);
+  const originalStatus = useRef(lead?.status || "Lead");
+  const formattedData = useRef<InsertLead | null>(null);
   
   const { 
     register, 
     handleSubmit, 
     formState: { errors, isSubmitting },
     setValue, 
-    reset
+    reset,
+    control
   } = useForm<InsertLead>({
     resolver: zodResolver(leadValidationSchema),
     defaultValues: lead || {
@@ -120,7 +124,20 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
         entryDate: formData.entryDate.toISOString(),
       };
       console.log('Normalized form data for submission:', normalizedFormData);
-      onSubmit(normalizedFormData);
+      
+      // Check if status is changing from Lead to Aluno
+      if (
+        originalStatus.current === "Lead" && 
+        data.status === "Aluno" &&
+        lead?.id // Only existing leads with ID
+      ) {
+        // Store the formatted data and show notification dialog
+        formattedData.current = normalizedFormData;
+        setShowStatusNotification(true);
+      } else {
+        // Submit directly if no status change or not a lead->aluno transition
+        onSubmit(normalizedFormData);
+      }
     } catch (error) {
       console.error('Error formatting lead data:', error);
     }
