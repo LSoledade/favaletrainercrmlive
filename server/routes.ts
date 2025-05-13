@@ -1135,30 +1135,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Obter QR Code para conexão com WhatsApp
+  // Obter configuração da API do WhatsApp
+  app.get('/api/whatsapp/config', async (req, res) => {
+    try {
+      const configSettings = await getConfigSettings();
+      res.json(configSettings);
+    } catch (error) {
+      console.error('Erro ao obter configurações do WhatsApp:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao obter configurações do WhatsApp',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Salvar configuração da API do WhatsApp
+  app.post('/api/whatsapp/config', async (req, res) => {
+    try {
+      const { apiUrl, apiToken, apiInstance } = req.body;
+      
+      if (!apiUrl) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'URL da API é obrigatória' 
+        });
+      }
+      
+      const result = await saveConfigSettings(apiUrl, apiToken, apiInstance);
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          message: 'Configurações salvas com sucesso',
+          details: result.details
+        });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          message: result.error || 'Falha ao salvar configurações',
+          details: result.details
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao salvar configurações do WhatsApp:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro interno ao salvar configurações',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Obter QR Code para conexão
   app.get('/api/whatsapp/qrcode', async (req, res) => {
     try {
       const qrCodeResult = await getWhatsAppQRCode();
       
-      if (qrCodeResult.success && qrCodeResult.details?.qrcode) {
+      if (qrCodeResult.success) {
         res.json({ 
           success: true, 
-          qrcode: qrCodeResult.details.qrcode,
-          status: qrCodeResult.details.status || 'DISCONNECTED'
+          details: qrCodeResult.details
         });
       } else {
-        console.warn(`Falha ao obter QR Code: ${qrCodeResult.error}`);
+        console.warn(`Falha ao obter QR code: ${qrCodeResult.error}`);
         res.status(400).json({ 
           success: false, 
-          message: qrCodeResult.error || 'Não foi possível obter o QR Code',
-          details: qrCodeResult.details || {}
+          message: qrCodeResult.error || 'Falha ao obter QR code',
+          details: qrCodeResult.details
         });
       }
     } catch (error) {
-      console.error('Erro ao obter QR Code:', error);
+      console.error('Erro ao gerar QR code:', error);
       res.status(500).json({ 
         success: false, 
-        message: 'Erro interno ao obter QR Code' 
+        message: 'Erro interno ao gerar QR code',
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
