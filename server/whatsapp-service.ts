@@ -1,6 +1,6 @@
 /**
  * Serviço WhatsApp API
- * Integra com a API oficial do WhatsApp para envio e recebimento de mensagens
+ * Integra com a API oficial do WhatsApp e Evolution API para envio e recebimento de mensagens
  */
 
 import axios from 'axios';
@@ -13,10 +13,14 @@ const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID || '6536281892435135';
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v18.0';
 
 // Evolution API configs
-const EVOLUTION_API_URL = 'https://n8n-n8n.okkagk.easypanel.host/webhook/152f761e-e0b5-4ef4-9493-7f4abad80ed8';
-const EVOLUTION_API_TOKEN = '7f3b2c4d1e6a8f0b9d3c5e7a2f4b6d8c';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://evolution-api.example.com/api/v1';
+const EVOLUTION_API_TOKEN = process.env.EVOLUTION_API_TOKEN || '7f3b2c4d1e6a8f0b9d3c5e7a2f4b6d8c';
+const EVOLUTION_API_INSTANCE = process.env.EVOLUTION_API_INSTANCE || 'default';
 
-// Interface para resposta da API
+// Logs para facilitar depuração
+log(`Usando EVOLUTION_API_URL: ${EVOLUTION_API_URL}`, 'info');
+
+// Interface para resposta da API WhatsApp Oficial
 interface WhatsAppAPIResponse {
   messaging_product: string;
   contacts?: {
@@ -33,6 +37,19 @@ interface WhatsAppAPIResponse {
     error_subcode?: number;
     fbtrace_id: string;
   };
+}
+
+// Interface para resposta da Evolution API
+interface EvolutionAPIResponse {
+  key?: {
+    fromMe: boolean;
+    remoteJid: string;
+    id: string;
+  };
+  status?: string;
+  message?: string;
+  error?: string;
+  info?: any;
 }
 
 // Interface compartilhada para retorno das funções de WhatsApp
@@ -55,36 +72,65 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
   log(`Enviando mensagem Evolution API para ${lead.name} (${phoneNumber})`, 'info');
 
   try {
-    const response = await axios.post(
-      EVOLUTION_API_URL,
-      {
-        number: phoneNumber,
-        message: message
+    // Endpoint de texto da Evolution API
+    const endpoint = `${EVOLUTION_API_URL}/message/text/${EVOLUTION_API_INSTANCE}`;
+    
+    // Payload conforme documentação da Evolution API
+    const payload = {
+      number: phoneNumber,
+      options: {
+        delay: 1200, // Delay em ms (recomendado pela Evolution API)
+        presence: "composing" // Mostra "digitando..." antes de enviar
       },
+      textMessage: {
+        text: message
+      }
+    };
+
+    log(`Requisição para ${endpoint}`, 'info');
+    
+    const response = await axios.post(
+      endpoint,
+      payload,
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${EVOLUTION_API_TOKEN}`
+          'apikey': EVOLUTION_API_TOKEN
         },
-        timeout: 10000
+        timeout: 15000 // 15 segundos
       }
     );
 
-    if (response.status === 200 && response.data) {
-      log(`Mensagem enviada com sucesso via Evolution API.`, 'info');
-      return { success: true, messageId: response.data.messageId || undefined, details: response.data };
+    if (response.status >= 200 && response.status < 300 && response.data) {
+      log(`Mensagem enviada com sucesso via Evolution API: ${JSON.stringify(response.data)}`, 'info');
+      
+      // Extrair o ID da mensagem da resposta
+      const messageId = response.data.key?.id || 
+                        response.data.messageId || 
+                        response.data.id || 
+                        `temp_${Date.now()}`;
+      
+      return { 
+        success: true, 
+        messageId, 
+        details: response.data 
+      };
     }
-    log(`Mensagem enviada, mas sem dados retornados`, 'warn');
+    
+    log(`Resposta da API: ${JSON.stringify(response.data)}`, 'warn');
     return { success: true, details: response.data };
   } catch (error) {
-    log(`Erro ao enviar mensagem Evolution API: ${JSON.stringify(error)}`, 'error');
+    log(`Erro ao enviar mensagem Evolution API: ${error}`, 'error');
     let errorMessage = 'Erro desconhecido ao enviar mensagem';
     let details = null;
 
     if (axios.isAxiosError(error)) {
       if (error.response) {
-        errorMessage = error.response.data?.error || error.response.data?.message || `Erro ${error.response.status}: ${error.message}`;
+        errorMessage = error.response.data?.error || 
+                      error.response.data?.message || 
+                      `Erro ${error.response.status}: ${error.message}`;
         details = error.response.data;
+        log(`Detalhes do erro: ${JSON.stringify(details)}`, 'error');
       } else if (error.request) {
         errorMessage = 'Não foi possível conectar ao servidor Evolution API. Verifique sua conexão.';
       } else {
