@@ -1,6 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useState, useEffect } from "react";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, User, Shield } from "lucide-react";
@@ -47,6 +47,7 @@ export default function Sidebar({ open, setOpen, expanded = true }: SidebarProps
     { path: "/calendario", label: "Calendário", icon: "event" },
     { path: "/tarefas", label: "Tarefas", icon: "assignment" },
     { path: "/whatsapp", label: "WhatsApp", icon: "chat" },
+    { path: "/favale-ia", label: "FavaleIA", icon: "psychology" },
     { path: "/config", label: "Configurações", icon: "settings" },
   ];
   

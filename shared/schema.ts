@@ -338,3 +338,20 @@ export const taskCommentValidationSchema = insertTaskCommentSchema.extend({
 
 export type InsertTaskComment = z.infer<typeof insertTaskCommentSchema>;
 export type TaskComment = typeof taskComments.$inferSelect;
+
+// Tabela de configurações do WhatsApp/Evolution API
+export const whatsappSettings = pgTable("whatsapp_settings", {
+  id: serial("id").primaryKey(),
+  apiUrl: text("api_url").notNull(),
+  apiToken: text("api_token").notNull(),
+  apiInstance: text("api_instance").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWhatsappSettingsSchema = createInsertSchema(whatsappSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertWhatsappSettings = z.infer<typeof insertWhatsappSettingsSchema>;
+export type WhatsappSettings = typeof whatsappSettings.$inferSelect;

@@ -6,6 +6,7 @@
 import axios from 'axios';
 import { log } from './vite';
 import { Lead } from '@shared/schema';
+import { storage } from './storage';
 
 // Configurações da API do WhatsApp
 const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
@@ -16,9 +17,11 @@ const WHATSAPP_API_URL = 'https://graph.facebook.com/v18.0';
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://evolution-api.example.com/api/v1';
 const EVOLUTION_API_TOKEN = process.env.EVOLUTION_API_TOKEN || '7f3b2c4d1e6a8f0b9d3c5e7a2f4b6d8c';
 const EVOLUTION_API_INSTANCE = process.env.EVOLUTION_API_INSTANCE || 'default';
+const WHATSAPP_TEST_MODE = process.env.WHATSAPP_TEST_MODE === 'true';
 
 // Logs para facilitar depuração
 log(`Usando EVOLUTION_API_URL: ${EVOLUTION_API_URL}`, 'info');
+log(`Modo de teste WhatsApp: ${WHATSAPP_TEST_MODE ? 'Ativado' : 'Desativado'}`, 'info');
 
 // Interface para resposta da API WhatsApp Oficial
 interface WhatsAppAPIResponse {
@@ -61,6 +64,58 @@ interface WhatsAppResult {
 }
 
 /**
+ * Função auxiliar para fazer requisições para a Evolution API
+ */
+async function makeEvolutionRequest(endpoint: string, method = 'GET', data: any = null): Promise<WhatsAppResult> {
+  try {
+    const settings = await getConfigSettings();
+    const { apiUrl, apiToken, apiInstance } = settings;
+
+    if (!apiUrl || !apiToken) {
+      return { success: false, error: 'Configuração da Evolution API (URL ou Token) não encontrada.' };
+    }
+
+    // Substitua {instance} no endpoint se necessário
+    const finalEndpoint = endpoint.replace('{instance}', apiInstance);
+    const fullUrl = `${apiUrl}${finalEndpoint}`;
+    
+    log(`Fazendo requisição ${method} para ${fullUrl}`, 'info');
+
+    const response = await axios({
+      method,
+      url: fullUrl,
+      data,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiToken
+      },
+      timeout: 20000 // 20 segundos
+    });
+
+    return { success: true, details: response.data };
+  } catch (error) {
+    let errorMessage = 'Erro desconhecido na requisição';
+    let details = null;
+
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        errorMessage = error.response.data?.error || 
+                      error.response.data?.message || 
+                      `Erro ${error.response.status}: ${error.message}`;
+        details = error.response.data;
+      } else if (error.request) {
+        errorMessage = 'Não foi possível conectar à Evolution API. Verifique sua conexão.';
+      } else {
+        errorMessage = `Erro na configuração da requisição: ${error.message}`;
+      }
+    }
+    
+    log(`Erro na requisição para Evolution API: ${errorMessage}`, 'error');
+    return { success: false, error: errorMessage, details };
+  }
+}
+
+/**
  * Envia mensagem de texto via Evolution API
  */
 export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<WhatsAppResult> {
@@ -72,8 +127,11 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
   log(`Enviando mensagem Evolution API para ${lead.name} (${phoneNumber})`, 'info');
 
   try {
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
     // Endpoint de texto da Evolution API
-    const endpoint = `${EVOLUTION_API_URL}/message/text/${EVOLUTION_API_INSTANCE}`;
+    const endpoint = `/message/text/${apiInstance}`;
     
     // Payload conforme documentação da Evolution API
     const payload = {
@@ -87,57 +145,28 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
       }
     };
 
-    log(`Requisição para ${endpoint}`, 'info');
+    const result = await makeEvolutionRequest(endpoint, 'POST', payload);
     
-    const response = await axios.post(
-      endpoint,
-      payload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EVOLUTION_API_TOKEN
-        },
-        timeout: 15000 // 15 segundos
-      }
-    );
-
-    if (response.status >= 200 && response.status < 300 && response.data) {
-      log(`Mensagem enviada com sucesso via Evolution API: ${JSON.stringify(response.data)}`, 'info');
+    if (result.success) {
+      log(`Mensagem enviada com sucesso via Evolution API: ${JSON.stringify(result.details)}`, 'info');
       
       // Extrair o ID da mensagem da resposta
-      const messageId = response.data.key?.id || 
-                        response.data.messageId || 
-                        response.data.id || 
+      const messageId = result.details?.key?.id || 
+                        result.details?.messageId || 
+                        result.details?.id || 
                         `temp_${Date.now()}`;
       
       return { 
         success: true, 
         messageId, 
-        details: response.data 
+        details: result.details 
       };
     }
     
-    log(`Resposta da API: ${JSON.stringify(response.data)}`, 'warn');
-    return { success: true, details: response.data };
+    return result;
   } catch (error) {
     log(`Erro ao enviar mensagem Evolution API: ${error}`, 'error');
-    let errorMessage = 'Erro desconhecido ao enviar mensagem';
-    let details = null;
-
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        errorMessage = error.response.data?.error || 
-                      error.response.data?.message || 
-                      `Erro ${error.response.status}: ${error.message}`;
-        details = error.response.data;
-        log(`Detalhes do erro: ${JSON.stringify(details)}`, 'error');
-      } else if (error.request) {
-        errorMessage = 'Não foi possível conectar ao servidor Evolution API. Verifique sua conexão.';
-      } else {
-        errorMessage = `Erro na configuração da requisição: ${error.message}`;
-      }
-    }
-    return { success: false, error: errorMessage, details };
+    return { success: false, error: 'Erro desconhecido ao enviar mensagem', details: error };
   }
 }
 
@@ -146,69 +175,102 @@ export async function sendWhatsAppMessage(lead: Lead, message: string): Promise<
  * Templates são mensagens pré-aprovadas pela Meta
  */
 export async function sendWhatsAppTemplate(lead: Lead, templateName: string, language: string = 'pt_BR'): Promise<WhatsAppResult> {
-  if (!WHATSAPP_API_TOKEN) {
-    log('WhatsApp API token não configurado', 'error');
-    return { success: false, error: 'WhatsApp API token não configurado' };
-  }
+  // Se estamos usando a Meta API diretamente (API oficial do WhatsApp)
+  if (WHATSAPP_API_TOKEN) {
+    const phoneNumber = formatPhoneNumber(lead.phone);
+    if (!phoneNumber) {
+      return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
+    }
+    
+    log(`Enviando template WhatsApp "${templateName}" para ${lead.name} (${phoneNumber})`, 'info');
+    
+    try {
+      const response = await axios.post<WhatsAppAPIResponse>(
+        `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_ID}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phoneNumber,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: {
+              code: language
+            }
+          }
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`
+          },
+          timeout: 10000 // 10 segundos de timeout
+        }
+      );
 
-  const phoneNumber = formatPhoneNumber(lead.phone);
-  if (!phoneNumber) {
-    return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
-  }
-  
-  log(`Enviando template WhatsApp "${templateName}" para ${lead.name} (${phoneNumber})`, 'info');
-  
-  try {
-    const response = await axios.post<WhatsAppAPIResponse>(
-      `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_ID}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: phoneNumber,
-        type: 'template',
+      if (response.data.messages && response.data.messages.length > 0) {
+        const messageId = response.data.messages[0].id;
+        log(`Template enviado com sucesso. ID: ${messageId}`, 'info');
+        return { success: true, messageId, details: response.data };
+      }
+      
+      log(`Template enviado, mas sem ID retornado`, 'warn');
+      return { success: true, details: response.data };
+    } catch (error) {
+      log(`Erro ao enviar template WhatsApp: ${JSON.stringify(error)}`, 'error');
+      let errorMessage = 'Erro desconhecido ao enviar mensagem';
+      let details = null;
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          errorMessage = error.response.data?.error?.message || 
+                        error.response.data?.message || 
+                        `Erro ${error.response.status}: ${error.message}`;
+          details = error.response.data;
+        } else if (error.request) {
+          errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
+        } else {
+          errorMessage = `Erro na configuração da requisição: ${error.message}`;
+        }
+      }
+      
+      return { success: false, error: errorMessage, details };
+    }
+  } 
+  // Caso contrário, tentamos usar a Evolution API para enviar template
+  else {
+    const phoneNumber = formatPhoneNumber(lead.phone);
+    if (!phoneNumber) {
+      return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
+    }
+
+    try {
+      const settings = await getConfigSettings();
+      const { apiInstance } = settings;
+      
+      // Endpoint de template da Evolution API
+      const endpoint = `/message/template/${apiInstance}`;
+      
+      // Payload conforme documentação da Evolution API
+      const payload = {
+        number: phoneNumber,
+        options: {
+          delay: 1200,
+          presence: "composing" 
+        },
         template: {
           name: templateName,
           language: {
             code: language
           }
         }
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`
-        },
-        timeout: 10000 // 10 segundos de timeout
-      }
-    );
+      };
 
-    if (response.data.messages && response.data.messages.length > 0) {
-      const messageId = response.data.messages[0].id;
-      log(`Template enviado com sucesso. ID: ${messageId}`, 'info');
-      return { success: true, messageId, details: response.data };
+      return await makeEvolutionRequest(endpoint, 'POST', payload);
+    } catch (error) {
+      log(`Erro ao enviar template via Evolution API: ${error}`, 'error');
+      return { success: false, error: 'Erro ao enviar template', details: error };
     }
-    
-    log(`Template enviado, mas sem ID retornado`, 'warn');
-    return { success: true, details: response.data };
-  } catch (error) {
-    log(`Erro ao enviar template WhatsApp: ${JSON.stringify(error)}`, 'error');
-    let errorMessage = 'Erro desconhecido ao enviar mensagem';
-    let details = null;
-    
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        errorMessage = error.response.data?.error?.message || 
-                       error.response.data?.message || 
-                       `Erro ${error.response.status}: ${error.message}`;
-        details = error.response.data;
-      } else if (error.request) {
-        errorMessage = 'Não foi possível conectar ao servidor do WhatsApp. Verifique sua conexão.';
-      } else {
-        errorMessage = `Erro na configuração da requisição: ${error.message}`;
-      }
-    }
-    
-    return { success: false, error: errorMessage, details };
   }
 }
 
@@ -218,16 +280,23 @@ export async function sendWhatsAppTemplate(lead: Lead, templateName: string, lan
  */
 export async function checkWhatsAppConnection(): Promise<WhatsAppResult> {
   try {
+    const settings = await getConfigSettings();
+    const { apiUrl, apiToken, apiInstance } = settings;
+
+    if (!apiUrl || !apiToken) {
+      return { success: false, error: 'Configuração da Evolution API (URL ou Token) não encontrada.' };
+    }
+
     // Para ambientes de produção, usar a URL real da sua Evolution API
     // Se estamos em ambiente de desenvolvimento e sem URL definida, tentamos simular uma resposta positiva
-    if (EVOLUTION_API_URL.includes('example.com') && process.env.NODE_ENV === 'development') {
+    if (apiUrl.includes('example.com') && process.env.NODE_ENV === 'development') {
       log('Ambiente de desenvolvimento detectado. Simulando resposta da Evolution API.', 'info');
       return {
         success: true,
         details: {
           name: 'Evolution API (Simulação)',
           phone: '+5511987654321',
-          instance: EVOLUTION_API_INSTANCE,
+          instance: apiInstance,
           status: 'CONNECTED',
           qrcode: null
         }
@@ -235,76 +304,11 @@ export async function checkWhatsAppConnection(): Promise<WhatsAppResult> {
     }
 
     // Endpoint específico para verificar o status da instância
-    const statusEndpoint = `${EVOLUTION_API_URL}/instances/fetchInstances`;
-    
-    log(`Verificando conexão com a Evolution API: ${statusEndpoint}`, 'info');
-    
-    const response = await axios.get(
-      statusEndpoint,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EVOLUTION_API_TOKEN
-        },
-        timeout: 15000
-      }
-    );
-
-    if (response.status >= 200 && response.status < 300) {
-      log(`Resposta Evolution API: ${JSON.stringify(response.data)}`, 'info');
-      
-      // Buscar nossa instância na lista de instâncias
-      const instances = response.data?.data || [];
-      const ourInstance = instances.find((instance: any) => instance.instance === EVOLUTION_API_INSTANCE);
-      
-      // Verificar o estado da conexão na resposta
-      const state = ourInstance?.status || 'DISCONNECTED';
-      const connected = state === 'CONNECTED' || state === 'ONLINE' || state === true;
-      
-      if (connected) {
-        return {
-          success: true,
-          details: {
-            name: 'Evolution API',
-            phone: response.data?.phone || 'Conexão OK',
-            instance: EVOLUTION_API_INSTANCE,
-            status: state,
-            qrcode: response.data?.qrcode || null
-          }
-        };
-      } else {
-        return { 
-          success: false, 
-          error: `WhatsApp não conectado. Estado: ${state}`, 
-          details: response.data
-        };
-      }
-    }
-    
-    return { 
-      success: false, 
-      error: 'Resposta inesperada da Evolution API', 
-      details: response.data 
-    };
+    const endpoint = `/instances/instance/${apiInstance}`;
+    return await makeEvolutionRequest(endpoint, 'GET');
   } catch (error) {
-    log(`Erro ao verificar conexão Evolution API: ${error}`, 'error');
-    let errorMessage = 'Erro ao verificar conexão com a Evolution API';
-    let details = null;
-    
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        errorMessage = error.response.data?.error || 
-                      error.response.data?.message || 
-                      `Erro ${error.response.status}: ${error.message}`;
-        details = error.response.data;
-      } else if (error.request) {
-        errorMessage = 'Não foi possível conectar ao servidor Evolution API. Verifique sua conexão.';
-      } else {
-        errorMessage = `Erro na configuração da requisição: ${error.message}`;
-      }
-    }
-    
-    return { success: false, error: errorMessage, details };
+    log(`Erro ao verificar conexão: ${error}`, 'error');
+    return { success: false, error: 'Erro ao verificar conexão com a Evolution API', details: error };
   }
 }
 
@@ -321,337 +325,424 @@ export async function sendWhatsAppImage(
     return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
   }
 
-  log(`Enviando imagem Evolution API para ${lead.name} (${phoneNumber})`, 'info');
+  log(`Enviando imagem para ${lead.name} (${phoneNumber})`, 'info');
 
   try {
-    // Endpoint de imagem da Evolution API
-    const endpoint = `${EVOLUTION_API_URL}/message/image/${EVOLUTION_API_INSTANCE}`;
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
+    // Endpoint para envio de imagem
+    const endpoint = `/message/image/${apiInstance}`;
     
     // Payload conforme documentação da Evolution API
     const payload = {
       number: phoneNumber,
       options: {
         delay: 1200,
-        presence: "composing" 
+        presence: "composing"
       },
-      imageMessage: {
-        image: imageUrl, // URL da imagem
-        caption: caption  // Legenda opcional
+      image: {
+        url: imageUrl,
+        caption: caption
       }
     };
 
-    log(`Requisição de imagem para ${endpoint}`, 'info');
-    
-    const response = await axios.post(
-      endpoint,
-      payload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EVOLUTION_API_TOKEN
-        },
-        timeout: 20000 // 20 segundos (upload de imagem pode demorar mais)
-      }
-    );
-
-    if (response.status >= 200 && response.status < 300 && response.data) {
-      log(`Imagem enviada com sucesso via Evolution API: ${JSON.stringify(response.data)}`, 'info');
-      
-      // Extrair o ID da mensagem da resposta
-      const messageId = response.data.key?.id || 
-                        response.data.messageId || 
-                        response.data.id || 
-                        `temp_img_${Date.now()}`;
-      
-      return { 
-        success: true, 
-        messageId, 
-        details: response.data 
-      };
-    }
-    
-    log(`Resposta da API (imagem): ${JSON.stringify(response.data)}`, 'warn');
-    return { success: true, details: response.data };
+    return await makeEvolutionRequest(endpoint, 'POST', payload);
   } catch (error) {
-    log(`Erro ao enviar imagem Evolution API: ${error}`, 'error');
-    let errorMessage = 'Erro desconhecido ao enviar imagem';
-    let details = null;
-
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        errorMessage = error.response.data?.error || 
-                      error.response.data?.message || 
-                      `Erro ${error.response.status}: ${error.message}`;
-        details = error.response.data;
-        log(`Detalhes do erro (imagem): ${JSON.stringify(details)}`, 'error');
-      } else if (error.request) {
-        errorMessage = 'Não foi possível conectar ao servidor Evolution API. Verifique sua conexão.';
-      } else {
-        errorMessage = `Erro na configuração da requisição: ${error.message}`;
-      }
-    }
-    return { success: false, error: errorMessage, details };
+    log(`Erro ao enviar imagem: ${error}`, 'error');
+    return { success: false, error: 'Erro ao enviar imagem', details: error };
   }
 }
 
 /**
- * Obtém o QR Code da instância para fazer o pareamento com o WhatsApp
+ * Envia documento via Evolution API
+ */
+export async function sendWhatsAppDocument(
+  lead: Lead,
+  documentUrl: string,
+  fileName: string,
+  caption: string = ''
+): Promise<WhatsAppResult> {
+  const phoneNumber = formatPhoneNumber(lead.phone);
+  if (!phoneNumber) {
+    return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
+  }
+
+  log(`Enviando documento para ${lead.name} (${phoneNumber})`, 'info');
+
+  try {
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
+    // Endpoint para envio de documento
+    const endpoint = `/message/document/${apiInstance}`;
+    
+    // Payload conforme documentação da Evolution API
+    const payload = {
+      number: phoneNumber,
+      options: {
+        delay: 1200
+      },
+      document: {
+        url: documentUrl,
+        fileName: fileName,
+        caption: caption
+      }
+    };
+
+    return await makeEvolutionRequest(endpoint, 'POST', payload);
+  } catch (error) {
+    log(`Erro ao enviar documento: ${error}`, 'error');
+    return { success: false, error: 'Erro ao enviar documento', details: error };
+  }
+}
+
+/**
+ * Envia áudio via Evolution API
+ */
+export async function sendWhatsAppAudio(
+  lead: Lead,
+  audioUrl: string
+): Promise<WhatsAppResult> {
+  const phoneNumber = formatPhoneNumber(lead.phone);
+  if (!phoneNumber) {
+    return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
+  }
+
+  log(`Enviando áudio para ${lead.name} (${phoneNumber})`, 'info');
+
+  try {
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
+    // Endpoint para envio de áudio
+    const endpoint = `/message/audio/${apiInstance}`;
+    
+    // Payload conforme documentação da Evolution API
+    const payload = {
+      number: phoneNumber,
+      options: {
+        delay: 1200
+      },
+      audio: {
+        url: audioUrl
+      }
+    };
+
+    return await makeEvolutionRequest(endpoint, 'POST', payload);
+  } catch (error) {
+    log(`Erro ao enviar áudio: ${error}`, 'error');
+    return { success: false, error: 'Erro ao enviar áudio', details: error };
+  }
+}
+
+/**
+ * Envia vídeo via Evolution API
+ */
+export async function sendWhatsAppVideo(
+  lead: Lead,
+  videoUrl: string,
+  caption: string = ''
+): Promise<WhatsAppResult> {
+  const phoneNumber = formatPhoneNumber(lead.phone);
+  if (!phoneNumber) {
+    return { success: false, error: `Número de telefone inválido: ${lead.phone}` };
+  }
+
+  log(`Enviando vídeo para ${lead.name} (${phoneNumber})`, 'info');
+
+  try {
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
+    // Endpoint para envio de vídeo
+    const endpoint = `/message/video/${apiInstance}`;
+    
+    // Payload conforme documentação da Evolution API
+    const payload = {
+      number: phoneNumber,
+      options: {
+        delay: 1200
+      },
+      video: {
+        url: videoUrl,
+        caption: caption
+      }
+    };
+
+    return await makeEvolutionRequest(endpoint, 'POST', payload);
+  } catch (error) {
+    log(`Erro ao enviar vídeo: ${error}`, 'error');
+    return { success: false, error: 'Erro ao enviar vídeo', details: error };
+  }
+}
+
+/**
+ * Obtém o QR Code para conexão do WhatsApp
  */
 export async function getWhatsAppQRCode(): Promise<WhatsAppResult> {
   try {
-    // Se estamos em ambiente de desenvolvimento e sem URL definida, retornar QR simulado
-    if (EVOLUTION_API_URL.includes('example.com') && process.env.NODE_ENV === 'development') {
-      log('Ambiente de desenvolvimento detectado. Retornando QR code simulado.', 'info');
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
+    // Primeiro, verificamos se já existe uma instância conectada
+    const statusResult = await makeEvolutionRequest(`/instances/instance/${apiInstance}`, 'GET');
+    
+    if (statusResult.success && statusResult.details?.status === 'open') {
+      // Se já estiver conectado, não precisamos de QR Code
       return {
         success: true,
         details: {
-          qrcode: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAMAAABlApw1AAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAABCUExURUxpcQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMJYXskAAAAVdFJOUwAQIDBAUGBwgI+fr7/P3+/vDyAg76azD6gAAAQFSURBVHja7d3bkqM4EAVQVAIk2W3j+P+/nXnsndDEbgxC6lJVnXkLwpTuShVC11/rr/U1/PPrl5ee+98l4r9fhaBfC+N/vwzhJeB/b2ZQHvxVCS8D/0fCa8D/kYAE/B8JSLgC/knCJeB/Efyt4X8ryE/4FgnGnuBr9wTfE0xvCUa+JAj7Qwl8SRD9kYC+JODvmeCfN8GpAyb08HOYHjrMj4aYHw0dPRqYnw2dvB2Hnw1j/G54NHT2k+m5oT/xTmMbpnPvZdSGh97suA0dBDswHDp4IDkNvQTDLw7DMBz+kOJsGPnUMwyTPukZhnA6guLQ+eko0+F+Osx0OH8+0OHo4MO9zofzAzLDcHRIdhhOnpJ1YTg6pNUN4eQ5ZRyGg6f1hqHvPaRrGA6+sDAMncdElqHnm2tDhuHYF0iWYcA31zpBeBMQhN4hWT/0D8l6ARkgZIC+Rzwyw8XuWJih5xGPxHD5Jz4zDL3fXLMhgj8bIvhr2GIcBBNyJ/+TYcC/9HAbwoVL7G6oXIBrhhzw6YYc8A1D4QJcMQT/NuSALxty3w01+JphCPq6X01IHF/drjuG8C4UAr5iiHy3lP3wUu3qEt9tVaJM9x06I98thcfnGG7oO3REwZcMXdwvcPQEtmuGCTl0TMEXDD3g64be8E3D8IbvDN8MPeJ7w3eI7w0/I7437CN+MHxP+N7wHeF7wxjxg2FP+MHQEb5g6AbfGGbxreGnNfb3HhUTTOfLubVFfjSZUZ9PJ48GS+4TGQV5NvSdJ3R+ysX3iZwfmH1PTm/DuoTq+6nRtYtR7ylJLBu8HuIXTTiRgY/QvUVjS8YkhPclq9tEDMkAbWzTkAwWjpnzYXHnDhX33Ck1e0/FvXesbr8D2H8H7HKjMQG2GSsBthktALYZMQE2GnUCbDTyAthqfAqw1Qh1gM3GygDbJcAESLiQwARImBLCBEi4lMUESLiYxxX5mfOlVK7I30u55BsmQPI1M5gAyRcNYQIkXzWFCZB83RgmQPKFc5gAyVcOYgIkXzqJCZB87SgmQPLFszABkq8ehgnA1+/CBNi6vQMmwNaNjWECbN3aGiZA8NbmQgJsXmFBTIDNS3RgAoTszcJU5K9bNM9Ffi7RpZtxASZvPx9XdG+ApXl1AFPeT7bLdXZIANP9CVPjDWkATLfoTI13JH7vwanGPJi7yDUmuvi9Cb3GXKi3yDWGul6RXmMyVF3kGrPhLgwsTIcb9Yv0GvPhhv0ivcKEyMPF+kUVJpx+3EwYOB/uuXk1YeR0uG8U2Uw4OtzZi/+cD/feIpuzmfPh7ltkczb1L4a7d5FpNnQ+3N2LTMMQ+HL392JeV+Tn/uDuxYRqyH+3/8Lv9lCv+qs8/g85XeXvFOX/rQAAAABJRU5ErkJggg==",
-          status: "DISCONNECTED"
+          connected: true,
+          message: 'WhatsApp já está conectado',
+          instance: statusResult.details
         }
       };
     }
+    
+    // Se não estiver conectado ou em estado inválido, geramos novo QR Code
+    const qrResult = await makeEvolutionRequest(`/instances/qrcode/${apiInstance}`, 'GET');
+    
+    if (!qrResult.success) {
+      return qrResult;
+    }
 
-    // Endpoint para obter o QR code da instância
-    const qrCodeEndpoint = `${EVOLUTION_API_URL}/instance/qrcode/${EVOLUTION_API_INSTANCE}`;
-    
-    log(`Obtendo QR code da instância: ${qrCodeEndpoint}`, 'info');
-    
-    const response = await axios.get(
-      qrCodeEndpoint,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EVOLUTION_API_TOKEN
-        },
-        timeout: 15000
+    return {
+      success: true,
+      details: {
+        connected: false,
+        qrcode: qrResult.details?.qrcode,
+        message: 'Escaneie o QR Code para conectar'
       }
-    );
-
-    if (response.status >= 200 && response.status < 300) {
-      log('QR code obtido com sucesso', 'info');
-      
-      return {
-        success: true,
-        details: {
-          qrcode: response.data?.qrcode || null,
-          status: response.data?.status || 'DISCONNECTED'
-        }
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: 'Resposta inesperada ao obter QR code', 
-      details: response.data 
     };
   } catch (error) {
-    log(`Erro ao obter QR code: ${error}`, 'error');
-    let errorMessage = 'Erro ao obter QR code';
-    let details = null;
-    
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        errorMessage = error.response.data?.error || 
-                      error.response.data?.message || 
-                      `Erro ${error.response.status}: ${error.message}`;
-        details = error.response.data;
-      } else if (error.request) {
-        errorMessage = 'Não foi possível conectar ao servidor Evolution API. Verifique sua conexão.';
-      } else {
-        errorMessage = `Erro na configuração da requisição: ${error.message}`;
-      }
-    }
-    
-    return { success: false, error: errorMessage, details };
+    log(`Erro ao obter QR Code: ${error}`, 'error');
+    return { success: false, error: 'Erro ao obter QR Code', details: error };
   }
 }
 
 /**
- * Verifica o status de uma mensagem enviada
- * @param messageId ID da mensagem para verificar o status
+ * Verifica o status de uma mensagem
  */
 export async function checkMessageStatus(messageId: string): Promise<WhatsAppResult> {
+  if (!messageId) {
+    return { success: false, error: 'ID da mensagem não fornecido' };
+  }
+  
   try {
-    // Em ambiente de desenvolvimento, simular uma resposta
-    if (EVOLUTION_API_URL.includes('example.com') && process.env.NODE_ENV === 'development') {
-      log('Ambiente de desenvolvimento detectado. Simulando status de mensagem.', 'info');
-      
-      // Gerar um status aleatório para testes
-      const statuses = ['sent', 'delivered', 'read'];
-      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-      
-      return {
-        success: true,
-        details: {
-          status: randomStatus,
-          timestamp: new Date().toISOString()
-        }
-      };
-    }
-
-    // Endpoint para verificar status da mensagem
-    const statusEndpoint = `${EVOLUTION_API_URL}/message/statusMessage/${EVOLUTION_API_INSTANCE}`;
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
     
-    log(`Verificando status da mensagem ${messageId}`, 'info');
+    // Endpoint para verificar status de mensagem
+    const endpoint = `/message/statusMessage/${apiInstance}/${messageId}`;
     
-    const response = await axios.post(
-      statusEndpoint,
-      { id: messageId },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EVOLUTION_API_TOKEN
-        },
-        timeout: 10000
-      }
-    );
-
-    if (response.status >= 200 && response.status < 300) {
-      log(`Status obtido: ${JSON.stringify(response.data)}`, 'info');
-      
-      // Normalizar o status para os valores que usamos no sistema
-      let normalizedStatus = 'sent';
-      if (response.data?.status) {
-        const status = response.data.status.toLowerCase();
-        
-        if (status.includes('read') || status === 'read') {
-          normalizedStatus = 'read';
-        } else if (status.includes('delivered') || status === 'delivery_ack') {
-          normalizedStatus = 'delivered';
-        }
-      }
-      
-      return {
-        success: true,
-        details: {
-          status: normalizedStatus,
-          originalStatus: response.data?.status,
-          timestamp: response.data?.timestamp || new Date().toISOString()
-        }
-      };
+    const result = await makeEvolutionRequest(endpoint, 'GET');
+    
+    if (!result.success) {
+      return result;
     }
     
-    return { 
-      success: false, 
-      error: 'Resposta inesperada ao verificar status', 
-      details: response.data 
-    };
-  } catch (error) {
-    log(`Erro ao verificar status da mensagem: ${error}`, 'error');
-    let errorMessage = 'Erro ao verificar status da mensagem';
-    let details = null;
+    // Normalizar o status da mensagem com base na resposta da Evolution API
+    let normalizedStatus = 'sent'; // Default
+    const rawStatus = result.details?.status || '';
     
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        errorMessage = error.response.data?.error || 
-                      error.response.data?.message || 
-                      `Erro ${error.response.status}: ${error.message}`;
-        details = error.response.data;
-      } else if (error.request) {
-        errorMessage = 'Não foi possível conectar ao servidor Evolution API. Verifique sua conexão.';
-      } else {
-        errorMessage = `Erro na configuração da requisição: ${error.message}`;
-      }
-    }
-    
-    return { success: false, error: errorMessage, details };
-  }
-}
-
-/**
- * Formata o número de telefone para o formato internacional
- * @param phoneNumber Número de telefone a ser formatado
- * @returns Número formatado ou null se inválido
- */
-export function formatPhoneNumber(phoneNumber: string | null | undefined): string | null {
-  if (!phoneNumber) return null;
-  
-  // Remover todos os caracteres não numéricos
-  let digits = phoneNumber.replace(/\D/g, '');
-  
-  // Se não começar com código de país, assumir Brasil (+55)
-  if (!digits.startsWith('55') && digits.length <= 11) {
-    digits = '55' + digits;
-  }
-  
-  // Verificar o tamanho mínimo (código de país + DDD + número)
-  // Brasil: 55 + 2 dígitos (DDD) + 8-9 dígitos (número)
-  if (digits.length < 12) {
-    log(`Número de telefone inválido: ${phoneNumber} (formatado: ${digits})`, 'warn');
-    return null;
-  }
-  
-  return digits;
-}
-
-/**
- * Salva as configurações da Evolution API
- * @param apiUrl URL base da API
- * @param apiToken Token de autenticação (opcional)
- * @param apiInstance Nome da instância
- * @returns Objeto com resultado da operação
- */
-export async function saveConfigSettings(apiUrl: string, apiToken?: string, apiInstance = 'default'): Promise<WhatsAppResult> {
-  try {
-    log(`Salvando configurações: URL=${apiUrl}, Instância=${apiInstance}`, 'info');
-    
-    // Usar variáveis de ambiente em desenvolvimento
-    if (process.env.NODE_ENV === 'development') {
-      // Atualizar as variáveis (em memória apenas)
-      if (apiUrl) {
-        (global as any).EVOLUTION_API_URL = apiUrl;
-      }
-      if (apiToken) {
-        (global as any).EVOLUTION_API_TOKEN = apiToken;
-      }
-      if (apiInstance) {
-        (global as any).EVOLUTION_API_INSTANCE = apiInstance;
-      }
-      
-      return {
-        success: true,
-        details: {
-          message: 'Configurações salvas com sucesso (modo de desenvolvimento)'
-        }
-      };
-    }
-    
-    // Em produção, atualizar as variáveis globais
-    if (apiUrl) {
-      (global as any).EVOLUTION_API_URL = apiUrl;
-    }
-    if (apiToken) {
-      (global as any).EVOLUTION_API_TOKEN = apiToken;
-    }
-    if (apiInstance) {
-      (global as any).EVOLUTION_API_INSTANCE = apiInstance;
+    // Mapeamento de status da Evolution API para nosso sistema
+    switch (rawStatus.toLowerCase()) {
+      case 'pending':
+      case 'sending':
+        normalizedStatus = 'pending';
+        break;
+      case 'sent':
+        normalizedStatus = 'sent';
+        break;
+      case 'received':
+      case 'delivered':
+        normalizedStatus = 'delivered';
+        break;
+      case 'read':
+        normalizedStatus = 'read';
+        break;
+      case 'failed':
+      case 'error':
+        normalizedStatus = 'failed';
+        break;
+      default:
+        normalizedStatus = 'sent'; // Fallback
     }
     
     return {
       success: true,
       details: {
-        message: 'Configurações salvas com sucesso'
+        status: normalizedStatus,
+        originalStatus: rawStatus,
+        timestamp: result.details?.timestamp || new Date().toISOString()
       }
     };
-  } catch (error: any) {
-    log(`Erro ao salvar configurações do WhatsApp: ${error}`, 'error');
-    return {
-      success: false,
-      error: error.message || 'Erro ao salvar configurações do WhatsApp'
-    };
+  } catch (error) {
+    log(`Erro ao verificar status de mensagem ${messageId}: ${error}`, 'error');
+    return { success: false, error: 'Erro ao verificar status da mensagem', details: error };
   }
 }
 
 /**
- * Obtém as configurações atuais da Evolution API
- * @returns Objeto com as configurações atuais
+ * Formata o número de telefone para o formato esperado pelo WhatsApp
+ */
+export function formatPhoneNumber(phoneNumber: string | null | undefined): string | null {
+  if (!phoneNumber) return null;
+  
+  // Remove todos os caracteres não numéricos
+  let cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // Se começar com 0, remove
+  if (cleaned.startsWith('0')) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  // Se for brasileiro e não começa com 55, adiciona o código do Brasil
+  if (!cleaned.startsWith('55') && cleaned.length <= 11) {
+    cleaned = '55' + cleaned;
+  }
+  
+  // Verifica se o número tem pelo menos 10 dígitos (mínimo para um número de telefone válido)
+  if (cleaned.length < 10) {
+    return null;
+  }
+  
+  return cleaned;
+}
+
+/**
+ * Salva as configurações da Evolution API
+ */
+export async function saveConfigSettings(apiUrl: string, apiToken?: string, apiInstance = 'default'): Promise<WhatsAppResult> {
+  try {
+    // Normaliza a URL da API (remove a barra final se existir)
+    let normalizedUrl = apiUrl.trim();
+    if (normalizedUrl.endsWith('/')) {
+      normalizedUrl = normalizedUrl.slice(0, -1);
+    }
+    
+    // Se não começa com http:// ou https://, adiciona https://
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = 'https://' + normalizedUrl;
+    }
+
+    // Se não temos o token atual e não foi fornecido um novo, retorna erro
+    if (!apiToken) {
+      const existingSettings = await storage.getWhatsappSettings();
+      if (!existingSettings?.apiToken) {
+        return { success: false, error: 'Token da API é obrigatório para configuração inicial' };
+      }
+      
+      // Se já temos um token no banco, vamos usar ele
+      await storage.saveWhatsappSettings({
+        apiUrl: normalizedUrl,
+        apiToken: existingSettings.apiToken,
+        apiInstance: apiInstance || 'default'
+      });
+    } else {
+      // Caso contrário, salvamos com o novo token
+      await storage.saveWhatsappSettings({
+        apiUrl: normalizedUrl,
+        apiToken,
+        apiInstance: apiInstance || 'default'
+      });
+    }
+
+    return { success: true, details: { apiUrl: normalizedUrl, apiInstance, hasToken: true } };
+  } catch (error) {
+    log(`Erro ao salvar configurações: ${error}`, 'error');
+    return { success: false, error: 'Erro ao salvar configurações', details: error };
+  }
+}
+
+/**
+ * Obtém as configurações da Evolution API
  */
 export async function getConfigSettings(): Promise<any> {
-  // Retornar configurações (sem expor o token completo)
-  return {
-    apiUrl: EVOLUTION_API_URL,
-    apiInstance: EVOLUTION_API_INSTANCE,
-    hasToken: !!EVOLUTION_API_TOKEN,
-    lastUpdated: new Date().toISOString()
-  };
+  try {
+    const config = await storage.getWhatsappSettings();
+    
+    // Valores default quando não configurado
+    return {
+      apiUrl: config?.apiUrl || process.env.EVOLUTION_API_URL || '',
+      apiToken: config?.apiToken || process.env.EVOLUTION_API_TOKEN || '',
+      apiInstance: config?.apiInstance || process.env.EVOLUTION_API_INSTANCE || 'default',
+      hasToken: !!config?.apiToken || !!process.env.EVOLUTION_API_TOKEN,
+      lastUpdated: config?.updatedAt
+    };
+  } catch (error) {
+    log(`Erro ao obter configurações: ${error}`, 'error');
+    // Retorna valores default
+    return {
+      apiUrl: process.env.EVOLUTION_API_URL || '',
+      apiToken: process.env.EVOLUTION_API_TOKEN || '',
+      apiInstance: process.env.EVOLUTION_API_INSTANCE || 'default',
+      hasToken: !!process.env.EVOLUTION_API_TOKEN,
+      lastUpdated: null
+    };
+  }
+}
+
+// Nova função para obter grupos disponíveis
+export async function getWhatsAppGroups(): Promise<WhatsAppResult> {
+  try {
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
+    // Endpoint para obter grupos
+    const endpoint = `/group/fetchAllGroups/${apiInstance}`;
+    
+    return await makeEvolutionRequest(endpoint, 'GET');
+  } catch (error) {
+    log(`Erro ao buscar grupos: ${error}`, 'error');
+    return { success: false, error: 'Erro ao buscar grupos', details: error };
+  }
+}
+
+// Nova função para criar um grupo
+export async function createWhatsAppGroup(
+  name: string, 
+  participants: string[]
+): Promise<WhatsAppResult> {
+  try {
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
+    // Endpoint para criar grupo
+    const endpoint = `/group/create/${apiInstance}`;
+    
+    // Prepare phone numbers in array
+    const formattedParticipants = participants.map(p => formatPhoneNumber(p)).filter(Boolean);
+    
+    if (formattedParticipants.length === 0) {
+      return { success: false, error: 'É necessário pelo menos um participante válido' };
+    }
+    
+    const payload = {
+      subject: name,
+      participants: formattedParticipants
+    };
+    
+    return await makeEvolutionRequest(endpoint, 'POST', payload);
+  } catch (error) {
+    log(`Erro ao criar grupo: ${error}`, 'error');
+    return { success: false, error: 'Erro ao criar grupo', details: error };
+  }
+}
+
+// Nova função para obter os contatos
+export async function getWhatsAppContacts(): Promise<WhatsAppResult> {
+  try {
+    const settings = await getConfigSettings();
+    const { apiInstance } = settings;
+    
+    // Endpoint para obter contatos
+    const endpoint = `/contact/get-all/${apiInstance}`;
+    
+    return await makeEvolutionRequest(endpoint, 'GET');
+  } catch (error) {
+    log(`Erro ao buscar contatos: ${error}`, 'error');
+    return { success: false, error: 'Erro ao buscar contatos', details: error };
+  }
 }

@@ -9,7 +9,7 @@ import GreetingWidget from "./GreetingWidget";
 import UserWeatherWidget from "./UserWeatherWidget";
 import { Button } from "../ui/button";
 import { Filter } from "lucide-react";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/components/theme-provider";
 
 interface DashboardStats {
   totalLeads: number;

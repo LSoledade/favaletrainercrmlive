@@ -14,8 +14,9 @@ import WhatsappConfigPage from "@/pages/WhatsappConfigPage";
 import ReportPage from "@/pages/ReportPage";
 import TasksPage from "@/pages/TasksPage";
 import TaskDetailsPage from "@/pages/TaskDetailsPage";
+import { FavaleIAPage } from "@/pages/FavaleIAPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider } from "@/components/theme-provider";
 import { LeadProvider } from "@/context/LeadContext";
 import { WhatsappProvider } from "@/context/WhatsappContext";
 import { TaskProvider } from "@/context/TaskContext";
@@ -31,6 +32,7 @@ function Router() {
       <ProtectedRoute path="/calendario" component={CalendarPage} />
       <ProtectedRoute path="/whatsapp" component={WhatsappPage} />
       <ProtectedRoute path="/whatsapp/config" component={WhatsappConfigPage} />
+      <ProtectedRoute path="/favale-ia" component={FavaleIAPage} />
       <ProtectedRoute path="/tarefas" component={TasksPage} />
       <ProtectedRoute path="/tarefas/:id" component={TaskDetailsPage} />
       <ProtectedRoute path="/config" component={ConfigPage} />

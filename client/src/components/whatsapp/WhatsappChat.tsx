@@ -3,13 +3,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Lead, WhatsappMessage } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Paperclip, Send, Image, Mic, AlertCircle, MoreVertical, ChevronLeft } from 'lucide-react';
+import { 
+  Paperclip, Send, Image, Mic, AlertCircle, MoreVertical, ChevronLeft, 
+  Video, FileText, X, Check, RotateCw 
+} from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import WhatsappTemplateSelector from './WhatsappTemplateSelector';
 
 interface WhatsappChatProps {
@@ -20,6 +32,12 @@ interface WhatsappChatProps {
 const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
   const [message, setMessage] = useState('');
   const [attaching, setAttaching] = useState(false);
+  const [showMediaDialog, setShowMediaDialog] = useState(false);
+  const [mediaType, setMediaType] = useState<'image' | 'document' | 'audio' | 'video'>('image');
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaCaption, setMediaCaption] = useState('');
+  const [documentName, setDocumentName] = useState('');
+  // Missing state variables for image dialog
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [imageCaption, setImageCaption] = useState('');
@@ -32,6 +50,38 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
     queryKey: [`/api/whatsapp/lead/${lead.id}`],
     refetchInterval: 10000, // Atualizar a cada 10 segundos
   });
+
+  // Function to reset media dialog state
+  const resetMediaDialog = () => {
+    setShowImageDialog(false);
+    setImageUrl('');
+    setImageCaption('');
+    setShowMediaDialog(false);
+    setMediaUrl('');
+    setMediaCaption('');
+    setDocumentName('');
+  };
+
+  // Error handler for media sending
+  const handleSendMediaError = (error: any) => {
+    console.error('Erro ao enviar mídia:', error);
+    
+    let errorMessage = 'Não foi possível enviar a mídia';
+    
+    // Verificar se é um erro específico de número não autorizado
+    if (error?.response?.data?.isUnauthorizedNumber) {
+      errorMessage = `Número ${lead.phone} não autorizado. Apenas números verificados podem receber mensagens no ambiente de teste.`;
+    } else if (error?.response?.data?.error) {
+      // Usar mensagem de erro da API quando disponível
+      errorMessage = error.response.data.error;
+    }
+    
+    toast({
+      title: 'Erro no envio de mídia',
+      description: errorMessage,
+      variant: 'destructive',
+    });
+  };
 
   // Mutação para enviar mensagem de texto
   const sendMessageMutation = useMutation({
@@ -79,32 +129,13 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/whatsapp/lead/${lead.id}`] });
-      setShowImageDialog(false);
-      setImageUrl('');
-      setImageCaption('');
+      resetMediaDialog();
       toast({
         title: 'Imagem enviada',
         description: 'Imagem enviada com sucesso'
       });
     },
-    onError: (error: any) => {
-      console.error('Erro ao enviar imagem:', error);
-      
-      let errorMessage = 'Não foi possível enviar a imagem';
-      
-      // Verificar se é um erro específico de número não autorizado
-      if (error?.response?.data?.isUnauthorizedNumber) {
-        errorMessage = `Número ${lead.phone} não autorizado. Apenas números verificados podem receber mensagens no ambiente de teste.`;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-      
-      toast({
-        title: 'Erro no envio da imagem',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    },
+    onError: handleSendMediaError
   });
 
   // Rolar para o final das mensagens quando novas mensagens chegarem
@@ -213,16 +244,6 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
       {/* Cabeçalho do chat */}
       <div className="p-4 border-b flex items-center justify-between">
         <div className="flex items-center">
-          {onClose && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 mr-2 md:hidden"
-              onClick={onClose}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-          )}
           <Avatar className="h-10 w-10 mr-3">
             <AvatarFallback className="bg-primary-light text-white font-semibold">
               {lead.name.substring(0, 2).toUpperCase()}
@@ -252,26 +273,6 @@ const WhatsappChat = ({ lead, onClose }: WhatsappChatProps) => {
                 <p>Mais opções</p>
               </TooltipContent>
             </Tooltip>
-            {onClose && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 hidden md:flex"
-                    onClick={onClose}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Fechar</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
           </TooltipProvider>
         </div>
       </div>

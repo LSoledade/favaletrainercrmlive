@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,22 +19,60 @@ interface HeaderProps {
 
 export default function Header({ setSidebarOpen }: HeaderProps) {
   const [location] = useLocation();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { user, logoutMutation } = useAuth();
+  
+  const toggleTheme = () => {
+    if (theme === "light") {
+      setTheme("dark");
+    } else if (theme === "dark") {
+      setTheme("system");
+    } else {
+      setTheme("light");
+    }
+  };
+  
+  const getThemeIcon = () => {
+    if (theme === "light") return <Moon className="h-4 w-4" />;
+    if (theme === "dark") return <Sun className="h-4 w-4" />;
+    return <Sun className="h-4 w-4" />; // system theme
+  };
+  
+  const getThemeTitle = () => {
+    if (theme === "light") return "Mudar para tema escuro";
+    if (theme === "dark") return "Mudar para tema do sistema";
+    return "Mudar para tema claro";
+  };
   
   const getPageTitle = () => {
     switch (location) {
       case "/":
         return "Dashboard";
       case "/leads":
-        return "Gerenciamento de Leads";
+        return "Leads";
       case "/agendamentos":
         return "Agendamentos";
-      case "/campanhas":
-        return "Campanhas";
+      case "/calendario":
+        return "Calendário";
+      case "/tarefas":
+        return "Tarefas";
+      case "/whatsapp":
+        return "WhatsApp";
+      case "/whatsapp/config":
+        return "Configurações do WhatsApp";
+      case "/favale-ia":
+        return "FavaleIA";
       case "/config":
         return "Configurações";
+      case "/auth":
+        return "Autenticação";
+      case "/politica-de-privacidade":
+        return "Política de Privacidade";
       default:
+        // Para rotas dinâmicas como /tarefas/:id
+        if (location.startsWith("/tarefas/")) {
+          return "Detalhes da Tarefa";
+        }
         return "FavaleTrainer";
     }
   };
@@ -75,9 +113,9 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
           size="sm"
           onClick={toggleTheme}
           className="font-normal text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 flex items-center gap-1 h-9"
-          title={theme === 'light' ? 'Mudar para tema escuro' : 'Mudar para tema claro'}
+          title={getThemeTitle()}
         >
-          {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          {getThemeIcon()}
         </Button>
         
         <DropdownMenu>

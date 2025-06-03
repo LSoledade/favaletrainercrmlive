@@ -184,7 +184,7 @@ export default function WhatsappPage() {
   };
   
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-background rounded-lg border">
+    <div className="flex flex-col h-[calc(100vh-8rem)] w-full bg-background rounded-lg border">
       {/* Status da conexão */}
       <Alert 
         variant={connectionStatus.status === 'connected' ? 'default' : 
@@ -231,9 +231,9 @@ export default function WhatsappPage() {
       </Alert>
       
       {/* Interface principal */}
-      <div className="flex flex-1 h-full overflow-hidden">
+      <div className="flex flex-1 h-full">
         {/* Lista de leads (similar à lista de emails) */}
-        <div className="w-1/3 border-r overflow-hidden flex flex-col">
+        <div className="w-1/3 border-r flex flex-col overflow-hidden">
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">Conversas</h2>
@@ -336,7 +336,7 @@ export default function WhatsappPage() {
         </div>
         
         {/* Área de visualização do chat */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {selectedLead ? (
             <>
               {/* Cabeçalho do chat */}

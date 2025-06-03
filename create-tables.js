@@ -130,6 +130,15 @@ async function createTables() {
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
+
+      -- Tabela de configurações do WhatsApp/Evolution API
+      CREATE TABLE IF NOT EXISTS whatsapp_settings (
+        id SERIAL PRIMARY KEY,
+        api_url TEXT NOT NULL,
+        api_token TEXT NOT NULL,
+        api_instance TEXT NOT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
     `);
 
     console.log('Tabelas criadas com sucesso!');

@@ -10,10 +10,12 @@ import {
   type WhatsappMessage, type InsertWhatsappMessage,
   type Task, type InsertTask,
   type TaskComment, type InsertTaskComment,
-  users 
+  users,
+  sessionHistory as sessionHistoryTable,
+  whatsappSettings, InsertWhatsappSettings, WhatsappSettings
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, and, desc, asc, between, inArray, or, like, sql } from "drizzle-orm";
+import { eq, and, desc, asc, between, inArray, or, like, sql, SQL } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { alias } from "drizzle-orm/pg-core";
@@ -72,7 +74,7 @@ export interface IStorage {
   deleteStudent(id: number): Promise<boolean>;
   getActiveStudents(): Promise<Student[]>;
   getStudentsBySource(source: string): Promise<Student[]>;
-  getStudentsWithLeadInfo(): Promise<(Student & { lead: Lead })[]>;
+  getStudentsWithLeadInfo(): Promise<(Student & { lead: Lead | null })[]>;
   
   // Session methods
   getSessions(): Promise<Session[]>;
@@ -110,6 +112,10 @@ export interface IStorage {
   
   // Session store for authentication
   sessionStore: session.Store;
+
+  // WhatsApp Settings methods
+  getWhatsappSettings(): Promise<WhatsappSettings | undefined>;
+  saveWhatsappSettings(settings: InsertWhatsappSettings): Promise<WhatsappSettings>;
 }
 
 const PostgresSessionStore = connectPg(session);
@@ -172,12 +178,16 @@ export class DatabaseStorage implements IStorage {
         notes: insertLead.notes || null,
       });
       
+      // Ensure entryDate is a Date object
+      const leadDataToInsert = {
+        ...insertLead,
+        notes: insertLead.notes || null,
+        entryDate: insertLead.entryDate instanceof Date ? insertLead.entryDate : new Date(insertLead.entryDate || Date.now()),
+      };
+
       const [lead] = await db
         .insert(leads)
-        .values({
-          ...insertLead,
-          notes: insertLead.notes || null,
-        })
+        .values(leadDataToInsert) // Use the processed data
         .returning();
       
       console.log('Lead criado com sucesso:', lead);
@@ -189,12 +199,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead | undefined> {
+    // Process updates, ensuring correct types for DB
+    const processedUpdates: { [key: string]: any } = { ...updates }; // Use a more flexible type initially
+
+    if (updates.entryDate && !(updates.entryDate instanceof Date)) {
+      try {
+        processedUpdates.entryDate = new Date(updates.entryDate);
+      } catch (e) {
+        console.error("Invalid date format for entryDate during update:", updates.entryDate);
+        // Decide how to handle invalid date - skip update or throw error? Here we skip.
+        delete processedUpdates.entryDate;
+      }
+    }
+    processedUpdates.updatedAt = new Date();
+
+    // Explicitly cast to Partial<Lead> before setting, ensuring type alignment
     const [updatedLead] = await db
       .update(leads)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
+      .set(processedUpdates as Partial<Lead>) 
       .where(eq(leads.id, id))
       .returning();
     return updatedLead || undefined;
@@ -270,15 +292,28 @@ export class DatabaseStorage implements IStorage {
   async updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number> {
     if (ids.length === 0) return 0;
     
+    // Process updates for batch, ensuring correct types
+    const processedUpdates: { [key: string]: any } = { ...updates }; // Use flexible type
+
+    if (updates.entryDate && !(updates.entryDate instanceof Date)) {
+       try {
+        processedUpdates.entryDate = new Date(updates.entryDate);
+      } catch (e) {
+        console.error("Invalid date format for entryDate during batch update:", updates.entryDate);
+        delete processedUpdates.entryDate;
+      }
+    }
+    processedUpdates.updatedAt = new Date();
+
+    // Explicitly cast to Partial<Lead> before setting
     const result = await db
       .update(leads)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
+      .set(processedUpdates as Partial<Lead>) 
       .where(sql`${leads.id} IN (${sql.join(ids, sql`, `)})`);
     
-    return ids.length; // Return the number of affected rows
+    // Drizzle's update doesn't directly return affected rows count easily in all drivers
+    // We return the number of IDs passed as an approximation
+    return ids.length; 
   }
 
   async deleteLeadsInBatch(ids: number[]): Promise<number> {
@@ -424,16 +459,21 @@ export class DatabaseStorage implements IStorage {
       .where(eq(students.source, source));
   }
 
-  async getStudentsWithLeadInfo(): Promise<(Student & { lead: Lead })[]> {
+  async getStudentsWithLeadInfo(): Promise<(Student & { lead: Lead | null })[]> {
+    // Explicitly select columns and structure the result
     const result = await db
       .select({
-        ...students,
-        lead: leads,
+        student: students, // Select all columns from students
+        lead: leads,       // Select all columns from leads
       })
       .from(students)
       .leftJoin(leads, eq(students.leadId, leads.id));
 
-    return result;
+    // Map the result to the desired structure
+    return result.map(row => ({
+      ...row.student,
+      lead: row.lead, // lead can be null due to leftJoin
+    }));
   }
 
   // Session methods
@@ -566,36 +606,41 @@ export class DatabaseStorage implements IStorage {
     startDate?: Date, 
     endDate?: Date
   ): Promise<Session[]> {
-    let query = db
-      .select()
-      .from(sessions)
-      .where(and(
-        eq(sessions.studentId, studentId),
-        eq(sessions.status, 'concluido') // Status para sessões completas
-      ));
-    
+    // Define base conditions as an array, explicitly typing elements as SQL
+    const conditions: SQL[] = [
+      eq(sessions.studentId, studentId) as SQL,
+      eq(sessions.status, 'concluido') as SQL // Ensure this matches your actual status value
+    ];
+
+    // Conditionally add the date range filter to the conditions array
     if (startDate && endDate) {
-      query = query.where(between(sessions.startTime, startDate, endDate));
+      conditions.push(between(sessions.startTime, startDate, endDate) as SQL);
     }
     
-    return await query.orderBy(asc(sessions.startTime));
+    // Build and execute the query using the conditions array
+    return await db
+      .select()
+      .from(sessions)
+      .where(and(...conditions)) // Apply all conditions using and()
+      .orderBy(asc(sessions.startTime));
   }
 
   // Session history methods
   async createSessionHistory(history: InsertSessionHistory): Promise<SessionHistory> {
-    const [sessionHistory] = await db
-      .insert(sessionHistory)
+    // Use the imported table schema object (aliased as sessionHistoryTable)
+    const [newSessionHistory] = await db
+      .insert(sessionHistoryTable) // Use the correct table schema object
       .values(history)
       .returning();
-    return sessionHistory;
+    return newSessionHistory; // Return the newly created history entry
   }
 
   async getSessionHistoryBySessionId(sessionId: number): Promise<SessionHistory[]> {
     return await db
       .select()
-      .from(sessionHistory)
-      .where(eq(sessionHistory.sessionId, sessionId))
-      .orderBy(desc(sessionHistory.changedAt));
+      .from(sessionHistoryTable) // Use the correct table schema object
+      .where(eq(sessionHistoryTable.sessionId, sessionId))
+      .orderBy(desc(sessionHistoryTable.changedAt));
   }
 
   // Task methods
@@ -818,6 +863,18 @@ export class DatabaseStorage implements IStorage {
       console.error("Erro ao excluir mensagem:", error);
       return false;
     }
+  }
+
+  // WhatsApp Settings methods
+  async getWhatsappSettings(): Promise<WhatsappSettings | undefined> {
+    const [settings] = await db.select().from(whatsappSettings).orderBy(desc(whatsappSettings.updatedAt)).limit(1);
+    return settings || undefined;
+  }
+
+  async saveWhatsappSettings(settings: InsertWhatsappSettings): Promise<WhatsappSettings> {
+    // Sempre insere um novo registro (pode ser ajustado para update se preferir)
+    const [saved] = await db.insert(whatsappSettings).values(settings).returning();
+    return saved;
   }
 }
 

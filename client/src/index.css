@@ -408,3 +408,82 @@
   box-shadow: 0 0 0 1.5px hsla(var(--primary), 0.07);
   border-color: hsl(var(--primary) / 0.15);
 }
+
+/* Estilos customizados para markdown no FavaleIA */
+.favale-ia-markdown {
+  line-height: 1.6;
+}
+
+.favale-ia-markdown h1,
+.favale-ia-markdown h2,
+.favale-ia-markdown h3 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.favale-ia-markdown h1:first-child,
+.favale-ia-markdown h2:first-child,
+.favale-ia-markdown h3:first-child {
+  margin-top: 0;
+}
+
+.favale-ia-markdown ul,
+.favale-ia-markdown ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.favale-ia-markdown li {
+  margin-bottom: 0.25em;
+}
+
+.favale-ia-markdown strong {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.favale-ia-markdown code {
+  background-color: hsl(var(--muted));
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.favale-ia-markdown pre {
+  background-color: hsl(var(--muted));
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1em 0;
+  border: 1px solid hsl(var(--border));
+}
+
+.favale-ia-markdown pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.favale-ia-markdown blockquote {
+  border-left: 4px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin: 1em 0;
+  background-color: hsl(var(--muted) / 0.5);
+  border-radius: 0 0.25rem 0.25rem 0;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Animação suave para o scroll - TEMPORARIAMENTE DESABILITADO */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Fix para prevenir scroll indesejado na página FavaleIA */
+.favale-ia-container {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
