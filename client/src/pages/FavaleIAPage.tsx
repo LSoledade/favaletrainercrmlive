@@ -297,7 +297,7 @@ export function FavaleIAPage() {
                       className="flex-1 min-w-0" 
                       onClick={() => setCurrentConversation(conversation.id)}
                     >
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm truncate text-[#ffffff] font-normal">
                         {conversation.title}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -336,7 +336,6 @@ export function FavaleIAPage() {
           </div>
         </div>
       </div>
-
       {/* Área principal do chat - Layout fixo */}
       <div className={chatAreaClasses}>
         {currentConversation ? (
@@ -469,7 +468,7 @@ export function FavaleIAPage() {
           </>
         ) : (
           // Estado inicial - nenhuma conversa selecionada, agora parecido com o Claude
-          <div className="flex-1 flex flex-col bg-background h-full">
+          (<div className="flex-1 flex flex-col bg-background h-full">
             <div className="flex-1 flex flex-col items-center justify-center p-8">
               <div className="flex items-center justify-center space-x-2 mb-8">
                 <div className="flex items-center space-x-2">
@@ -501,7 +500,7 @@ export function FavaleIAPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>)
         )}
       </div>
     </div>
