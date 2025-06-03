@@ -300,7 +300,7 @@ export function FavaleIAPage() {
                       <p className="text-sm truncate text-[#ffffff] font-normal">
                         {conversation.title}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-[#ffffff] font-medium">
                         {conversation.messages.length} mensagens
                       </p>
                     </div>
