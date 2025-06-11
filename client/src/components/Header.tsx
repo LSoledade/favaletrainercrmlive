@@ -3,7 +3,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User, Sun, Moon } from "lucide-react";
+import { LogOut, User, Bell, HelpCircle, Sun, Moon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,62 +20,94 @@ interface HeaderProps {
 export default function Header({ setSidebarOpen }: HeaderProps) {
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
-  const { user, logout } = useAuth();
-
-  const logoutMutation = {
-    mutate: logout
-  };
-
-  const getPageTitle = () => {
-    switch(location) {
-      case '/':
-        return 'Dashboard';
-      case '/leads':
-        return 'Leads';
-      case '/students':
-        return 'Alunos';
-      case '/sessions':
-        return 'Sessões';
-      case '/trainers':
-        return 'Personal Trainers';
-      case '/whatsapp':
-        return 'WhatsApp';
-      case '/whatsapp-config':
-        return 'Configurar WhatsApp';
-      case '/tasks':
-        return 'Tarefas';
-      case '/config':
-        return 'Configurações';
-      case '/data-analysis':
-        return 'Análise de Dados';
-      case '/favale-ia':
-        return 'Favale IA';
-      default:
-        return 'Favale&Pink Personal Training';
+  const { user, logoutMutation } = useAuth();
+  
+  const toggleTheme = () => {
+    if (theme === "light") {
+      setTheme("dark");
+    } else if (theme === "dark") {
+      setTheme("system");
+    } else {
+      setTheme("light");
     }
   };
-
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
-
+  
   const getThemeIcon = () => {
-    return theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />;
+    if (theme === "light") return <Moon className="h-4 w-4" />;
+    if (theme === "dark") return <Sun className="h-4 w-4" />;
+    return <Sun className="h-4 w-4" />; // system theme
   };
-
+  
   const getThemeTitle = () => {
-    return theme === "light" ? "Mudar para modo escuro" : "Mudar para modo claro";
+    if (theme === "light") return "Mudar para tema escuro";
+    if (theme === "dark") return "Mudar para tema do sistema";
+    return "Mudar para tema claro";
   };
-
+  
+  const getPageTitle = () => {
+    switch (location) {
+      case "/":
+        return "Dashboard";
+      case "/leads":
+        return "Leads";
+      case "/agendamentos":
+        return "Agendamentos";
+      case "/calendario":
+        return "Calendário";
+      case "/tarefas":
+        return "Tarefas";
+      case "/whatsapp":
+        return "WhatsApp";
+      case "/whatsapp/config":
+        return "Configurações do WhatsApp";
+      case "/favale-ia":
+        return "FavaleIA";
+      case "/config":
+        return "Configurações";
+      case "/auth":
+        return "Autenticação";
+      case "/politica-de-privacidade":
+        return "Política de Privacidade";
+      default:
+        // Para rotas dinâmicas como /tarefas/:id
+        if (location.startsWith("/tarefas/")) {
+          return "Detalhes da Tarefa";
+        }
+        return "FavaleTrainer";
+    }
+  };
+  
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+    <header className="h-16 flex items-center justify-between z-10 mb-2">
       <div className="flex items-center">
+        <button 
+          className="lg:hidden mr-2 p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <span className="material-icons text-gray-600 dark:text-gray-300">menu</span>
+        </button>
         <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
           {getPageTitle()}
         </h1>
       </div>
       
       <div className="flex items-center space-x-2">
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="font-normal text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 flex items-center gap-1 h-9"
+        >
+          <HelpCircle className="h-4 w-4" />
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="font-normal text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 flex items-center gap-1 h-9"
+        >
+          <Bell className="h-4 w-4" />
+        </Button>
+        
         <Button 
           variant="outline" 
           size="sm"
