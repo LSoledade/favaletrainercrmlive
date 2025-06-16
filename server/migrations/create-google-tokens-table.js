@@ -1,22 +1,22 @@
 
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
+require('dotenv').config();
 
-function createGoogleTokensTable() {
-  const dbPath = process.env.DATABASE_URL?.replace('file:', '') || path.join(process.cwd(), 'database.db');
-  const db = new Database(dbPath);
+async function createGoogleTokensTable() {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
 
   try {
     // Criar tabela para tokens do Google OAuth2
-    db.exec(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS google_tokens (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         userId INTEGER NOT NULL,
         accessToken TEXT NOT NULL,
         refreshToken TEXT,
-        expiryDate INTEGER NOT NULL,
-        updatedAt TEXT NOT NULL,
-        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+        expiryDate BIGINT NOT NULL,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(userId)
       )
     `);
@@ -26,7 +26,7 @@ function createGoogleTokensTable() {
     console.error('❌ Erro ao criar tabela google_tokens:', error);
     throw error;
   } finally {
-    db.close();
+    await pool.end();
   }
 }
 

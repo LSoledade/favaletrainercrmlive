@@ -896,57 +896,68 @@ export class DatabaseStorage implements IStorage {
     refresh_token?: string;
     expiry_date: number;
   }): Promise<void> {
-    // Implement the logic to save Google OAuth2 tokens to the database
-    // You might want to use a separate table to store these tokens, e.g., "google_tokens"
-    // The table should have columns like userId, access_token, refresh_token, expiry_date, etc.
-
-    // Example implementation using drizzle orm:
-    // await db.insert(google_tokens).values({
-    //   userId: userId,
-    //   accessToken: tokens.access_token,
-    //   refreshToken: tokens.refresh_token,
-    //   expiryDate: tokens.expiry_date,
-    //   updatedAt: new Date(),
-    // }).onConflictDoUpdate({
-    //   target: google_tokens.userId,
-    //   set: {
-    //     accessToken: tokens.access_token,
-    //     refreshToken: tokens.refresh_token,
-    //     expiryDate: tokens.expiry_date,
-    //     updatedAt: new Date(),
-    //   },
-    // });
-    console.log("Saving Google tokens for user:", userId);
-    // Implement your database interaction logic here
-    throw new Error("Method not implemented.");
+    try {
+      // Usar SQL direto para gerenciar tokens do Google
+      await db.execute(sql`
+        INSERT INTO google_tokens (userId, accessToken, refreshToken, expiryDate, updatedAt)
+        VALUES (${userId}, ${tokens.access_token}, ${tokens.refresh_token || null}, ${tokens.expiry_date}, ${new Date().toISOString()})
+        ON CONFLICT (userId) 
+        DO UPDATE SET 
+          accessToken = ${tokens.access_token},
+          refreshToken = ${tokens.refresh_token || null},
+          expiryDate = ${tokens.expiry_date},
+          updatedAt = ${new Date().toISOString()}
+      `);
+      
+      console.log("Google tokens salvos com sucesso para usuário:", userId);
+    } catch (error) {
+      console.error("Erro ao salvar tokens do Google:", error);
+      throw error;
+    }
   }
+
   async getGoogleTokens(userId: number): Promise<{
     access_token: string;
     refresh_token?: string;
     expiry_date: number;
   } | null> {
-    // Implement the logic to retrieve Google OAuth2 tokens from the database
-    // Example implementation using drizzle orm:
-    // const [token] = await db.select().from(google_tokens).where(eq(google_tokens.userId, userId));
-    // if (!token) {
-    //   return null;
-    // }
-    // return {
-    //   access_token: token.accessToken,
-    //   refresh_token: token.refreshToken,
-    //   expiry_date: token.expiryDate,
-    // };
-    console.log("Getting Google tokens for user:", userId);
-    // Implement your database interaction logic here
-    throw new Error("Method not implemented.");
+    try {
+      const result = await db.execute(sql`
+        SELECT accessToken, refreshToken, expiryDate 
+        FROM google_tokens 
+        WHERE userId = ${userId}
+      `);
+      
+      if (!result.rows || result.rows.length === 0) {
+        console.log("Nenhum token encontrado para usuário:", userId);
+        return null;
+      }
+      
+      const token = result.rows[0] as any;
+      
+      return {
+        access_token: token.accesstoken,
+        refresh_token: token.refreshtoken,
+        expiry_date: parseInt(token.expirydate),
+      };
+    } catch (error) {
+      console.error("Erro ao buscar tokens do Google:", error);
+      throw error;
+    }
   }
+
   async deleteGoogleTokens(userId: number): Promise<void> {
-    // Implement the logic to delete Google OAuth2 tokens from the database
-    // Example implementation using drizzle orm:
-    // await db.delete(google_tokens).where(eq(google_tokens.userId, userId));
-    console.log("Deleting Google tokens for user:", userId);
-    // Implement your database interaction logic here
-    throw new Error("Method not implemented.");
+    try {
+      await db.execute(sql`
+        DELETE FROM google_tokens 
+        WHERE userId = ${userId}
+      `);
+      
+      console.log("Tokens do Google removidos para usuário:", userId);
+    } catch (error) {
+      console.error("Erro ao remover tokens do Google:", error);
+      throw error;
+    }
   }
 }
 
