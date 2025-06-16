@@ -3,10 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle, Paperclip, Bell } from "lucide-react";
+import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle, Paperclip, Bell, Trash2 } from "lucide-react";
 import { useState } from "react";
 import TaskDetailDialog from "./TaskDetailDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/use-auth";
+import { useTaskContext } from "@/context/TaskContext";
 
 interface TaskCardProps {
   id: number;
@@ -39,6 +41,17 @@ export default function TaskCard({
   onStatusChange,
   onOpenDetails
 }: TaskCardProps) {
+  const { user } = useAuth();
+  const { deleteTask } = useTaskContext();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDeleteTask = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Impedir que abra o modal de detalhes
+    
+    if (window.confirm(`Tem certeza que deseja excluir a tarefa "${title}"? Esta ação não pode ser desfeita.`)) {
+      await deleteTask(id);
+    }
+  };
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "high":
@@ -68,54 +81,87 @@ export default function TaskCard({
   };
 
   const getStatusActions = () => {
-    if (!onStatusChange) return null;
-
-    switch (status) {
-      case "pending":
-        return (
-          <>
+    const statusActions = [];
+    
+    // Ações de status (apenas se onStatusChange for fornecido)
+    if (onStatusChange) {
+      switch (status) {
+        case "pending":
+          statusActions.push(
             <Button 
+              key="start"
               variant="outline" 
               size="sm" 
               className="text-purple-600 border-purple-200 hover:bg-purple-50"
-              onClick={() => onStatusChange(id, "in_progress")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(id, "in_progress");
+              }}
             >
               Iniciar
-            </Button>
+            </Button>,
             <Button 
+              key="cancel"
               variant="outline" 
               size="sm" 
               className="text-red-600 border-red-200 hover:bg-red-50"
-              onClick={() => onStatusChange(id, "cancelled")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(id, "cancelled");
+              }}
             >
               Cancelar
             </Button>
-          </>
-        );
-      case "in_progress":
-        return (
-          <>
+          );
+          break;
+        case "in_progress":
+          statusActions.push(
             <Button 
+              key="complete"
               variant="outline" 
               size="sm" 
               className="text-green-600 border-green-200 hover:bg-green-50"
-              onClick={() => onStatusChange(id, "completed")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(id, "completed");
+              }}
             >
               Concluir
-            </Button>
+            </Button>,
             <Button 
+              key="pause"
               variant="outline" 
               size="sm" 
               className="text-blue-600 border-blue-200 hover:bg-blue-50"
-              onClick={() => onStatusChange(id, "pending")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(id, "pending");
+              }}
             >
               Pausar
             </Button>
-          </>
-        );
-      default:
-        return null;
+          );
+          break;
+      }
     }
+
+    // Botão de exclusão (apenas para administradores)
+    if (user?.role === "admin") {
+      statusActions.push(
+        <Button 
+          key="delete"
+          variant="outline" 
+          size="sm" 
+          className="text-red-600 border-red-200 hover:bg-red-50"
+          onClick={handleDeleteTask}
+          title="Excluir tarefa"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      );
+    }
+
+    return statusActions.length > 0 ? statusActions : null;
   };
 
   const getStatusIcon = () => {
@@ -245,8 +291,8 @@ export default function TaskCard({
         </Avatar>
       </div>
       
-      {/* Ações de status só aparecem em hover */}
-      {onStatusChange && (
+      {/* Ações só aparecem em hover */}
+      {getStatusActions() && (
         <div className="absolute top-0 left-0 right-0 bottom-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm opacity-0 hover:opacity-100 flex items-center justify-center gap-1 transition-opacity duration-200 rounded-md">
           {getStatusActions()}
         </div>

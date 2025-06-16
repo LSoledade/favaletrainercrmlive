@@ -27,7 +27,7 @@ interface TaskDetailDialogProps {
 }
 
 export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDetailDialogProps) {
-  const { fetchTaskById, updateTask, addTaskComment, deleteTaskComment } = useTaskContext();
+  const { fetchTaskById, updateTask, addTaskComment, deleteTaskComment, deleteTask } = useTaskContext();
   const { toast } = useToast();
   const { user } = useAuth();
 
