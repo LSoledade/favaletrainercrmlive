@@ -1,6 +1,8 @@
 
-const { Pool } = require('pg');
-require('dotenv').config();
+import { Pool } from 'pg';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 async function createGoogleTokensTable() {
   const pool = new Pool({
@@ -30,8 +32,9 @@ async function createGoogleTokensTable() {
   }
 }
 
-if (require.main === module) {
+// Executar se for chamado diretamente
+if (import.meta.url === `file://${process.argv[1]}`) {
   createGoogleTokensTable();
 }
 
-module.exports = { createGoogleTokensTable };
+export { createGoogleTokensTable };
