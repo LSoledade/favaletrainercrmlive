@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,7 +109,7 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
     try {
       // Usar o ID do usuário autenticado como criador da tarefa
       const assignedById = user?.id || 1;
-      
+
       const taskData = {
         title,
         description,
@@ -128,7 +128,7 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
 
       // Fechar o diálogo após salvar
       onOpenChange(false);
-      
+
     } catch (error) {
       console.error("Erro ao salvar tarefa:", error);
     } finally {
@@ -181,9 +181,14 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
               <ChevronLeft className="h-4 w-4" />
             </Button>
           )}
+          <DialogHeader>
           <DialogTitle className="text-xl">
             {isEditing ? "Editar Tarefa" : "Criar Tarefa"}
           </DialogTitle>
+          <DialogDescription>
+            {isEditing ? "Atualize as informações da tarefa" : "Preencha os dados para criar uma nova tarefa"}
+          </DialogDescription>
+        </DialogHeader>
           <div className="ml-auto">
             {currentStep === "assignment" && assignedToId && (
               <div className="flex items-center gap-2">

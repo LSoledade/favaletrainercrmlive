@@ -544,13 +544,11 @@ export default function TasksPage() {
         <KanbanBoard onCreateTask={handleCreateTask} onOpenDetails={handleOpenTaskDetails} />
       )}
       
-      {showCreateTaskDialog && (
-        <TaskDialog 
-          open={showCreateTaskDialog} 
-          onOpenChange={setShowCreateTaskDialog}
-          initialStatus={selectedTaskStatus}
-        />
-      )}
+      <TaskDialog 
+        open={showCreateTaskDialog} 
+        onOpenChange={setShowCreateTaskDialog}
+        initialStatus={selectedTaskStatus}
+      />
       
       <TaskDetailDialog
         open={showTaskDetailDialog}

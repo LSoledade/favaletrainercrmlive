@@ -22,6 +22,7 @@ import { WhatsappProvider } from "@/context/WhatsappContext";
 import { TaskProvider } from "@/context/TaskContext";
 import { AuthProvider } from "@/hooks/use-auth";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
+import ErrorBoundary from "@/components/ErrorBoundary"; // Adicionado ErrorBoundary
 
 function Router() {
   return (
@@ -46,7 +47,7 @@ function Router() {
 function App() {
   const [location] = useLocation();
   const isAuthPage = location === "/auth";
-  
+
   return (
     <ThemeProvider>
       <TooltipProvider>

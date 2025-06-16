@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
   const { fetchTaskById, updateTask, addTaskComment, deleteTaskComment } = useTaskContext();
   const { toast } = useToast();
   const { user } = useAuth();
-  
+
   const [task, setTask] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [comment, setComment] = useState("");
@@ -40,7 +40,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
   const [users, setUsers] = useState<Array<{id: number, username: string, role: string}>>([]);
   const [assigningUser, setAssigningUser] = useState(false);
   const [deletingComment, setDeletingComment] = useState<number | null>(null);
-  
+
   // Gerar cor consistente com base em uma string (para avatares)
   function stringToColor(str: string) {
     let hash = 0;
@@ -49,7 +49,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
       hash = str.charCodeAt(i) + ((hash << 5) - hash);
       hash = hash & hash;
     }
-    
+
     const colors = [
       '#3b82f6', // blue
       '#ef4444', // red
@@ -64,10 +64,10 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
       '#06b6d4', // cyan
       '#22c55e', // emerald
     ];
-    
+
     return colors[Math.abs(hash) % colors.length];
   }
-  
+
   // Carregar detalhes da tarefa
   useEffect(() => {
     if (taskId) {
@@ -84,7 +84,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
       });
     }
   }, [taskId, fetchTaskById]);
-  
+
   // Carregar lista de usuários do sistema
   useEffect(() => {
     const fetchUsers = async () => {
@@ -103,10 +103,10 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
 
     fetchUsers();
   }, []);
-  
+
   const handleAddComment = async () => {
     if (!comment.trim() || !taskId || !user) return;
-    
+
     try {
       // Prepare comment data (without ID - server will assign one)
       const commentData = {
@@ -114,14 +114,14 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
         userId: user.id, // Use actual user ID
         content: comment,
       };
-      
+
       // Send to server and get response with actual ID
       const newComment = await addTaskComment(taskId, commentData);
-      
+
       // Only update local state after successful server response
       setCommentsList(prev => [...prev, newComment]);
       setComment("");
-      
+
     } catch (error) {
       console.error("Erro ao adicionar comentário:", error);
       toast({
@@ -131,7 +131,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
       });
     }
   };
-  
+
   const handleAddAttachment = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -143,15 +143,15 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
     };
     input.click();
   };
-  
+
   // Atribuir tarefa a outro usuário
   const handleAssignUser = async (userId: number) => {
     if (!taskId) return;
-    
+
     setAssigningUser(true);
     try {
       await updateTask(taskId, { assignedToId: userId });
-      
+
       // Atualizar o estado local da tarefa
       const updatedTask = { 
         ...task, 
@@ -159,7 +159,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
         assignedToName: users.find(u => u.id === userId)?.username || task.assignedToName
       };
       setTask(updatedTask);
-      
+
       toast({
         title: "Tarefa atribuída",
         description: "O responsável pela tarefa foi alterado com sucesso.",
@@ -175,18 +175,18 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
       setAssigningUser(false);
     }
   };
-  
+
   const handleDeleteComment = async (commentId: number) => {
     if (!taskId || !commentId) return;
-    
+
     setDeletingComment(commentId);
     try {
       const success = await deleteTaskComment(commentId);
-      
+
       if (success) {
         // Update local comments list
         setCommentsList(prev => prev.filter(comment => comment.id !== commentId));
-        
+
         toast({
           title: "Comentário excluído",
           description: "O comentário foi excluído com sucesso.",
@@ -205,7 +205,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
       setDeletingComment(null);
     }
   };
-  
+
   if (isLoading || !task) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -224,7 +224,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
       </Dialog>
     );
   }
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
@@ -253,7 +253,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
           </div>
           <p id="task-details-description" className="sr-only">Este diálogo mostra informações detalhadas sobre a tarefa selecionada.</p>
         </DialogHeader>
-        
+
         <div className="p-6 space-y-6">
           {/* Seção de atribuição e meta-info */}
           <div className="flex flex-wrap gap-4 items-center">
@@ -308,7 +308,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
                 </DropdownMenu>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Label className="text-sm text-gray-500">Nível:</Label>
               <Badge 
@@ -327,7 +327,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
                   : 'Baixo'}
               </Badge>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Label className="text-sm text-gray-500">Data:</Label>
               <div className="flex items-center gap-1">
@@ -338,7 +338,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
               </div>
             </div>
           </div>
-          
+
           {/* Descrição */}
           <div>
             <Label className="text-sm font-medium">Descrição:</Label>
@@ -346,7 +346,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
               {task.description || "Sem descrição."}
             </p>
           </div>
-          
+
           {/* Anexos */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -363,7 +363,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
                 + Adicionar um Anexo
               </Button>
             </div>
-            
+
             {attachments.length > 0 ? (
               <div className="space-y-2">
                 {attachments.map((file, index) => (
@@ -384,16 +384,16 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
               </div>
             )}
           </div>
-          
+
           <Separator />
-          
+
           {/* Comentários */}
           <div>
             <Label className="text-sm font-medium flex items-center">
               <MessageSquare className="h-4 w-4 mr-2" />
               Comentários:
             </Label>
-            
+
             <div className="mt-4 space-y-4">
               {commentsList.length > 0 ? (
                 commentsList.map((comment, index) => (
@@ -436,7 +436,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
                 <p className="text-sm text-gray-500">Nenhum comentário ainda.</p>
               )}
             </div>
-            
+
             {/* Formulário de novo comentário */}
             <div className="mt-4 flex items-center gap-3">
               <Avatar className="h-8 w-8">
@@ -475,7 +475,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
           </div>
         </div>
       </DialogContent>
-      
+
       {/* Dialog para editar a tarefa */}
       {showEditDialog && taskId && (
         <TaskDialog 
