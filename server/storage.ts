@@ -30,7 +30,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   deleteUser(id: number): Promise<boolean>;
-  
+
   // Lead methods
   getLeads(): Promise<Lead[]>;
   getLead(id: number): Promise<Lead | undefined>;
@@ -42,11 +42,11 @@ export interface IStorage {
   getLeadsByCampaign(campaign: string): Promise<Lead[]>;
   getLeadsByState(state: string): Promise<Lead[]>;
   getLeadsByPhone(phone: string): Promise<Lead[]>;
-  
+
   // Batch operations
   updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number>;
   deleteLeadsInBatch(ids: number[]): Promise<number>;
-  
+
   // WhatsApp methods
   getWhatsappMessages(leadId: number): Promise<WhatsappMessage[]>;
   getWhatsappMessageById(id: number): Promise<WhatsappMessage | undefined>;
@@ -55,7 +55,7 @@ export interface IStorage {
   updateWhatsappMessageStatus(id: number, status: string): Promise<WhatsappMessage | undefined>;
   updateWhatsappMessageId(id: number, messageId: string): Promise<WhatsappMessage | undefined>;
   deleteWhatsappMessage(id: number): Promise<boolean>;
-  
+
   // Trainer methods
   getTrainers(): Promise<Trainer[]>;
   getTrainer(id: number): Promise<Trainer | undefined>;
@@ -64,7 +64,7 @@ export interface IStorage {
   deleteTrainer(id: number): Promise<boolean>;
   getActiveTrainers(): Promise<Trainer[]>;
   getTrainersBySpecialty(specialty: string): Promise<Trainer[]>;
-  
+
   // Student methods
   getStudents(): Promise<Student[]>;
   getStudent(id: number): Promise<Student | undefined>;
@@ -75,7 +75,7 @@ export interface IStorage {
   getActiveStudents(): Promise<Student[]>;
   getStudentsBySource(source: string): Promise<Student[]>;
   getStudentsWithLeadInfo(): Promise<(Student & { lead: Lead | null })[]>;
-  
+
   // Session methods
   getSessions(): Promise<Session[]>;
   getSession(id: number): Promise<Session | undefined>;
@@ -89,11 +89,11 @@ export interface IStorage {
   getSessionsBySource(source: string): Promise<Session[]>;
   getSessionsWithDetails(): Promise<any[]>; // Retorna sessões com dados de alunos e professores
   getCompletedSessionsByStudent(studentId: number, startDate?: Date, endDate?: Date): Promise<Session[]>;
-  
+
   // Session history methods
   createSessionHistory(history: InsertSessionHistory): Promise<SessionHistory>;
   getSessionHistoryBySessionId(sessionId: number): Promise<SessionHistory[]>;
-  
+
   // Task methods
   getTasks(): Promise<Task[]>;
   getTask(id: number): Promise<Task | undefined>;
@@ -104,25 +104,38 @@ export interface IStorage {
   getTasksByAssignedById(userId: number): Promise<Task[]>;
   getTasksByStatus(status: string): Promise<Task[]>;
   getTasksByRelatedLeadId(leadId: number): Promise<Task[]>;
-  
+
   // Task comments methods
   getTaskCommentsByTaskId(taskId: number): Promise<TaskComment[]>;
   createTaskComment(comment: InsertTaskComment): Promise<TaskComment>;
   deleteTaskComment(id: number): Promise<boolean>;
-  
+
   // Session store for authentication
   sessionStore: session.Store;
 
   // WhatsApp Settings methods
   getWhatsappSettings(): Promise<WhatsappSettings | undefined>;
   saveWhatsappSettings(settings: InsertWhatsappSettings): Promise<WhatsappSettings>;
+
+  // Google OAuth2 token management
+  saveGoogleTokens(userId: number, tokens: {
+    access_token: string;
+    refresh_token?: string;
+    expiry_date: number;
+  }): Promise<void>;
+  getGoogleTokens(userId: number): Promise<{
+    access_token: string;
+    refresh_token?: string;
+    expiry_date: number;
+  } | null>;
+  deleteGoogleTokens(userId: number): Promise<void>;
 }
 
 const PostgresSessionStore = connectPg(session);
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
-  
+
   constructor() {
     this.sessionStore = new PostgresSessionStore({
       pool,
@@ -146,11 +159,11 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return user;
   }
-  
+
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users);
   }
-  
+
   async deleteUser(id: number): Promise<boolean> {
     try {
       await db.delete(users).where(eq(users.id, id));
@@ -177,7 +190,7 @@ export class DatabaseStorage implements IStorage {
         ...insertLead,
         notes: insertLead.notes || null,
       });
-      
+
       // Ensure entryDate is a Date object
       const leadDataToInsert = {
         ...insertLead,
@@ -189,7 +202,7 @@ export class DatabaseStorage implements IStorage {
         .insert(leads)
         .values(leadDataToInsert) // Use the processed data
         .returning();
-      
+
       console.log('Lead criado com sucesso:', lead);
       return lead;
     } catch (error) {
@@ -228,12 +241,12 @@ export class DatabaseStorage implements IStorage {
       await db
         .delete(whatsappMessages)
         .where(eq(whatsappMessages.leadId, id));
-      
+
       // Then delete the lead
       await db
         .delete(leads)
         .where(eq(leads.id, id));
-        
+
       return true;
     } catch (error) {
       console.error("Erro ao excluir lead:", error);
@@ -268,7 +281,7 @@ export class DatabaseStorage implements IStorage {
       .from(leads)
       .where(eq(leads.state, state));
   }
-  
+
   async getLeadsByPhone(phone: string): Promise<Lead[]> {
     // Remove qualquer formatação do número antes de buscar
     const cleanPhone = phone.replace(/\D/g, '');
@@ -291,7 +304,7 @@ export class DatabaseStorage implements IStorage {
   // Batch operations
   async updateLeadsInBatch(ids: number[], updates: Partial<InsertLead>): Promise<number> {
     if (ids.length === 0) return 0;
-    
+
     // Process updates for batch, ensuring correct types
     const processedUpdates: { [key: string]: any } = { ...updates }; // Use flexible type
 
@@ -310,7 +323,7 @@ export class DatabaseStorage implements IStorage {
       .update(leads)
       .set(processedUpdates as Partial<Lead>) 
       .where(sql`${leads.id} IN (${sql.join(ids, sql`, `)})`);
-    
+
     // Drizzle's update doesn't directly return affected rows count easily in all drivers
     // We return the number of IDs passed as an approximation
     return ids.length; 
@@ -318,26 +331,26 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLeadsInBatch(ids: number[]): Promise<number> {
     if (ids.length === 0) return 0;
-    
+
     // First delete all WhatsApp messages associated with these leads
     try {
       // Delete related WhatsApp messages first
       await db
         .delete(whatsappMessages)
         .where(sql`${whatsappMessages.leadId} IN (${sql.join(ids, sql`, `)})`);
-      
+
       // Then delete the leads
       await db
         .delete(leads)
         .where(sql`${leads.id} IN (${sql.join(ids, sql`, `)})`);
-      
+
       return ids.length; // Return the number of deleted rows
     } catch (error) {
       console.error("Erro ao excluir leads em lote:", error);
       throw error; // Re-throw to be caught by the route handler
     }
   }
-  
+
   // Trainer methods
   async getTrainers(): Promise<Trainer[]> {
     return await db.select().from(trainers).orderBy(trainers.name);
@@ -616,7 +629,7 @@ export class DatabaseStorage implements IStorage {
     if (startDate && endDate) {
       conditions.push(between(sessions.startTime, startDate, endDate) as SQL);
     }
-    
+
     // Build and execute the query using the conditions array
     return await db
       .select()
@@ -656,12 +669,12 @@ export class DatabaseStorage implements IStorage {
   async createTask(insertTask: InsertTask): Promise<Task> {
     // Log the incoming task data
     console.log('Creating task with data:', JSON.stringify(insertTask, null, 2));
-    
+
     // Create a new object with processed data
     const processedTask = {
       ...insertTask,
     };
-    
+
     // Ensure dueDate is a proper Date object if it exists
     if (processedTask.dueDate !== undefined && processedTask.dueDate !== null) {
       // If it's already a Date object, keep it; otherwise, try to create a new Date
@@ -677,10 +690,10 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
-    
+
     // Log the processed task data
     console.log('Processed task data:', JSON.stringify(processedTask, null, 2));
-    
+
     const [task] = await db
       .insert(tasks)
       .values(processedTask)
@@ -691,13 +704,13 @@ export class DatabaseStorage implements IStorage {
   async updateTask(id: number, updates: Partial<InsertTask>): Promise<Task | undefined> {
     // Log the incoming update data
     console.log('Updating task', id, 'with data:', JSON.stringify(updates, null, 2));
-    
+
     // Create a new object with processed data
     const processedUpdates = {
       ...updates,
       updatedAt: new Date()
     };
-    
+
     // Ensure dueDate is a proper Date object if it exists
     if (processedUpdates.dueDate !== undefined && processedUpdates.dueDate !== null) {
       // If it's already a Date object, keep it; otherwise, try to create a new Date
@@ -713,7 +726,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
-    
+
     // Log the processed update data
     console.log('Processed update data:', JSON.stringify(processedUpdates, null, 2));
 
@@ -729,7 +742,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Primeiro excluir comentários associados
       await db.delete(taskComments).where(eq(taskComments.taskId, id));
-      
+
       // Depois excluir a tarefa
       await db.delete(tasks).where(eq(tasks.id, id));
       return true;
@@ -770,7 +783,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(tasks.relatedLeadId, leadId))
       .orderBy(desc(tasks.createdAt));
   }
-  
+
   // Task comments methods
   async getTaskCommentsByTaskId(taskId: number): Promise<TaskComment[]> {
     return await db
@@ -799,7 +812,7 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
-  
+
   // WhatsApp methods
   async getWhatsappMessages(leadId: number): Promise<WhatsappMessage[]> {
     return await db
@@ -815,7 +828,7 @@ export class DatabaseStorage implements IStorage {
       .from(whatsappMessages)
       .where(eq(whatsappMessages.id, id))
       .limit(1);
-    
+
     return messages[0];
   }
 
@@ -825,7 +838,7 @@ export class DatabaseStorage implements IStorage {
       .from(whatsappMessages)
       .where(eq(whatsappMessages.messageId, messageId))
       .limit(1);
-    
+
     return messages[0];
   }
 
@@ -845,7 +858,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedMessage || undefined;
   }
-  
+
   async updateWhatsappMessageId(id: number, messageId: string): Promise<WhatsappMessage | undefined> {
     const [updatedMessage] = await db
       .update(whatsappMessages)
@@ -875,6 +888,65 @@ export class DatabaseStorage implements IStorage {
     // Sempre insere um novo registro (pode ser ajustado para update se preferir)
     const [saved] = await db.insert(whatsappSettings).values(settings).returning();
     return saved;
+  }
+
+  // Google OAuth2 token management
+  async saveGoogleTokens(userId: number, tokens: {
+    access_token: string;
+    refresh_token?: string;
+    expiry_date: number;
+  }): Promise<void> {
+    // Implement the logic to save Google OAuth2 tokens to the database
+    // You might want to use a separate table to store these tokens, e.g., "google_tokens"
+    // The table should have columns like userId, access_token, refresh_token, expiry_date, etc.
+
+    // Example implementation using drizzle orm:
+    // await db.insert(google_tokens).values({
+    //   userId: userId,
+    //   accessToken: tokens.access_token,
+    //   refreshToken: tokens.refresh_token,
+    //   expiryDate: tokens.expiry_date,
+    //   updatedAt: new Date(),
+    // }).onConflictDoUpdate({
+    //   target: google_tokens.userId,
+    //   set: {
+    //     accessToken: tokens.access_token,
+    //     refreshToken: tokens.refresh_token,
+    //     expiryDate: tokens.expiry_date,
+    //     updatedAt: new Date(),
+    //   },
+    // });
+    console.log("Saving Google tokens for user:", userId);
+    // Implement your database interaction logic here
+    throw new Error("Method not implemented.");
+  }
+  async getGoogleTokens(userId: number): Promise<{
+    access_token: string;
+    refresh_token?: string;
+    expiry_date: number;
+  } | null> {
+    // Implement the logic to retrieve Google OAuth2 tokens from the database
+    // Example implementation using drizzle orm:
+    // const [token] = await db.select().from(google_tokens).where(eq(google_tokens.userId, userId));
+    // if (!token) {
+    //   return null;
+    // }
+    // return {
+    //   access_token: token.accessToken,
+    //   refresh_token: token.refreshToken,
+    //   expiry_date: token.expiryDate,
+    // };
+    console.log("Getting Google tokens for user:", userId);
+    // Implement your database interaction logic here
+    throw new Error("Method not implemented.");
+  }
+  async deleteGoogleTokens(userId: number): Promise<void> {
+    // Implement the logic to delete Google OAuth2 tokens from the database
+    // Example implementation using drizzle orm:
+    // await db.delete(google_tokens).where(eq(google_tokens.userId, userId));
+    console.log("Deleting Google tokens for user:", userId);
+    // Implement your database interaction logic here
+    throw new Error("Method not implemented.");
   }
 }
 

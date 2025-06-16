@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter,
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AuditLogViewer from "@/components/admin/AuditLogViewer";
+import GoogleCalendarConfig from "@/components/oauth/GoogleCalendarConfig";
 
 const userProfileSchema = z.object({
   username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
@@ -245,6 +246,12 @@ export default function ConfigPage() {
                 className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
               >
                 Usuários
+              </TabsTrigger>
+              <TabsTrigger 
+                value="calendar" 
+                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+              >
+                Google Calendar
               </TabsTrigger>
               {user?.role === 'admin' && (
                 <TabsTrigger 
@@ -587,6 +594,10 @@ export default function ConfigPage() {
                   </Form>
                 </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="calendar" className="space-y-4">
+              <GoogleCalendarConfig />
             </TabsContent>
             
             <TabsContent value="users" className="space-y-4">

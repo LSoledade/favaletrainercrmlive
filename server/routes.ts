@@ -37,11 +37,12 @@ import schedulingRouter from "./routes/scheduling.routes"; // Import scheduling 
 import statsRouter from "./routes/stats.routes"; // Import stats router
 import { isAuthenticated, isAdmin } from "./middlewares/auth.middleware"; // Import middlewares
 import { addUserNamesToTasks } from "./utils/task.utils"; // Import addUserNamesToTasks
+import oauthRoutes from './routes/oauth.routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes and middleware
   setupAuth(app);
-  
+
   // Use the new routers
   app.use("/api/users", userRouter);
   app.use("/api/leads", leadRouter); // Use lead router
@@ -51,6 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/weather", weatherRouter); // Use weather router
   app.use("/api/scheduling", schedulingRouter); // Use scheduling router
   app.use("/api/stats", statsRouter); // Use stats router
+  app.use('/api/oauth', oauthRoutes);
 
   // Get all leads
   app.get('/api/leads', async (req, res) => {
@@ -67,11 +69,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const leadId = parseInt(req.params.id);
       const lead = await storage.getLead(leadId);
-      
+
       if (!lead) {
         return res.status(404).json({ message: "Lead não encontrado" });
       }
-      
+
       res.json(lead);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar lead" });
@@ -82,18 +84,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/leads', async (req, res) => {
     try {
       console.log('Recebendo dados para criar lead:', req.body);
-      
+
       // Primeiro validamos com o schema que aceita data como string (para validar formato)
       const validationResult = leadValidationSchema.safeParse(req.body);
-      
+
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
         console.error('Erro de validação:', validationError.message);
         return res.status(400).json({ message: validationError.message });
       }
-      
+
       console.log('Dados validados:', validationResult.data);
-      
+
       // Garantir que entryDate seja um objeto Date antes de enviar para o banco
       const leadToInsert = {
         ...validationResult.data,
@@ -101,10 +103,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? validationResult.data.entryDate 
           : new Date(validationResult.data.entryDate)
       };
-      
+
       console.log('Dados convertidos para inserção:', leadToInsert);
       const newLead = await storage.createLead(leadToInsert);
-      
+
       // Registrar evento de criação de lead
       logAuditEvent(AuditEventType.LEAD_CREATED, req, {
         leadId: newLead.id,
@@ -112,7 +114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         source: newLead.source,
         status: newLead.status
       });
-      
+
       res.status(201).json(newLead);
     } catch (error) {
       console.error('Erro ao criar lead:', error);
@@ -125,19 +127,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const leadId = parseInt(req.params.id);
       console.log('Atualizando lead:', req.body);
-      
+
       // Validar os dados recebidos
       const validationResult = leadValidationSchema.partial().safeParse(req.body);
-      
+
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
         console.error('Erro de validação na atualização:', validationError.message);
         return res.status(400).json({ message: validationError.message });
       }
-      
+
       // Preparar os dados para atualização
       let dataToUpdate = validationResult.data;
-      
+
       // Se entryDate for uma string, converter para Date
       if (dataToUpdate.entryDate && typeof dataToUpdate.entryDate === 'string') {
         try {
@@ -150,14 +152,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Formato de data inválido" });
         }
       }
-      
+
       console.log('Dados para atualização:', dataToUpdate);
       const updatedLead = await storage.updateLead(leadId, dataToUpdate);
-      
+
       if (!updatedLead) {
         return res.status(404).json({ message: "Lead não encontrado" });
       }
-      
+
       // Registrar evento de atualização de lead
       logAuditEvent(AuditEventType.LEAD_UPDATED, req, {
         leadId: updatedLead.id,
@@ -165,7 +167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedFields: Object.keys(dataToUpdate),
         statusChange: dataToUpdate.status ? `${updatedLead.status !== dataToUpdate.status ? 'De ' + updatedLead.status + ' para ' + dataToUpdate.status : 'Sem alteração'}` : undefined
       });
-      
+
       res.json(updatedLead);
     } catch (error) {
       console.error('Erro ao atualizar lead:', error);
@@ -177,20 +179,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/leads/:id', async (req, res) => {
     try {
       const leadId = parseInt(req.params.id);
-      
+
       // Obter informações do lead antes de excluir (para o log de auditoria)
       const leadToDelete = await storage.getLead(leadId);
-      
+
       if (!leadToDelete) {
         return res.status(404).json({ message: "Lead não encontrado" });
       }
-      
+
       const success = await storage.deleteLead(leadId);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Lead não encontrado" });
       }
-      
+
       // Registrar evento de exclusão de lead
       logAuditEvent(AuditEventType.LEAD_DELETED, req, {
         leadId: leadId,
@@ -199,14 +201,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         source: leadToDelete.source,
         status: leadToDelete.status
       });
-      
+
       res.status(204).send();
     } catch (error) {
       console.error('Erro ao deletar lead:', error);
       res.status(500).json({ message: "Erro ao deletar lead" });
     }
   });
-  
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -92,7 +92,73 @@ export function setCredentials(tokens: {
     return;
   }
   
-  oauth2Client.setCredentials(tokens);
+  oauth2Client.setCredentials({
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expiry_date: tokens.expiry_date
+  });
+}
+
+/**
+ * Carrega tokens de um usuário e configura as credenciais
+ */
+export async function loadUserCredentials(userId: number): Promise<boolean> {
+  if (isTestMode) {
+    console.log(`[SIMULAÇÃO GOOGLE CALENDAR] loadUserCredentials for user ${userId}`);
+    return true;
+  }
+  
+  try {
+    const tokens = await storage.getGoogleTokens(userId);
+    if (!tokens) {
+      return false;
+    }
+    
+    setCredentials(tokens);
+    
+    // Verificar se o token precisa ser renovado
+    const now = Date.now();
+    if (tokens.expiry_date <= now + 300000) { // Renovar se expira em 5 minutos
+      await refreshTokenIfNeeded(userId);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao carregar credenciais do usuário:', error);
+    return false;
+  }
+}
+
+/**
+ * Renova o token de acesso se necessário
+ */
+async function refreshTokenIfNeeded(userId: number): Promise<void> {
+  try {
+    const tokens = await storage.getGoogleTokens(userId);
+    if (!tokens?.refresh_token) {
+      throw new Error('Refresh token não disponível');
+    }
+    
+    oauth2Client.setCredentials({
+      refresh_token: tokens.refresh_token
+    });
+    
+    const { credentials } = await oauth2Client.refreshAccessToken();
+    
+    if (credentials.access_token && credentials.expiry_date) {
+      const newTokens = {
+        access_token: credentials.access_token,
+        refresh_token: credentials.refresh_token || tokens.refresh_token,
+        expiry_date: credentials.expiry_date
+      };
+      
+      await storage.saveGoogleTokens(userId, newTokens);
+      setCredentials(newTokens);
+    }
+  } catch (error) {
+    console.error('Erro ao renovar token:', error);
+    throw error;
+  }
 }
 
 /**
