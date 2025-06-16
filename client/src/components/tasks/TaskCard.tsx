@@ -3,12 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle, Paperclip, Bell, Trash2 } from "lucide-react";
+import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle, Paperclip, Bell } from "lucide-react";
 import { useState } from "react";
 import TaskDetailDialog from "./TaskDetailDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useAuth } from "@/hooks/use-auth";
-import { useTaskContext } from "@/context/TaskContext";
 
 interface TaskCardProps {
   id: number;
@@ -41,17 +39,6 @@ export default function TaskCard({
   onStatusChange,
   onOpenDetails
 }: TaskCardProps) {
-  const { user } = useAuth();
-  const { deleteTask } = useTaskContext();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const handleDeleteTask = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Impedir que abra o modal de detalhes
-    
-    if (window.confirm(`Tem certeza que deseja excluir a tarefa "${title}"? Esta ação não pode ser desfeita.`)) {
-      await deleteTask(id);
-    }
-  };
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "high":
@@ -145,21 +132,7 @@ export default function TaskCard({
       }
     }
 
-    // Botão de exclusão (apenas para administradores)
-    if (user?.role === "admin") {
-      statusActions.push(
-        <Button 
-          key="delete"
-          variant="outline" 
-          size="sm" 
-          className="text-red-600 border-red-200 hover:bg-red-50"
-          onClick={handleDeleteTask}
-          title="Excluir tarefa"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      );
-    }
+
 
     return statusActions.length > 0 ? statusActions : null;
   };
