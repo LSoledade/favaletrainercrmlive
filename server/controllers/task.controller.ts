@@ -101,18 +101,12 @@ export const updateTask = async (req: Request, res: Response) => {
   }
 };
 
-// Excluir tarefa (apenas admin)
+// Excluir tarefa
 export const deleteTask = async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
     return res.status(400).json({ message: 'ID inválido' });
   }
-  
-  // Verificar se o usuário é admin
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ message: 'Apenas administradores podem excluir tarefas' });
-  }
-  
   try {
     const existingTask = await storage.getTask(id);
     if (!existingTask) {

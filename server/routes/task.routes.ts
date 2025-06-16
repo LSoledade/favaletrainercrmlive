@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated, isAdmin } from '../middlewares/auth.middleware';
+import { isAuthenticated } from '../middlewares/auth.middleware';
 import {
   getAllTasks,
   getTaskById,
@@ -26,7 +26,7 @@ router.get('/', getAllTasks);
 router.post('/', createTask);
 router.get('/:id', getTaskById);
 router.patch('/:id', updateTask);
-router.delete('/:id', isAdmin, deleteTask); // Only admins can delete tasks
+router.delete('/:id', deleteTask);
 
 // Task Comment routes
 router.post('/:id/comments', addTaskComment);

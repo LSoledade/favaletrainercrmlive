@@ -3,30 +3,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle, Paperclip, Bell, Trash2 } from "lucide-react";
+import { Clock, Calendar, User, MessageSquare, CheckCircle, AlertCircle, XCircle, Paperclip, Bell } from "lucide-react";
 import { useState } from "react";
 import TaskDetailDialog from "./TaskDetailDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { MoreVertical } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface TaskCardProps {
   id: number;
@@ -42,7 +22,6 @@ interface TaskCardProps {
   hasAttachments?: boolean;
   onStatusChange?: (taskId: number, newStatus: string) => void;
   onOpenDetails?: (taskId: number) => void;
-  onDelete?: (taskId: number) => void;
 }
 
 export default function TaskCard({
@@ -58,8 +37,7 @@ export default function TaskCard({
   commentCount,
   hasAttachments = false,
   onStatusChange,
-  onOpenDetails,
-  onDelete
+  onOpenDetails
 }: TaskCardProps) {
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
@@ -171,7 +149,7 @@ export default function TaskCard({
   // Gerador de cor para avatar baseado no nome do usuário
   const getAvatarColor = (name: string): string => {
     if (!name) return "#64748b";
-
+    
     const colors = [
       "#3b82f6", // blue
       "#ef4444", // red
@@ -184,19 +162,15 @@ export default function TaskCard({
       "#6366f1", // indigo
       "#84cc16", // lime
     ];
-
+    
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
       hash = hash & hash;
     }
-
+    
     return colors[Math.abs(hash) % colors.length];
   };
-
-    const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
-
 
   return (
     <Card
@@ -221,67 +195,13 @@ export default function TaskCard({
           )}
         </div>
       )}
-
+      
       {/* Badge/tag no topo */}
       <div className="flex items-center justify-between mb-1">
         <div className="flex gap-1">
           {getPriorityBadge(priority)}
           {getStatusBadge(status)}
         </div>
-                <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onStatusChange && onStatusChange(id, "pending")}>
-                  Mover para Pendente
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange && onStatusChange(id, "in_progress")}>
-                  Mover para Em andamento
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange && onStatusChange(id, "completed")}>
-                  Marcar como Concluída
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onOpenDetails && onOpenDetails(id)}>
-                  Ver detalhes
-                </DropdownMenuItem>
-                         {isAdmin && onDelete && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem 
-                          className="text-red-600 focus:text-red-600"
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir tarefa
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja excluir a tarefa "{title}"? Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => onDelete(id)}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
       </div>
       {/* Título */}
       <h3 className="font-medium text-gray-900 dark:text-white text-sm mb-0.5">{title}</h3>
@@ -324,7 +244,7 @@ export default function TaskCard({
           </AvatarFallback>
         </Avatar>
       </div>
-
+      
       {/* Ações de status só aparecem em hover */}
       {onStatusChange && (
         <div className="absolute top-0 left-0 right-0 bottom-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm opacity-0 hover:opacity-100 flex items-center justify-center gap-1 transition-opacity duration-200 rounded-md">
@@ -333,4 +253,4 @@ export default function TaskCard({
       )}
     </Card>
   );
-}
+} 
