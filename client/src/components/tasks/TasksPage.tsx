@@ -18,7 +18,8 @@ import {
   Calendar,
   MessageSquare,
   Paperclip,
-  Bell
+  Bell,
+  Trash2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,7 +28,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +38,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 
 // Função para gerar cor consistente com base em uma string
 function stringToColor(str: string) {
@@ -65,12 +68,14 @@ function stringToColor(str: string) {
 }
 
 export default function TasksPage() {
+  const { user } = useAuth();
   const { 
     tasks, 
     loading, 
     error, 
     fetchTasks, 
     updateTask,
+    deleteTask,
     myTasks, 
     assignedTasks, 
     completedTasks 
@@ -101,6 +106,14 @@ export default function TasksPage() {
   const handleOpenTaskDetails = (taskId: number) => {
     setSelectedTaskId(taskId);
     setShowTaskDetailDialog(true);
+  };
+
+  const handleDeleteTask = async (taskId: number) => {
+    const success = await deleteTask(taskId);
+    if (success) {
+      // Atualizar a lista de tarefas
+      fetchTasks();
+    }
   };
   
   const filterTasks = (taskList: any[]) => {
@@ -283,6 +296,23 @@ export default function TasksPage() {
               }}>
                 Ver detalhes
               </DropdownMenuItem>
+              {user?.role === 'admin' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Tem certeza que deseja excluir a tarefa "${task.title}"?`)) {
+                        handleDeleteTask(task.id);
+                      }
+                    }}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir tarefa
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -384,6 +414,7 @@ export default function TasksPage() {
           hasAttachments={task.attachments?.length > 0 || false}
           onStatusChange={handleStatusChange}
           onOpenDetails={handleOpenTaskDetails}
+          onDelete={handleDeleteTask}
         />
       ))}
     </div>
