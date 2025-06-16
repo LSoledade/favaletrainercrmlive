@@ -138,9 +138,13 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
       serveStatic(app);
     }
 
+    // Setup health check endpoints before starting server
+    setupHealthCheck(app);
+
     // Port configuration with Cloud Run compatibility
-    const port = process.env.PORT || 5000;
-    const host = isProduction ? "0.0.0.0" : "0.0.0.0";
+    const config = isProduction ? getProductionConfig() : { port: 5000, host: "0.0.0.0" };
+    const port = config.port;
+    const host = config.host;
 
     server.listen({
       port: Number(port),
@@ -148,15 +152,11 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
       reusePort: !isProduction, // Disable reusePort in production for Cloud Run
     }, () => {
       log(`Server running on ${host}:${port} in ${process.env.NODE_ENV || 'development'} mode`, 'startup');
-    });
-
-    // Health check endpoint for Cloud Run
-    app.get('/health', (_req, res) => {
-      res.status(200).json({ 
-        status: 'healthy', 
-        timestamp: new Date().toISOString(),
-        env: process.env.NODE_ENV 
-      });
+      
+      if (isProduction) {
+        log('Production mode active - Security headers enabled', 'startup');
+        log('Health check endpoints: /health, /ready, /live', 'startup');
+      }
     });
 
   } catch (error) {
