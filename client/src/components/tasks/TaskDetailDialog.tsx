@@ -206,6 +206,17 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
     }
   };
 
+  const handleDeleteTask = async () => {
+    if (!task) return;
+    
+    if (window.confirm(`Tem certeza que deseja excluir a tarefa "${task.title}"? Esta ação não pode ser desfeita.`)) {
+      const success = await deleteTask(task.id);
+      if (success) {
+        onOpenChange(false); // Fechar o modal após exclusão
+      }
+    }
+  };
+
   if (isLoading || !task) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -244,6 +255,18 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
                 <Edit className="h-3.5 w-3.5" />
                 Editar
               </Button>
+              {user?.role === "admin" && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={handleDeleteTask}
+                  title="Excluir tarefa"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir
+                </Button>
+              )}
               <DialogClose asChild>
                 <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
                   <X className="h-4 w-4" />
