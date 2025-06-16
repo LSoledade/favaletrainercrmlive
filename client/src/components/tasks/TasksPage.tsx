@@ -403,10 +403,6 @@ export default function TasksPage() {
     <div className="container mx-auto p-4 md:p-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Gestão de Tarefas</h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            Gerencie suas tarefas e delegue atividades para sua equipe
-          </p>
         </div>
         
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
