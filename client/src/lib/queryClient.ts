@@ -53,7 +53,8 @@ async function getSupabaseClientAndHeaders() {
   const session = (await supabase.auth.getSession()).data.session;
   const headers = {
     'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`, // Use user token if available, else anon key
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   };
   return { supabase, headers };
 }
@@ -159,11 +160,12 @@ export const getSupabaseQueryFn: <T>(options: {
       }
       await throwIfResNotOk(res);
       const text = await res.text();
-      if (!text) return {} as T; // Or handle as error / null
+      if (!text) return {} as any; // Or handle as error / null
       return JSON.parse(text);
 
     } catch (error) {
-      if (unauthorizedBehavior === "returnNull" && (error.message?.includes("401") || error.status === 401) ) {
+      if (unauthorizedBehavior === "returnNull" && 
+          ((error as any)?.message?.includes("401") || (error as any)?.status === 401)) {
         return null;
       }
       throw error; // Re-throw other errors

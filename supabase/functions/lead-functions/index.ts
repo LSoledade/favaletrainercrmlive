@@ -6,7 +6,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { z } from "https://deno.land/x/zod@v3.23.4/mod.ts";
-import { fromZodError, ZodError } from "https://deno.land/x/zod_validation_error@v3.0.3/mod.ts";
 
 // --- Schemas Definition (Ideally from a shared location) ---
 const leadStatusEnum = z.enum(["Lead", "Aluno", "Contato", "Oportunidade", "Cliente", "Ex-Aluno", "Perdido"]);
@@ -87,7 +86,21 @@ if (!supabaseUrl || !serviceRoleKey || !anonKey) {
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
-  const headers = { "Content-Type": "application/json" };
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const headers = { 
+    "Content-Type": "application/json",
+    ...corsHeaders
+  };
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
     return new Response(JSON.stringify({ error: "Configuração do servidor incompleta." }), { status: 503, headers });
   }
@@ -170,7 +183,7 @@ Deno.serve(async (req) => {
                 leadsToInsert.push(validationResult);
             }
           } catch (e) {
-            results.errors.push({ error: e instanceof ZodError ? fromZodError(e).message : e.message, data: leadData });
+            results.errors.push({ error: e instanceof z.ZodError ? e.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') : e.message, data: leadData });
           }
         }
 
@@ -200,7 +213,7 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({ error: "IDs e payload de atualização são obrigatórios." }), { status: 400, headers });
         }
         const validationResult = leadValidationSchema.partial().safeParse(updates);
-        if(!validationResult.success) return new Response(JSON.stringify({ error: "Dados de atualização inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
+        if(!validationResult.success) return new Response(JSON.stringify({ error: "Dados de atualização inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
 
         const { data, error, count } = await supabaseAdminClient.from('leads').update(validationResult.data).in('id', ids).select();
         if (error) throw error;
@@ -242,7 +255,7 @@ Deno.serve(async (req) => {
       const payload = { ...body, phone: normalizePhone(body.phone) };
       const validationResult = leadValidationSchema.safeParse(payload);
       if (!validationResult.success) {
-        return new Response(JSON.stringify({ error: "Dados de lead inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
+        return new Response(JSON.stringify({ error: "Dados de lead inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
       }
       const { data: newLead, error } = await supabaseAdminClient.from('leads').insert(validationResult.data).select().single();
       if (error) throw error;
@@ -270,7 +283,7 @@ Deno.serve(async (req) => {
         const payload = body.phone ? { ...body, phone: normalizePhone(body.phone) } : body;
         const validationResult = leadValidationSchema.partial().safeParse(payload);
         if (!validationResult.success) {
-          return new Response(JSON.stringify({ error: "Dados de atualização de lead inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
+          return new Response(JSON.stringify({ error: "Dados de atualização de lead inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
         }
         const { data: updatedLead, error } = await supabaseAdminClient.from('leads').update(validationResult.data).eq('id', leadId).select().single();
         if (error) {
@@ -299,7 +312,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Erro na função Lead:', error.message, error.stack);
-    const errorMessage = error instanceof ZodError ? fromZodError(error).message : error.message;
+    const errorMessage = error instanceof z.ZodError ? error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') : error.message;
     return new Response(JSON.stringify({ error: errorMessage || "Erro interno do servidor." }), { status: 500, headers });
   }
 });

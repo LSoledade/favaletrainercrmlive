@@ -59,7 +59,21 @@ if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
 }
 
 Deno.serve(async (req) => {
-  const headers = { "Content-Type": "application/json" };
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const headers = { 
+    "Content-Type": "application/json",
+    ...corsHeaders
+  };
 
   // Use service_role client for admin-level operations like fetching all audit logs
   const supabaseAdminClient = createClient(supabaseUrl!, serviceRoleKey!);

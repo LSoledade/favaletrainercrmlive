@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLeadContext } from "@/context/LeadContext";
 import LeadForm from "./LeadForm";
 import { InsertLead } from "@shared/schema";

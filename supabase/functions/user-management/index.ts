@@ -4,8 +4,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient, SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2'
-import { z } from "https://deno.land/x/zod@v3.23.4/mod.ts";
-import { fromZodError, ZodError } from "https://deno.land/x/zod_validation_error@v3.0.3/mod.ts";
+import { z, ZodError } from "https://deno.land/x/zod@v3.23.4/mod.ts";
 
 // --- Supabase Client Initialization & Env Vars ---
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -42,7 +41,21 @@ type UpdateUserPayload = z.infer<typeof updateUserSchema>;
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
-  const headers = { "Content-Type": "application/json" };
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const headers = { 
+    "Content-Type": "application/json",
+    ...corsHeaders
+  };
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
     return new Response(JSON.stringify({ error: "Configuração do servidor incompleta." }), { status: 503, headers });
   }
@@ -148,7 +161,7 @@ Deno.serve(async (req) => {
       const body = await req.json();
       const validationResult = createUserSchema.safeParse(body);
       if (!validationResult.success) {
-        return new Response(JSON.stringify({ error: "Dados de criação de usuário inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
+        return new Response(JSON.stringify({ error: "Dados de criação de usuário inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
       }
       const { email, password, role, username, full_name } = validationResult.data;
 
@@ -196,7 +209,7 @@ Deno.serve(async (req) => {
         const body = await req.json();
         const validationResult = updateUserSchema.safeParse(body);
         if(!validationResult.success) {
-            return new Response(JSON.stringify({ error: "Dados de atualização inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
+            return new Response(JSON.stringify({ error: "Dados de atualização inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
         }
         const { role, username, full_name, email: newEmail } = validationResult.data;
 
@@ -263,7 +276,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Erro na função User Management:', error.message, error.stack);
-    const errorMessage = error instanceof ZodError ? fromZodError(error).message : error.message;
+    const errorMessage = error instanceof z.ZodError ? error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') : error.message;
     return new Response(JSON.stringify({ error: errorMessage || "Erro interno do servidor." }), { status: 500, headers });
   }
 });

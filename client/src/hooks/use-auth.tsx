@@ -57,11 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from('profiles') // Adjust table name if different
           .select('*') // Select role or other necessary profile fields
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle(); // Use maybeSingle() instead of single() to avoid errors when no profile exists
 
-        if (profileError && profileError.code !== 'PGRST116') { // PGRST116: no rows found, treat as no profile
+        if (profileError) {
           console.error("Error fetching profile:", profileError);
-          // Decide if this should throw or just mean no custom profile data
+          // If profile doesn't exist, we can still proceed with basic user info
         }
         return { session, user: session.user, profile: profileData as User | null };
       } catch (error) {

@@ -77,7 +77,21 @@ async function logAuditEvent(supabase: SupabaseClient, type: AuditEventType, use
 
 // --- Main Handler ---
 Deno.serve(async (req) => {
-  const headers = { "Content-Type": "application/json" };
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const headers = { 
+    "Content-Type": "application/json",
+    ...corsHeaders
+  };
 
   if (!oauth2Client) {
     return new Response(JSON.stringify({ error: "Configuração do Google OAuth no servidor está incompleta." }), { status: 503, headers });

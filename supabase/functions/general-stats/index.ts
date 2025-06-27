@@ -22,7 +22,7 @@ interface Lead {
   source: string; // e.g., 'Website', 'Referência', 'Campanha X'
   state: string;  // e.g., 'SP', 'RJ', 'MG'
   campaign: string; // e.g., 'Natal23', 'Verao24'
-  entryDate: string | Date; // Keep as string or Date from DB
+  entry_date: string | Date; // Keep as string or Date from DB
 }
 
 interface Student {
@@ -32,14 +32,28 @@ interface Student {
 
 interface Session {
   id: number;
-  status: string; // e.g., 'Agendado', 'Concluído', 'Cancelado'
-  studentId: number;
+  status: string; // e.g., 'agendado', 'concluído', 'cancelado'
+  student_id: number;
 }
 
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
-  const headers = { "Content-Type": "application/json" };
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const headers = { 
+    "Content-Type": "application/json",
+    ...corsHeaders
+  };
 
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
     return new Response(JSON.stringify({ error: "Configuração do servidor incompleta." }), { status: 503, headers }); // 503 Service Unavailable
@@ -63,9 +77,9 @@ Deno.serve(async (req) => {
     // Fetch all necessary data in parallel
     // Ensure table names 'leads', 'students', 'sessions' are correct.
     const [leadsResponse, studentsResponse, sessionsResponse] = await Promise.all([
-      adminSupabaseClient.from('leads').select('id, status, source, state, campaign, entryDate', { count: 'exact' }),
+      adminSupabaseClient.from('leads').select('id, status, source, state, campaign, entry_date', { count: 'exact' }),
       adminSupabaseClient.from('students').select('id', { count: 'exact' }),
-      adminSupabaseClient.from('sessions').select('id, status, studentId', { count: 'exact' })
+      adminSupabaseClient.from('sessions').select('id, status, student_id', { count: 'exact' })
     ]);
 
     if (leadsResponse.error) throw new Error(`Erro ao buscar leads: ${leadsResponse.error.message}`);
@@ -88,7 +102,7 @@ Deno.serve(async (req) => {
 
     let leadsLastMonthCount = 0;
     allLeads.forEach(lead => {
-      const entryD = new Date(lead.entryDate);
+      const entryD = new Date(lead.entry_date);
       if (entryD >= oneMonthAgo) {
         leadsLastMonthCount++;
       }
@@ -144,8 +158,21 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ data: stats }), { headers, status: 200 });
 
   } catch (error) {
-    console.error('Erro ao buscar estatísticas gerais:', error.message);
-    return new Response(JSON.stringify({ error: error.message || "Erro ao buscar estatísticas gerais" }), { status: 500, headers });
+    console.error('Erro ao buscar estatísticas gerais:', error);
+    
+    // Provide more specific error information
+    let errorMessage = "Erro ao buscar estatísticas gerais";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      details: error instanceof Error ? error.stack : "Unknown error"
+    }), { 
+      status: 500, 
+      headers 
+    });
   }
 });
 

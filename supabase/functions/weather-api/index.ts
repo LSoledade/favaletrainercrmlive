@@ -102,7 +102,21 @@ async function fetchWeatherFromApi(city: string, days: number = 1, lang: string 
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
-  const headers = { "Content-Type": "application/json" };
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const headers = { 
+    "Content-Type": "application/json",
+    ...corsHeaders
+  };
   if (!supabaseUrl || !supabaseAnonKey) {
     return new Response(JSON.stringify({ error: "Configuração do Supabase no servidor incompleta." }), { status: 503, headers });
   }

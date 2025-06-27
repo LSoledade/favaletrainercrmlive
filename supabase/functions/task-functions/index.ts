@@ -5,7 +5,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { z } from "https://deno.land/x/zod@v3.23.4/mod.ts";
-import { fromZodError, ZodError } from "https://deno.land/x/zod_validation_error@v3.0.3/mod.ts";
 
 // --- Supabase Client Initialization & Env Vars ---
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -82,7 +81,21 @@ async function addUserDetailsToTasks(supabase: SupabaseClient, tasks: Partial<Ta
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
-  const headers = { "Content-Type": "application/json" };
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  };
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const headers = { 
+    "Content-Type": "application/json",
+    ...corsHeaders
+  };
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
     return new Response(JSON.stringify({ error: "Configuração do servidor incompleta." }), { status: 503, headers });
   }
@@ -148,7 +161,7 @@ Deno.serve(async (req) => {
       const payload = { ...body, assigned_by_id: user.id };
       const validationResult = taskValidationSchema.safeParse(payload);
       if (!validationResult.success) {
-        return new Response(JSON.stringify({ error: "Dados da tarefa inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
+        return new Response(JSON.stringify({ error: "Dados da tarefa inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
       }
       const { data: newTask, error } = await adminSupabaseClient.from('tasks').insert(validationResult.data).select().single();
       if (error) throw error;
@@ -188,7 +201,7 @@ Deno.serve(async (req) => {
         const body = await req.json();
         const validationResult = taskValidationSchema.partial().safeParse(body); // Use partial for updates
         if (!validationResult.success) {
-          return new Response(JSON.stringify({ error: "Dados de atualização da tarefa inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
+          return new Response(JSON.stringify({ error: "Dados de atualização da tarefa inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
         }
         const { data: updatedTask, error } = await adminSupabaseClient.from('tasks').update(validationResult.data).eq('id', taskId).select().single();
         if (error) {
@@ -223,7 +236,7 @@ Deno.serve(async (req) => {
         const validationResult = taskCommentValidationSchema.safeParse(payload);
 
         if (!validationResult.success) {
-            return new Response(JSON.stringify({ error: "Dados de comentário inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
+            return new Response(JSON.stringify({ error: "Dados de comentário inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
         }
         const { data: newCommentData, error } = await adminSupabaseClient.from('task_comments').insert(validationResult.data).select('*, profile:profiles(username)').single();
         if (error) throw error;
@@ -258,7 +271,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Erro na função Task:', error.message, error.stack);
-    const errorMessage = error instanceof ZodError ? fromZodError(error).message : error.message;
+    const errorMessage = error instanceof z.ZodError ? error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') : error.message;
     return new Response(JSON.stringify({ error: errorMessage || "Erro interno do servidor de tarefas." }), { status: 500, headers });
   }
 });
