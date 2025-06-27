@@ -9,10 +9,14 @@ export default function GreetingWidget() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [icon, setIcon] = useState<JSX.Element>(<Coffee className="h-8 w-8 text-primary" />);
   
-  // Busca os dados do usuário logado
-  const { data: user, isLoading } = useQuery({
-    queryKey: ['/api/user'],
-  });
+import { useAuth } from '@/hooks/use-auth'; // Import useAuth
+
+export default function GreetingWidget() {
+  const [greeting, setGreeting] = useState('');
+  const [welcomeMessage, setWelcomeMessage] = useState('');
+  const [icon, setIcon] = useState<JSX.Element>(<Coffee className="h-8 w-8 text-primary" />);
+
+  const { profile, isLoading: authLoading } = useAuth(); // Use profile from Supabase auth
   
   // Define a saudação com base na hora do dia
   useEffect(() => {
@@ -44,13 +48,13 @@ export default function GreetingWidget() {
     return () => clearInterval(intervalId);
   }, []);
   
-  if (isLoading) {
+  if (authLoading) { // Use authLoading from useAuth
     return (
       <Card className="overflow-hidden">
         <CardContent className="p-6">
           <div className="flex flex-col space-y-4">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-6 w-64" />
+            <Skeleton className="h-8 w-48" /> {/* Greeting skeleton */}
+            <Skeleton className="h-6 w-64" /> {/* Welcome message skeleton */}
           </div>
         </CardContent>
       </Card>
@@ -66,7 +70,7 @@ export default function GreetingWidget() {
           </div>
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">
-              {greeting}, {user?.username || 'usuário'}!
+              {greeting}, {profile?.username || 'usuário'}!
             </h2>
             <p className="text-gray-600 dark:text-gray-300">
               {welcomeMessage}

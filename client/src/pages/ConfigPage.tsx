@@ -23,13 +23,14 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Trash2, Shield } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, 
          DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useQuery, useQueryClient as useTanstackQueryClient } from "@tanstack/react-query"; // Renamed to avoid conflict
+// Replace apiRequest, queryClient with Supabase specific ones
+import { invokeSupabaseFunction, getSupabaseQueryFn } from "@/lib/queryClient";
 import AuditLogViewer from "@/components/admin/AuditLogViewer";
 import GoogleCalendarConfig from "@/components/oauth/GoogleCalendarConfig";
 
-const userProfileSchema = z.object({
-  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
+// Schema for changing password (if you implement this via an Edge Function)
+const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Senha atual é obrigatória"),
   newPassword: z.string().min(6, "Nova senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string().min(1, "Confirmação de senha é obrigatória"),
@@ -38,15 +39,20 @@ const userProfileSchema = z.object({
   path: ["confirmPassword"],
 });
 
+// Schema for creating a new user (email is primary identifier for Supabase Auth)
 const newUserSchema = z.object({
-  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido"),
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres").optional(),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string().min(1, "Confirmação de senha é obrigatória"),
-  role: z.string().min(1, "Perfil é obrigatório"),
+  role: z.enum(["admin", "marketing", "comercial", "trainer"], {
+    errorMap: () => ({ message: "Perfil inválido" })
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
 });
+
 
 const notificationSettingsSchema = z.object({
   emailNotifications: z.boolean().default(true),
@@ -64,52 +70,63 @@ const systemSettingsSchema = z.object({
   defaultLeadSource: z.string().min(1, "Fonte padrão é obrigatória"),
 });
 
-type UserProfileValues = z.infer<typeof userProfileSchema>;
+type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 type NotificationSettingsValues = z.infer<typeof notificationSettingsSchema>;
 type SystemSettingsValues = z.infer<typeof systemSettingsSchema>;
-type NewUserValues = z.infer<typeof newUserSchema>;
+type NewUserFormValues = z.infer<typeof newUserSchema>; // Renamed to avoid conflict with User type
 
+// User type from Supabase (or your custom profile type if it differs significantly)
+// This should match what your 'user-management' function returns for a list of users
 type User = {
-  id: number;
-  username: string;
-  role?: string;
+  id: string; // Supabase user ID is typically UUID (string)
+  username?: string; // From your profiles table
+  email?: string; // From auth.users
+  role?: string;  // From your profiles table
+  created_at?: string;
+  last_sign_in_at?: string;
 };
 
 export default function ConfigPage() {
-  const { user } = useAuth();
+  // useAuth now returns { profile, session, user (SupabaseUser) }
+  const { profile: currentProfile, user: currentAuthUser } = useAuth();
+  const tanstackQueryClient = useTanstackQueryClient(); // Get query client instance
   const [activeTab, setActiveTab] = useState<string>("profile");
   const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   
-  // O ID do usuário atual para comparação
-  const currentUserId = user?.id || 0;
+  const currentUserId = currentAuthUser?.id || ""; // Supabase user ID is string (UUID)
   
-  // Buscar lista de usuários
+  // Fetch list of users using the 'user-management' Edge Function
   const { data: users = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery<User[]>({ 
-    queryKey: ["/api/users"],
-    refetchOnWindowFocus: true,
-    staleTime: 0, // Para garantir que os dados sejam sempre atualizados
+    queryKey: ["userList"], // Descriptive query key
+    queryFn: getSupabaseQueryFn({
+      functionName: 'user-management',
+      on401: 'throw', // Or handle as needed
+    }),
+    enabled: currentProfile?.role === 'admin', // Only fetch if current user is admin
   });
   
-  const newUserForm = useForm<NewUserValues>({
+  const newUserForm = useForm<NewUserFormValues>({
     resolver: zodResolver(newUserSchema),
     defaultValues: {
+      email: "",
       username: "",
       password: "",
       confirmPassword: "",
-      role: "",
+      role: "trainer", // Default role, or make it empty
     },
   });
 
-  const userProfileForm = useForm<UserProfileValues>({
-    resolver: zodResolver(userProfileSchema),
+  // Form for changing password (if implemented)
+  const changePasswordForm = useForm<ChangePasswordValues>({
+    resolver: zodResolver(changePasswordSchema),
     defaultValues: {
-      username: user?.username || "",
       currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     },
   });
+
 
   const notificationSettingsForm = useForm<NotificationSettingsValues>({
     resolver: zodResolver(notificationSettingsSchema),
@@ -133,14 +150,21 @@ export default function ConfigPage() {
     },
   });
 
-  const onProfileSubmit = (values: UserProfileValues) => {
-    console.log("Profile values:", values);
-    // Aqui você implementaria a lógica para atualizar o perfil
-    toast({
-      title: "Perfil atualizado",
-      description: "Suas informações de perfil foram atualizadas com sucesso.",
-    });
+  const onChangePasswordSubmit = async (values: ChangePasswordValues) => {
+    // This requires a Supabase Edge Function or direct client call to supabase.auth.updateUser()
+    // For Edge Function:
+    // await invokeSupabaseFunction('user-management', 'POST', { newPassword: values.newPassword }, { slug: 'change-password' });
+    // For direct client (if user is changing their own password):
+    const supabase = (await import('@supabase/supabase-js')).createClient(import.meta.env.VITE_SUPABASE_URL!, import.meta.env.VITE_SUPABASE_ANON_KEY!);
+    const { error } = await supabase.auth.updateUser({ password: values.newPassword });
+    if (error) {
+      toast({ title: "Erro ao alterar senha", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Senha alterada", description: "Sua senha foi atualizada com sucesso." });
+      changePasswordForm.reset();
+    }
   };
+
 
   const onNotificationSettingsSubmit = (values: NotificationSettingsValues) => {
     console.log("Notification settings:", values);
@@ -160,23 +184,25 @@ export default function ConfigPage() {
     });
   };
   
-  const onCreateUserSubmit = async (values: NewUserValues) => {
+  const onCreateUserSubmit = async (values: NewUserFormValues) => {
     try {
       setIsUpdating(true);
-      const { confirmPassword, ...userData } = values;
+      // Destructure to separate confirmPassword, and pass the rest to the Edge Function
+      const { confirmPassword, ...userDataToSubmit } = values;
       
-      await apiRequest("POST", "/api/users", userData);
+      // Call the 'user-management' Edge Function to create a user
+      await invokeSupabaseFunction("user-management", "POST", userDataToSubmit);
       
       toast({
         title: "Usuário criado",
-        description: `O usuário ${values.username} foi criado com sucesso.`,
+        description: `O usuário ${values.email} foi criado com sucesso.`, // Use email or username
       });
       
       newUserForm.reset();
       setIsNewUserDialogOpen(false);
-      // Invalidar a consulta e forçar uma nova busca de dados
-      await queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      await refetchUsers(); // Forçar busca imediata dos dados
+      // Invalidate the query for the user list to refetch
+      await tanstackQueryClient.invalidateQueries({ queryKey: ["userList"] });
+      // refetchUsers(); // refetchUsers is good if you want to ensure it's done before UI update
     } catch (error) {
       toast({
         title: "Erro ao criar usuário",
@@ -192,16 +218,18 @@ export default function ConfigPage() {
     if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
     
     try {
-      await apiRequest("DELETE", `/api/users/${userId}`);
+      // Call the 'user-management' Edge Function to delete a user
+      // The user ID is passed as a slug
+      await invokeSupabaseFunction("user-management", "DELETE", undefined, { slug: userId.toString() });
       
       toast({
         title: "Usuário excluído",
         description: "O usuário foi excluído com sucesso.",
       });
       
-      // Invalidar a consulta e forçar uma nova busca de dados
-      await queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      await refetchUsers(); // Forçar busca imediata dos dados
+      // Invalidate the query for the user list to refetch
+      await tanstackQueryClient.invalidateQueries({ queryKey: ["userList"] });
+      // refetchUsers();
     } catch (error) {
       toast({
         title: "Erro ao excluir usuário",
@@ -266,34 +294,32 @@ export default function ConfigPage() {
             <TabsContent value="profile" className="space-y-4">
               <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Alterar Senha</CardTitle>
+                  <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Perfil do Usuário</CardTitle>
                   <CardDescription className="text-gray-500 dark:text-gray-400">
-                    Atualize sua senha para manter sua conta segura
+                    Informações do seu perfil e opção para alterar senha.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Form {...userProfileForm}>
-                    <form onSubmit={userProfileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
-                      <FormField
-                        control={userProfileForm.control}
-                        name="username"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome de Usuário</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormDescription>Este é seu nome de usuário público.</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                  {/* Display user profile info */}
+                  <div className="space-y-2 mb-6">
+                    <div>
+                      <span className="font-medium">Email:</span> {currentAuthUser?.email}
+                    </div>
+                    <div>
+                      <span className="font-medium">Nome de Usuário:</span> {currentProfile?.username || 'N/A'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Perfil (Role):</span> {currentProfile?.role || 'N/A'}
+                    </div>
+                  </div>
 
-                      <Separator className="my-4" />
-                      <h3 className="text-lg font-medium mb-4">Alterar Senha</h3>
-
-                      <FormField
-                        control={userProfileForm.control}
+                  <Separator className="my-4" />
+                  <h3 className="text-md font-medium mb-4">Alterar Senha</h3>
+                  {/* Change Password Form */}
+                  <Form {...changePasswordForm}>
+                    <form onSubmit={changePasswordForm.handleSubmit(onChangePasswordSubmit)} className="space-y-4">
+                       <FormField
+                        control={changePasswordForm.control}
                         name="currentPassword"
                         render={({ field }) => (
                           <FormItem>
@@ -305,10 +331,9 @@ export default function ConfigPage() {
                           </FormItem>
                         )}
                       />
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
-                          control={userProfileForm.control}
+                          control={changePasswordForm.control}
                           name="newPassword"
                           render={({ field }) => (
                             <FormItem>
@@ -320,9 +345,8 @@ export default function ConfigPage() {
                             </FormItem>
                           )}
                         />
-
-                        <FormField
-                          control={userProfileForm.control}
+                         <FormField
+                          control={changePasswordForm.control}
                           name="confirmPassword"
                           render={({ field }) => (
                             <FormItem>
@@ -335,9 +359,8 @@ export default function ConfigPage() {
                           )}
                         />
                       </div>
-
-                      <Button type="submit" className="mt-4">
-                        Salvar Alterações
+                       <Button type="submit" className="mt-4">
+                        Alterar Senha
                       </Button>
                     </form>
                   </Form>
@@ -622,10 +645,23 @@ export default function ConfigPage() {
                       <form onSubmit={newUserForm.handleSubmit(onCreateUserSubmit)} className="space-y-4">
                         <FormField
                           control={newUserForm.control}
+                          name="email" // Changed to email
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email do Novo Usuário</FormLabel>
+                              <FormControl>
+                                <Input type="email" placeholder="email@example.com" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={newUserForm.control}
                           name="username"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Nome de Usuário</FormLabel>
+                              <FormLabel>Nome de Usuário (Opcional)</FormLabel>
                               <FormControl>
                                 <Input placeholder="Digite o nome de usuário" {...field} />
                               </FormControl>
@@ -633,7 +669,6 @@ export default function ConfigPage() {
                             </FormItem>
                           )}
                         />
-                        
                         <FormField
                           control={newUserForm.control}
                           name="role"

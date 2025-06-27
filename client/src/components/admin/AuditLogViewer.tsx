@@ -21,17 +21,35 @@ interface AuditLog {
 export default function AuditLogViewer() {
   const [filter, setFilter] = useState<string>('');
   const [eventType, setEventType] = useState<string>('');
+import { getSupabaseQueryFn } from '@/lib/queryClient'; // Import the new query function
+
+// Tipos para os logs de auditoria
+interface AuditLog {
+  id?: number; // Assuming Supabase adds an ID
+  timestamp: string;
+  type: string;
+  user_id: string | number; // Changed from userId to match typical Supabase column names
+  username: string; // This might come from a join or be stored in details
+  ip: string; // IP might be harder to get in Edge Functions, may be part of details
+  details: any;
+}
+
+export default function AuditLogViewer() {
+  const [filter, setFilter] = useState<string>('');
+  const [eventType, setEventType] = useState<string>('');
   const [limit, setLimit] = useState<number>(100);
 
   const { data: logs, isLoading, isError, refetch } = useQuery<AuditLog[]>({
-    queryKey: ['/api/audit-logs', { count: limit }],
-    queryFn: async () => {
-      const response = await fetch(`/api/audit-logs?count=${limit}`);
-      if (!response.ok) {
-        throw new Error('Falha ao carregar logs de auditoria');
-      }
-      return await response.json();
-    },
+    // Query key should uniquely identify the data based on parameters
+    queryKey: ['audit-logs', limit],
+    queryFn: getSupabaseQueryFn({
+      functionName: 'audit-log', // Name of your Supabase Edge Function for audit logs
+      params: { count: limit.toString() }, // Parameters to pass to the function
+      on401: 'throw', // Or 'returnNull' if you want to handle 401 differently
+    }),
+    // Keep staleTime and refetchOnWindowFocus if needed, or remove for default behavior
+    // staleTime: Infinity,
+    // refetchOnWindowFocus: false,
   });
 
   // Função para exportar logs para CSV
@@ -46,9 +64,9 @@ export default function AuditLogViewer() {
       .map(log => [
         format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: pt }),
         log.type,
-        log.username,
-        log.userId,
-        log.ip,
+        log.username, // Ensure username is available, might be in log.details.username or joined
+        log.user_id,  // Changed from log.userId
+        log.ip,       // Ensure IP is available, might be in log.details.ip
         JSON.stringify(log.details)
       ]);
     

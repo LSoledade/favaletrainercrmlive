@@ -14,16 +14,49 @@ export default function TimelineChart() {
   const [darkMode, setDarkMode] = useState(false);
   const [chartData, setChartData] = useState<LeadTimeData[]>([]);
   
-  // Dados de leads
-  const { data: leads } = useQuery<any[]>({
-    queryKey: ["/api/leads"],
-    enabled: true,
+import { getSupabaseQueryFn } from '@/lib/queryClient'; // Import the new query function
+
+interface LeadTimeData {
+  name: string;
+  novosLeads: number;
+  convertidos: number;
+  sessoes: number;
+}
+
+// Define a more specific type for Lead and Session data if possible
+interface LeadData {
+  entryDate: string | Date;
+  status: string;
+  // other lead properties if needed by the chart
+}
+
+interface SessionData {
+  startTime: string | Date;
+  // other session properties if needed by the chart
+}
+
+export default function TimelineChart() {
+  const [timeRange, setTimeRange] = useState('7d');
+  const [darkMode, setDarkMode] = useState(false);
+  const [chartData, setChartData] = useState<LeadTimeData[]>([]);
+
+  // Fetch leads data
+  const { data: leads, isLoading: leadsLoading } = useQuery<LeadData[]>({
+    queryKey: ["timelineLeads"], // Unique query key
+    queryFn: getSupabaseQueryFn({
+      functionName: 'lead-functions', // Assuming 'lead-functions' provides all leads
+      on401: 'throw',
+    }),
   });
   
-  // Dados de sessões
-  const { data: sessions } = useQuery<any[]>({
-    queryKey: ["/api/sessions"],
-    enabled: true,
+  // Fetch sessions data
+  const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionData[]>({
+    queryKey: ["timelineSessions"], // Unique query key
+    queryFn: getSupabaseQueryFn({
+      functionName: 'scheduling-functions', // Assuming 'scheduling-functions' with '/sessions' slug provides all sessions
+      slug: 'sessions', // If your function handles /sessions for all sessions
+      on401: 'throw',
+    }),
   });
 
   // Detectar tema escuro
@@ -177,16 +210,17 @@ export default function TimelineChart() {
   };
   
   // Se estiver carregando ou não houver dados
-  if (!chartData || chartData.length === 0) {
+  if (leadsLoading || sessionsLoading || !chartData || chartData.length === 0) {
     return (
       <div className="w-full h-full flex flex-col">
         <div className="flex justify-end mb-2 sm:mb-4">
+          {/* Keep the time range selector, but disable if loading */}
           <div className="relative group">
             <select 
               className="text-xs sm:text-sm border rounded px-2 py-1 text-gray-700 dark:bg-slate-800 dark:border-primary/30 dark:text-gray-300 focus:outline-none dark:focus:ring-1 dark:focus:ring-primary/50 dark:focus:shadow-glow-xs transition-all duration-200 dark:hover:border-primary/50 pr-6 appearance-none opacity-70 cursor-pointer"
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              disabled
+              disabled={leadsLoading || sessionsLoading}
             >
               <option value="7d">Últimos 7 dias</option>
               <option value="30d">Últimos 30 dias</option>
