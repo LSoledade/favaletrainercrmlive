@@ -5,250 +5,261 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { z } from "https://deno.land/x/zod@v3.23.4/mod.ts";
-import { fromZodError } from "https://deno.land/x/zod_validation_error@v3.0.3/mod.ts";
+import { fromZodError, ZodError } from "https://deno.land/x/zod_validation_error@v3.0.3/mod.ts";
 
-// --- Supabase Client Initialization ---
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+// --- Supabase Client Initialization & Env Vars ---
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-// --- Zod Schemas (replicated from shared/schema.ts for simplicity) ---
+if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    console.error("Supabase URL, Service Role Key, or Anon Key is missing.");
+}
+
+// --- Zod Schemas (ensure column names match DB: e.g., assigned_by_id) ---
+const taskStatusEnum = z.enum(["backlog", "pending", "in_progress", "completed", "cancelled"]);
+const taskPriorityEnum = z.enum(["low", "medium", "high"]);
+
 const taskValidationSchema = z.object({
-  title: z.string().min(1, "O título é obrigatório"),
+  title: z.string().min(1, "O título é obrigatório."),
   description: z.string().optional().nullable(),
-  assignedById: z.number().int().positive("ID do usuário que atribuiu a tarefa inválido"),
-  assignedToId: z.number().int().positive("ID do usuário atribuído inválido"),
-  dueDate: z.preprocess((arg) => {
-    if (typeof arg === "string" || arg instanceof Date) return arg;
-    if (arg === null || arg === undefined) return arg;
-    return undefined;
-  }, z.union([
-    z.string().transform(val => new Date(val).toISOString()), // Ensure ISO string for DB
-    z.date().transform(d => d.toISOString())
-  ])).optional().nullable().refine(dateStr => dateStr ? !isNaN(Date.parse(dateStr)) : true, {
-    message: "Data de vencimento precisa ser uma data válida ou estar vazia"
-  }),
-  priority: z.enum(["low", "medium", "high"]).default("medium"),
-  status: z.enum(["backlog", "pending", "in_progress", "completed", "cancelled"]).default("pending"),
-  relatedLeadId: z.number().int().positive("ID do lead inválido").optional().nullable(),
+  assigned_by_id: z.string().uuid("ID de quem atribuiu deve ser um UUID válido."), // Assuming UUID from auth.users
+  assigned_to_id: z.string().uuid("ID do atribuído deve ser um UUID válido.").optional().nullable(), // Can be unassigned
+  due_date: z.preprocess((arg) => { // Changed to due_date
+    if (typeof arg === "string" || arg instanceof Date) return new Date(arg); // Allow ISO string or Date object
+    return arg; // Pass through null/undefined
+  }, z.date().optional().nullable().transform(d => d?.toISOString())), // Store as ISO string
+  priority: taskPriorityEnum.default("medium"),
+  status: taskStatusEnum.default("pending"),
+  related_lead_id: z.number().int().positive("ID do lead relacionado inválido.").optional().nullable(), // Assuming integer ID for leads
+  // Supabase auto-generates id, created_at, updated_at
 });
 type InsertTask = z.infer<typeof taskValidationSchema>;
+type Task = InsertTask & { id: number; created_at: string; updated_at: string; assigned_to_name?: string; assigned_by_name?: string; comments?: any[] };
+
 
 const taskCommentValidationSchema = z.object({
-  taskId: z.number().int().positive("ID da tarefa inválido"),
-  userId: z.number().int().positive("ID do usuário inválido"), // This will be the authenticated user
-  content: z.string().min(1, "O conteúdo é obrigatório"),
+  task_id: z.number().int().positive("ID da tarefa inválido."),
+  user_id: z.string().uuid("ID do usuário deve ser um UUID válido."), // From auth.users.id
+  content: z.string().min(1, "O conteúdo do comentário é obrigatório."),
 });
 type InsertTaskComment = z.infer<typeof taskCommentValidationSchema>;
+type TaskComment = InsertTaskComment & { id: number; created_at: string; user_name?: string; };
 
-// --- Helper to add user names (fetches from 'users' table, assumes 'username' column) ---
-async function addUserNamesToTasks(supabase: SupabaseClient, tasks: any[]) {
+
+// --- Helper to add user names (fetches from 'profiles' table, assumes 'username' column) ---
+// This is more robust if user IDs are UUIDs from auth.users and profiles table links to it.
+async function addUserDetailsToTasks(supabase: SupabaseClient, tasks: Partial<Task>[]) {
   if (!tasks || tasks.length === 0) return [];
 
-  const userIds = new Set<number>();
+  const userIds = new Set<string>(); // Assuming UUIDs for user IDs
   tasks.forEach(task => {
-    if (task.assignedToId) userIds.add(task.assignedToId);
-    if (task.assignedById) userIds.add(task.assignedById);
+    if (task.assigned_to_id) userIds.add(task.assigned_to_id);
+    if (task.assigned_by_id) userIds.add(task.assigned_by_id);
   });
 
-  if (userIds.size === 0) return tasks.map(t => ({...t, assignedToName: 'N/A', assignedByName: 'N/A'}));
+  if (userIds.size === 0) return tasks.map(t => ({...t, assigned_to_name: 'N/A', assigned_by_name: 'N/A'}));
 
-  const { data: users, error } = await supabase
-    .from('users') // Make sure your public schema has a 'users' table or adjust as needed
-    .select('id, username') // Assuming 'username' exists. If using profiles, join with that.
+  // Fetch from 'profiles' table which should link to auth.users.id (UUID)
+  const { data: profiles, error } = await supabase
+    .from('profiles') // Ensure this table exists and 'id' is UUID linked to auth.users
+    .select('id, username') // 'username' or 'full_name'
     .in('id', Array.from(userIds));
 
   if (error) {
-    console.error("Error fetching user names:", error);
-    return tasks.map(t => ({...t, assignedToName: 'Erro', assignedByName: 'Erro'}));
+    console.error("Error fetching user profiles for tasks:", error.message);
+    return tasks.map(t => ({...t, assigned_to_name: 'Erro', assigned_by_name: 'Erro'}));
   }
 
-  const userMap = new Map(users.map(u => [u.id, u.username]));
+  const profileMap = new Map(profiles?.map(p => [p.id, p.username]));
 
   return tasks.map(task => ({
     ...task,
-    assignedToName: userMap.get(task.assignedToId) || 'Desconhecido',
-    assignedByName: userMap.get(task.assignedById) || 'Desconhecido',
+    assigned_to_name: profileMap.get(task.assigned_to_id!) || 'Desconhecido',
+    assigned_by_name: profileMap.get(task.assigned_by_id!) || 'Desconhecido',
   }));
 }
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
+  const headers = { "Content-Type": "application/json" };
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    return new Response(JSON.stringify({ error: "Configuração do servidor incompleta." }), { status: 503, headers });
+  }
+
   const adminSupabaseClient = createClient(supabaseUrl, serviceRoleKey);
-  const userSupabaseClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+  const userSupabaseClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: req.headers.get('Authorization')! } }
   });
 
   const { data: { user }, error: authError } = await userSupabaseClient.auth.getUser();
   if (authError || !user) {
-    return new Response(JSON.stringify({ message: "Não autenticado" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Não autenticado." }), { status: 401, headers });
   }
-  // Fetch user role from your 'users' or 'profiles' table
+
   const { data: userProfile, error: profileError } = await adminSupabaseClient
-      .from('users') // Or 'profiles'
+      .from('profiles') // Ensure 'profiles' table and 'role' column
       .select('role')
-      .eq('id', user.id) // Assuming your 'users' or 'profiles' table has an 'id' that matches auth.users.id
+      .eq('id', user.id)
       .single();
 
-  if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found
-      console.error("Error fetching user profile:", profileError);
-      return new Response(JSON.stringify({ message: "Erro ao buscar perfil do usuário." }), { status: 500 });
+  if (profileError && profileError.code !== 'PGRST116') {
+      console.error("Error fetching user profile for task function:", profileError.message);
+      return new Response(JSON.stringify({ error: "Erro ao buscar perfil do usuário." }), { status: 500, headers });
   }
   const userRole = userProfile?.role || 'user';
 
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/').filter(part => part);
-  // /functions/v1/task-functions/...
-  // ... (no id) -> list or create
-  // ... /<id> -> get, update, delete task
-  // ... /assigned-to/<userId> -> list by assigned to
-  // ... /status/<status> -> list by status
-  // ... /<id>/comments -> create comment
-  // ... /comments/<commentId> -> delete comment
+  const actionOrId = pathParts[3]; // Task ID, or 'assigned-to', 'status', 'comments'
+  const subActionOrId = pathParts[4]; // User ID, status value, comment ID, or 'comments' for task comments
+  const commentIdForDelete = pathParts[5]; // Actual comment ID if actionOrId is 'comments' and subActionOrId is an ID
 
-  const actionOrId = pathParts[3];
-  const subAction = pathParts[4]; // 'comments' or undefined
-  const subActionId = pathParts[5]; // commentId or undefined
-
+  console.log("Task Function Request:", req.method, url.pathname, "Action/ID:", actionOrId, "SubAction/ID:", subActionOrId);
 
   try {
-    // --- GET all tasks ---
+    // --- GET all tasks (paginated, with filters) ---
     if (req.method === 'GET' && !actionOrId) {
-      const { data, error } = await adminSupabaseClient.from('tasks').select('*');
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const limit = parseInt(url.searchParams.get('limit') || '25');
+      const statusFilter = url.searchParams.get('status');
+      const assignedToFilter = url.searchParams.get('assigned_to_id'); // Expects UUID
+      const offset = (page - 1) * limit;
+
+      let query = adminSupabaseClient.from('tasks').select('*', { count: 'exact' }).range(offset, offset + limit -1);
+      if (statusFilter) query = query.eq('status', statusFilter);
+      if (assignedToFilter) query = query.eq('assigned_to_id', assignedToFilter);
+      // Add more sort options as needed: .order('due_date', { ascending: true, nullsFirst: false })
+
+      const { data, error, count } = await query;
       if (error) throw error;
-      const tasksWithNames = await addUserNamesToTasks(adminSupabaseClient, data || []);
-      return new Response(JSON.stringify(tasksWithNames), { status: 200 });
+      const tasksWithDetails = await addUserDetailsToTasks(adminSupabaseClient, data as Partial<Task>[] || []);
+      return new Response(JSON.stringify({ data: tasksWithDetails, meta: { total: count, page, limit } }), { headers, status: 200 });
     }
 
-    // --- GET tasks by assigned-to/:userId ---
-    if (req.method === 'GET' && actionOrId === 'assigned-to' && subAction) {
-      const userIdParam = parseInt(subAction);
-      if (isNaN(userIdParam)) return new Response(JSON.stringify({ message: "ID de usuário inválido" }), { status: 400 });
-      const { data, error } = await adminSupabaseClient.from('tasks').select('*').eq('assignedToId', userIdParam);
-      if (error) throw error;
-      const tasksWithNames = await addUserNamesToTasks(adminSupabaseClient, data || []);
-      return new Response(JSON.stringify(tasksWithNames), { status: 200 });
-    }
-
-    // --- GET tasks by status/:status ---
-    if (req.method === 'GET' && actionOrId === 'status' && subAction) {
-      const statusParam = subAction;
-      // Add more validation for status if needed
-      const { data, error } = await adminSupabaseClient.from('tasks').select('*').eq('status', statusParam);
-      if (error) throw error;
-      const tasksWithNames = await addUserNamesToTasks(adminSupabaseClient, data || []);
-      return new Response(JSON.stringify(tasksWithNames), { status: 200 });
-    }
+    // --- GET tasks by assigned_to_id/:userId --- (Simplified, covered by above)
+    // --- GET tasks by status/:status --- (Simplified, covered by above)
 
     // --- POST create task ---
     if (req.method === 'POST' && !actionOrId) {
       const body = await req.json();
-      const validationResult = taskValidationSchema.safeParse(body);
+      // Ensure assigned_by_id is the current authenticated user
+      const payload = { ...body, assigned_by_id: user.id };
+      const validationResult = taskValidationSchema.safeParse(payload);
       if (!validationResult.success) {
-        return new Response(JSON.stringify({ message: "Dados inválidos", details: fromZodError(validationResult.error).toString() }), { status: 400 });
+        return new Response(JSON.stringify({ error: "Dados da tarefa inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
       }
       const { data: newTask, error } = await adminSupabaseClient.from('tasks').insert(validationResult.data).select().single();
       if (error) throw error;
-      return new Response(JSON.stringify(newTask), { status: 201 });
+      const taskWithDetailsArray = await addUserDetailsToTasks(adminSupabaseClient, [newTask as Partial<Task>]);
+      return new Response(JSON.stringify({ data: taskWithDetailsArray[0] }), { headers, status: 201 });
     }
 
-    // Operations requiring a task ID
-    if (actionOrId && !isNaN(parseInt(actionOrId)) && subAction !== 'comments') {
+    // Operations requiring a task ID (integer)
+    if (actionOrId && !isNaN(parseInt(actionOrId)) && subActionOrId !== 'comments') {
       const taskId = parseInt(actionOrId);
 
-      // --- GET task by ID ---
+      // --- GET task by ID (with comments and user details) ---
       if (req.method === 'GET') {
         const { data: task, error } = await adminSupabaseClient.from('tasks').select('*').eq('id', taskId).single();
-        if (error) throw error;
-        if (!task) return new Response(JSON.stringify({ message: "Tarefa não encontrada" }), { status: 404 });
+        if (error) {
+            if(error.code === 'PGRST116') return new Response(JSON.stringify({ error: "Tarefa não encontrada." }), { status: 404, headers });
+            throw error;
+        }
 
         const { data: commentsData, error: commentsError } = await adminSupabaseClient
             .from('task_comments')
-            .select('*, user:users(username)') // Adjust if your user table/column is different
-            .eq('taskId', taskId);
-        if(commentsError) console.error("Error fetching comments:", commentsError);
+            .select('*, profile:profiles(username)') // Join with profiles for username
+            .eq('task_id', taskId)
+            .order('created_at', { ascending: true });
+        if(commentsError) console.error("Error fetching comments for task:", taskId, commentsError.message);
 
-        const taskWithDetailsArray = await addUserNamesToTasks(adminSupabaseClient, [task]);
-        const taskWithDetails = taskWithDetailsArray[0];
-        taskWithDetails.comments = commentsData?.map((c: any) => ({
+        const [taskWithUserDetails] = await addUserDetailsToTasks(adminSupabaseClient, [task as Partial<Task>]);
+        taskWithUserDetails.comments = commentsData?.map((c: any) => ({
             ...c,
-            userName: c.user?.username || 'Desconhecido'
+            user_name: c.profile?.username || 'Desconhecido' // Use profile.username
         })) || [];
-        return new Response(JSON.stringify(taskWithDetails), { status: 200 });
+        return new Response(JSON.stringify({ data: taskWithUserDetails }), { headers, status: 200 });
       }
 
       // --- PATCH update task ---
       if (req.method === 'PATCH') {
         const body = await req.json();
-        const validationResult = taskValidationSchema.partial().safeParse(body);
+        const validationResult = taskValidationSchema.partial().safeParse(body); // Use partial for updates
         if (!validationResult.success) {
-          return new Response(JSON.stringify({ message: "Dados inválidos", details: fromZodError(validationResult.error).toString() }), { status: 400 });
+          return new Response(JSON.stringify({ error: "Dados de atualização da tarefa inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
         }
         const { data: updatedTask, error } = await adminSupabaseClient.from('tasks').update(validationResult.data).eq('id', taskId).select().single();
-        if (error) throw error;
-        if (!updatedTask) return new Response(JSON.stringify({ message: "Tarefa não encontrada" }), { status: 404 });
-        return new Response(JSON.stringify(updatedTask), { status: 200 });
+        if (error) {
+            if(error.code === 'PGRST116') return new Response(JSON.stringify({ error: "Tarefa não encontrada para atualizar." }), { status: 404, headers });
+            throw error;
+        }
+        const [updatedTaskWithDetails] = await addUserDetailsToTasks(adminSupabaseClient, [updatedTask as Partial<Task>]);
+        return new Response(JSON.stringify({ data: updatedTaskWithDetails }), { headers, status: 200 });
       }
 
       // --- DELETE task ---
       if (req.method === 'DELETE') {
-        if (userRole !== 'admin') {
-            return new Response(JSON.stringify({ message: "Acesso negado. Somente administradores podem excluir tarefas." }), { status: 403 });
+        if (userRole !== 'admin') { // Only admins can delete tasks directly
+            return new Response(JSON.stringify({ error: "Acesso negado. Somente administradores podem excluir tarefas." }), { status: 403, headers });
         }
-        // First delete comments associated with the task
-        const { error: commentDeleteError } = await adminSupabaseClient.from('task_comments').delete().eq('taskId', taskId);
-        if (commentDeleteError) console.warn(`Could not delete comments for task ${taskId}: ${commentDeleteError.message}`);
+        // DB constraint 'ON DELETE CASCADE' for task_comments.task_id is preferred.
+        // If not, delete comments explicitly:
+        // await adminSupabaseClient.from('task_comments').delete().eq('task_id', taskId);
 
         const { error, count } = await adminSupabaseClient.from('tasks').delete({count: 'exact'}).eq('id', taskId);
         if (error) throw error;
-        if (count === 0) return new Response(JSON.stringify({ message: "Tarefa não encontrada" }), { status: 404 });
-        return new Response(null, { status: 204 });
+        if (count === 0) return new Response(JSON.stringify({ error: "Tarefa não encontrada para excluir." }), { status: 404, headers });
+        return new Response(null, { status: 204, headers }); // No content
       }
     }
 
-    // --- POST add task comment ---
-    // path: /task-functions/<taskId>/comments
-    if (actionOrId && !isNaN(parseInt(actionOrId)) && subAction === 'comments' && req.method === 'POST') {
+    // --- POST add task comment --- path: /task-functions/<taskId>/comments
+    if (actionOrId && !isNaN(parseInt(actionOrId)) && subActionOrId === 'comments' && req.method === 'POST') {
         const taskId = parseInt(actionOrId);
         const body = await req.json();
-        const validationResult = taskCommentValidationSchema.safeParse({
-            ...body,
-            taskId: taskId, // Ensure taskId from URL is used
-            userId: user.id  // Use authenticated user's ID
-        });
+        const payload = { ...body, task_id: taskId, user_id: user.id }; // Authenticated user is the author
+        const validationResult = taskCommentValidationSchema.safeParse(payload);
 
         if (!validationResult.success) {
-            return new Response(JSON.stringify({ message: "Dados inválidos para comentário", details: fromZodError(validationResult.error).toString() }), { status: 400 });
+            return new Response(JSON.stringify({ error: "Dados de comentário inválidos.", details: fromZodError(validationResult.error).toString() }), { status: 400, headers });
         }
-        const { data: newComment, error } = await adminSupabaseClient.from('task_comments').insert(validationResult.data).select('*, user:users(username)').single();
+        const { data: newCommentData, error } = await adminSupabaseClient.from('task_comments').insert(validationResult.data).select('*, profile:profiles(username)').single();
         if (error) throw error;
 
-        const commentWithUser = {
-            ...newComment,
-            userName: newComment.user?.username || 'Desconhecido'
+        const newComment: TaskComment = {
+            ...(newCommentData as any), // Cast to any to access profile
+            user_name: newCommentData.profile?.username || 'Desconhecido'
         };
-        delete commentWithUser.user; // Clean up joined user object
+        delete (newComment as any).profile; // Clean up joined profile object
 
-        return new Response(JSON.stringify(commentWithUser), { status: 201 });
+        return new Response(JSON.stringify({ data: newComment }), { headers, status: 201 });
     }
 
-    // --- DELETE task comment ---
-    // path: /task-functions/comments/<commentId>
-    if (actionOrId === 'comments' && subAction && !isNaN(parseInt(subAction)) && req.method === 'DELETE') {
-        const commentId = parseInt(subAction);
-        // Optional: Add check if user is admin or owner of the comment
+    // --- DELETE task comment --- path: /task-functions/comments/<commentId> (Note: different base path)
+    if (actionOrId === 'comments' && subActionOrId && !isNaN(parseInt(subActionOrId)) && req.method === 'DELETE') {
+        const commentId = parseInt(subActionOrId);
+        // Add permission check: only comment owner or admin can delete
+        const { data: commentToDelete, error: fetchError } = await adminSupabaseClient.from('task_comments').select('user_id').eq('id', commentId).single();
+        if (fetchError || !commentToDelete) return new Response(JSON.stringify({ error: "Comentário não encontrado." }), { status: 404, headers });
+
+        if (commentToDelete.user_id !== user.id && userRole !== 'admin') {
+            return new Response(JSON.stringify({ error: "Acesso negado para excluir este comentário." }), { status: 403, headers });
+        }
+
         const { error, count } = await adminSupabaseClient.from('task_comments').delete({count: 'exact'}).eq('id', commentId);
         if (error) throw error;
-        if (count === 0) return new Response(JSON.stringify({ message: "Comentário não encontrado" }), { status: 404 });
-        return new Response(null, { status: 204 });
+        if (count === 0) return new Response(JSON.stringify({ error: "Comentário não encontrado para excluir." }), { status: 404, headers });
+        return new Response(null, { status: 204, headers }); // No content
     }
 
-
-    return new Response(JSON.stringify({ message: "Rota de tarefa não encontrada ou método não permitido" }), { status: 404 });
+    return new Response(JSON.stringify({ error: "Rota de tarefa não encontrada ou método não permitido." }), { status: 404, headers });
 
   } catch (error) {
-    console.error('Erro na função Task:', error);
-    return new Response(JSON.stringify({ message: error.message || "Erro interno do servidor de tarefas" }), { status: 500 });
+    console.error('Erro na função Task:', error.message, error.stack);
+    const errorMessage = error instanceof ZodError ? fromZodError(error).message : error.message;
+    return new Response(JSON.stringify({ error: errorMessage || "Erro interno do servidor de tarefas." }), { status: 500, headers });
   }
 });
 

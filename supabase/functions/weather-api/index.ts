@@ -5,136 +5,185 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// --- Weather API Configuration ---
-const WEATHER_API_KEY = Deno.env.get('WEATHER_API_KEY'); // Ensure this is set in Supabase Vault/Env Vars
-const WEATHER_API_BASE_URL = "https://api.weatherapi.com/v1";
+// --- Env Vars & Configuration ---
+const weatherApiKey = Deno.env.get('WEATHER_API_KEY');
+const weatherApiBaseUrl = "https://api.weatherapi.com/v1";
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-// --- Types (from weather-service.ts) ---
+if (!weatherApiKey) console.error("WEATHER_API_KEY is not set. Weather function will not work.");
+if (!supabaseUrl || !supabaseAnonKey) console.error("Supabase URL or Anon Key is missing.");
+
+// --- Types (align with WeatherAPI.com response structure) ---
+interface WeatherApiError {
+  code: number;
+  message: string;
+}
+interface WeatherLocation {
+  name: string;
+  region: string;
+  country: string;
+  lat: number;
+  lon: number;
+  localtime: string;
+}
+interface WeatherCondition {
+  text: string;
+  icon: string;
+  code: number;
+}
+interface WeatherCurrent {
+  temp_c: number;
+  temp_f: number;
+  condition: WeatherCondition;
+  wind_kph: number;
+  wind_dir: string;
+  humidity: number;
+  feelslike_c: number;
+  feelslike_f: number;
+  uv: number;
+  is_day: number; // 1 for day, 0 for night
+}
+interface WeatherForecastDay {
+  date: string;
+  day: {
+    maxtemp_c: number;
+    mintemp_c: number;
+    condition: WeatherCondition;
+    // Add other daily forecast fields if needed
+  };
+  // Add astro, hour array if needed
+}
 interface WeatherData {
-  location?: { // Make location and current optional to handle error cases better
-    name: string;
-    region: string;
-    country: string;
-    lat: number;
-    lon: number;
-    localtime: string;
-  };
-  current?: {
-    temp_c: number;
-    temp_f: number;
-    condition: {
-      text: string;
-      icon: string;
-      code: number;
-    };
-    wind_kph: number;
-    wind_dir: string;
-    humidity: number;
-    feelslike_c: number;
-    feelslike_f: number;
-    uv: number;
-    is_day: number;
-  };
+  location?: WeatherLocation;
+  current?: WeatherCurrent;
   forecast?: {
-    forecastday: {
-      date: string;
-      day: {
-        maxtemp_c: number;
-        mintemp_c: number;
-        condition: {
-          text: string;
-          icon: string;
-          code: number;
-        };
-      };
-    }[];
+    forecastday: WeatherForecastDay[];
   };
-  error?: { // This is the crucial part for error handling
-    code: number;
-    message: string;
-  };
+  error?: WeatherApiError; // Error object from WeatherAPI
 }
 
 // --- Helper Function to Fetch Weather ---
-async function fetchWeather(city: string): Promise<WeatherData> {
-  if (!WEATHER_API_KEY) {
-    console.error("WEATHER_API_KEY is not set.");
-    return { error: { code: 500, message: "Configuração do servidor de clima incompleta." } };
+async function fetchWeatherFromApi(city: string, days: number = 1, lang: string = 'pt'): Promise<WeatherData> {
+  if (!weatherApiKey) {
+    console.error("Attempted to fetch weather, but WEATHER_API_KEY is not set.");
+    return { error: { code: 503, message: "Configuração do servidor de clima incompleta." } }; // 503 Service Unavailable
   }
-  const url = `${WEATHER_API_BASE_URL}/forecast.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(city)}&days=1&lang=pt`;
+  const queryParams = new URLSearchParams({
+    key: weatherApiKey,
+    q: city,
+    days: days.toString(),
+    lang: lang,
+    aqi: 'no', // Air Quality Index
+    alerts: 'no' // Weather alerts
+  });
+  const url = `${weatherApiBaseUrl}/forecast.json?${queryParams.toString()}`;
+
   try {
     const response = await fetch(url);
-    const data: WeatherData = await response.json();
-    if (!response.ok || data.error) { // WeatherAPI often returns 200 OK even for errors, check data.error
-      console.warn(`Weather API error for ${city}:`, data.error?.message || `Status ${response.status}`);
-      // Return the error structure from the API if available
-      return { error: data.error || { code: response.status, message: `Erro da API de clima: ${response.statusText}` }};
+    const data: WeatherData = await response.json(); // Type assertion
+
+    // WeatherAPI often returns 200 OK even for API errors (like unknown city),
+    // so we must check the 'error' field in the response body.
+    if (data.error) {
+      console.warn(`WeatherAPI error for city "${city}": Code ${data.error.code}, Message: ${data.error.message}`);
+      return { error: data.error }; // Return the API's error structure
     }
-    return data;
+    if (!response.ok) { // Should ideally not happen if data.error is checked, but good for network issues
+        console.warn(`WeatherAPI HTTP error for city "${city}": Status ${response.status}`);
+        return { error: { code: response.status, message: `Erro de comunicação com a API de clima: ${response.statusText}` }};
+    }
+    return data; // Successful response
   } catch (e) {
-    console.error(`Network or parsing error fetching weather for ${city}:`, e);
+    console.error(`Network or parsing error fetching weather for "${city}":`, e.message);
     return { error: { code: 500, message: `Erro de rede ou parsing: ${e.message}` } };
   }
 }
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
-  // Initialize Supabase client for user authentication (optional, but good practice)
-  const userSupabaseClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-  );
+  const headers = { "Content-Type": "application/json" };
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return new Response(JSON.stringify({ error: "Configuração do Supabase no servidor incompleta." }), { status: 503, headers });
+  }
+
+  const userSupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: req.headers.get('Authorization')! } }
+  });
 
   const { data: { user } } = await userSupabaseClient.auth.getUser();
   if (!user) {
-    return new Response(JSON.stringify({ message: "Não autenticado" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Não autenticado." }), { status: 401, headers });
   }
 
-  if (!WEATHER_API_KEY) {
-     return new Response(JSON.stringify({ status: 'error', message: "Chave da API de Clima não configurada no servidor." }),
-      { status: 503, headers: { "Content-Type": "application/json" }});
+  if (!weatherApiKey) { // Re-check here as it's critical for the function's purpose
+     return new Response(JSON.stringify({ error: "Chave da API de Clima não está configurada no servidor." }),
+      { status: 503, headers }); // 503 Service Unavailable
   }
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/').filter(part => part);
-  // Expected path: /functions/v1/weather-api/status or /functions/v1/weather-api/<city_name>
-  const actionOrCity = pathParts[3];
+  const actionOrCity = pathParts[3]; // e.g., 'status' or city name
 
   try {
-    if (req.method === 'GET' && actionOrCity === 'status') {
-      const testCity = "São Paulo"; // Use a reliable city for status check
-      const data = await fetchWeather(testCity);
-      if (data.error) {
-        return new Response(JSON.stringify({ status: 'error', message: `Erro na API de clima: ${data.error.message}` }),
-          { status: 503, headers: { "Content-Type": "application/json" }});
-      }
-      return new Response(JSON.stringify({ status: 'connected', message: `Serviço de clima conectado. Clima em ${data.location?.name}: ${data.current?.condition?.text}` }),
-        { status: 200, headers: { "Content-Type": "application/json" }});
+    if (req.method !== 'GET') {
+        return new Response(JSON.stringify({ error: "Método não permitido. Use GET." }), { status: 405, headers });
     }
 
-    if (req.method === 'GET' && actionOrCity && actionOrCity !== 'status') {
+    if (actionOrCity === 'status') {
+      const testCity = "Sao Paulo"; // A city likely to return valid data for status check
+      const data = await fetchWeatherFromApi(testCity, 1);
+      if (data.error || !data.location || !data.current) { // Check for actual data presence
+        return new Response(JSON.stringify({ data: { status: 'error', message: `API de clima retornou erro: ${data.error?.message || 'Resposta inesperada.'}` } }),
+          { status: data.error?.code === 1006 ? 404 : 503, headers }); // 1006 is "No location found"
+      }
+      return new Response(JSON.stringify({ data: { status: 'connected', message: `Serviço de clima conectado. Clima atual em ${data.location.name}: ${data.current.condition.text}` } }),
+        { headers, status: 200 });
+    }
+
+    if (actionOrCity && actionOrCity !== 'status') {
       const city = decodeURIComponent(actionOrCity);
-      const weatherData = await fetchWeather(city);
+      if (!city.trim()) {
+        return new Response(JSON.stringify({ error: "Nome da cidade não pode ser vazio." }), { status: 400, headers });
+      }
+      const weatherData = await fetchWeatherFromApi(city);
 
       if (weatherData.error) {
-        // Determine appropriate status code based on common WeatherAPI error codes
-        let statusCode = 500; // Default server error
-        if (weatherData.error.code === 1006) statusCode = 404; // No location found for query
-        if (weatherData.error.code === 1003 || weatherData.error.code === 1005 ) statusCode = 400; // q parameter missing or invalid API key URL
-        if (weatherData.error.code === 2007 || weatherData.error.code === 2008) statusCode = 403; // API key has reached calls per month quota or disabled
-
-        return new Response(JSON.stringify({ message: weatherData.error.message, code: weatherData.error.code }),
-          { status: statusCode, headers: { "Content-Type": "application/json" }});
+        let statusCode = 500; // Default server/service error
+        // Map WeatherAPI error codes to HTTP status codes
+        // Refer to https://www.weatherapi.com/docs/errors.aspx
+        switch (weatherData.error.code) {
+            case 1002: // API key not provided - Should be caught by initial check
+            case 1003: // q parameter missing
+            case 1005: // API request url is invalid
+                statusCode = 400; // Bad Request
+                break;
+            case 1006: // No location found for query
+                statusCode = 404; // Not Found
+                break;
+            case 2006: // API key provided is invalid
+            case 2007: // API key has exceeded calls per month quota
+            case 2008: // API key has been disabled
+            case 2009: // API key does not have access to the resource.
+                statusCode = 403; // Forbidden
+                break;
+            case 9999: // Internal application error.
+            default:
+                statusCode = 503; // Service Unavailable (treat upstream errors as such)
+                break;
+        }
+        return new Response(JSON.stringify({ error: weatherData.error.message, code: weatherData.error.code }),
+          { status: statusCode, headers });
       }
-      return new Response(JSON.stringify(weatherData), { status: 200, headers: { "Content-Type": "application/json" }});
+      // Successfully fetched weather data
+      return new Response(JSON.stringify({ data: weatherData }), { headers, status: 200 });
     }
 
-    return new Response(JSON.stringify({ message: "Rota de clima não encontrada ou método não permitido" }), { status: 404 });
+    return new Response(JSON.stringify({ error: "Rota de clima não encontrada." }), { status: 404, headers });
 
-  } catch (error) {
-    console.error('Erro na função Weather API:', error);
-    return new Response(JSON.stringify({ message: error.message || "Erro interno do servidor de clima" }), { status: 500 });
+  } catch (error) { // Catch unexpected errors from the function logic itself
+    console.error('Erro inesperado na função Weather API:', error.message, error.stack);
+    return new Response(JSON.stringify({ error: error.message || "Erro interno do servidor ao processar pedido de clima." }), { status: 500, headers });
   }
 });
 

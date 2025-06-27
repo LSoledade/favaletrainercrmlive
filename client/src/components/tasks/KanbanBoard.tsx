@@ -8,10 +8,10 @@ import { useToast } from "@/components/ui/use-toast";
 
 
 const columns = [
-  { id: "backlog", name: "Backlog Tasks", color: "bg-orange-100 text-orange-700 dark:bg-orange-800 dark:text-orange-200", icon: <ClipboardList className="h-4 w-4" /> },
-  { id: "pending", name: "To Do Tasks", color: "bg-pink-100 text-pink-700 dark:bg-pink-800 dark:text-pink-200", icon: <ListTodo className="h-4 w-4" /> },
-  { id: "in_process", name: "In Process", color: "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-purple-200", icon: <Loader2 className="h-4 w-4 animate-spin-slow" /> },
-  { id: "done", name: "Done", color: "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200", icon: <CheckCircle className="h-4 w-4" /> },
+  { id: "backlog", name: "Backlog", color: "bg-orange-100 text-orange-700 dark:bg-orange-800 dark:text-orange-200", icon: <ClipboardList className="h-4 w-4" /> },
+  { id: "pending", name: "A Fazer", color: "bg-pink-100 text-pink-700 dark:bg-pink-800 dark:text-pink-200", icon: <ListTodo className="h-4 w-4" /> },
+  { id: "in_process", name: "Em Andamento", color: "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-purple-200", icon: <Loader2 className="h-4 w-4 animate-spin-slow" /> },
+  { id: "done", name: "Concluído", color: "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200", icon: <CheckCircle className="h-4 w-4" /> },
 ];
 
 export default function KanbanBoard({ onCreateTask, onOpenDetails }: { onCreateTask: (initialStatus?: string) => void, onOpenDetails?: (taskId: number) => void }) {
