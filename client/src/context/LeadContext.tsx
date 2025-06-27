@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode } from "react"; // Removed useEffect, useQuery
 import { Lead, InsertLead } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+// Replace apiRequest with invokeSupabaseFunction
+import { invokeSupabaseFunction, queryClient } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query"; // useQueryClient is still needed for invalidation
 import { useToast } from "@/hooks/use-toast";
 
 interface LeadContextProps {
@@ -30,9 +31,13 @@ export function LeadProvider({ children }: { children: ReactNode }) {
   // Create a new lead
   const createLead = async (lead: InsertLead) => {
     try {
-      await apiRequest("POST", "/api/leads", lead);
-      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      // invokeSupabaseFunction<ReturnType>(functionName, method, payload)
+      await invokeSupabaseFunction<Lead>("lead-functions", "POST", lead);
+      // Query key for leads list, assuming it's 'leadsList' or similar
+      // Check LeadManagement.tsx for the actual queryKey used for fetching all leads.
+      // For now, using a placeholder 'leadsList'. This needs to match where leads are fetched.
+      await queryClient.invalidateQueries({ queryKey: ["leadsList"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboardStats"] }); // From Dashboard.tsx
       
       toast({
         title: "Sucesso",
@@ -53,9 +58,10 @@ export function LeadProvider({ children }: { children: ReactNode }) {
   // Update an existing lead
   const updateLead = async (id: number, lead: Partial<InsertLead>) => {
     try {
-      await apiRequest<Lead>("PATCH", `/api/leads/${id}`, lead);
-      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      await invokeSupabaseFunction<Lead>("lead-functions", "PATCH", lead, { slug: id.toString() });
+      await queryClient.invalidateQueries({ queryKey: ["leadsList"] }); // Invalidate leads list
+      await queryClient.invalidateQueries({ queryKey: ['leadDetails', id] }); // Invalidate specific lead details if cached
+      await queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       
       toast({
         title: "Sucesso",
@@ -77,9 +83,10 @@ export function LeadProvider({ children }: { children: ReactNode }) {
   // Delete a lead
   const deleteLead = async (id: number) => {
     try {
-      await apiRequest<void>("DELETE", `/api/leads/${id}`);
-      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      await invokeSupabaseFunction<void>("lead-functions", "DELETE", undefined, { slug: id.toString() });
+      await queryClient.invalidateQueries({ queryKey: ["leadsList"] });
+      await queryClient.invalidateQueries({ queryKey: ['leadDetails', id] }); // Invalidate specific lead details
+      await queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       
       toast({
         title: "Sucesso",
@@ -100,9 +107,14 @@ export function LeadProvider({ children }: { children: ReactNode }) {
   // Batch operations
   const updateLeadsInBatch = async (ids: number[], updates: Partial<InsertLead>): Promise<number> => {
     try {
-      const response = await apiRequest<{ updatedCount: number }>("POST", "/api/leads/batch/update", { ids, updates });
-      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      const response = await invokeSupabaseFunction<{ updatedCount: number }>(
+        "lead-functions",
+        "POST",
+        { ids, updates },
+        { slug: "batch/update" } // Pass 'batch/update' as the slug
+      );
+      await queryClient.invalidateQueries({ queryKey: ["leadsList"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       
       const updatedCount = response.updatedCount || 0;
       
@@ -126,9 +138,14 @@ export function LeadProvider({ children }: { children: ReactNode }) {
 
   const deleteLeadsInBatch = async (ids: number[]): Promise<number> => {
     try {
-      const response = await apiRequest<{ deletedCount: number }>("POST", "/api/leads/batch/delete", { ids });
-      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      const response = await invokeSupabaseFunction<{ deletedCount: number }>(
+        "lead-functions",
+        "POST",
+        { ids },
+        { slug: "batch/delete" } // Pass 'batch/delete' as the slug
+      );
+      await queryClient.invalidateQueries({ queryKey: ["leadsList"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       
       const deletedCount = response.deletedCount || 0;
       

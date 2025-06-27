@@ -1,8 +1,9 @@
+import { useEffect } from 'react'; // Import useEffect
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter"; // Import useLocation
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,35 +17,56 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import gymPixelImage from "@/assets/gym-pixel.png";
 
+// Updated schema to use email for Supabase auth
 const loginSchema = z.object({
-  username: z.string().min(1, "Nome de usuário é obrigatório"),
+  email: z.string().email("Email inválido").min(1, "Email é obrigatório"),
   password: z.string().min(1, "Senha é obrigatória"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function AuthPage() {
-  const { user, loginMutation } = useAuth();
+  // useAuth now returns { session, user (SupabaseUser), profile (custom User), loginMutation, etc. }
+  const { session, loginMutation, isLoading } = useAuth();
+  const [location, navigate] = useLocation(); // For redirect after login
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "", // Changed from username to email
       password: "",
     },
   });
 
   const onSubmit = (values: LoginFormValues) => {
+    // The loginMutation in useAuth now expects { email, password }
+    // It internally calls supabase.auth.signInWithPassword
     loginMutation.mutate(values);
   };
 
-  // Redirect to home if already logged in
-  if (user) {
+  // Effect to redirect if session becomes available (e.g., after successful login)
+  useEffect(() => {
+    if (session) {
+      navigate("/"); // Use navigate from wouter
+    }
+  }, [session, navigate]);
+
+  // If still loading session state, show a loader or nothing
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If already has a session, redirect (this might be covered by useEffect too, but good as a quick check)
+  if (session) {
     return <Redirect to="/" />;
   }
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center p-4"
       style={{
         backgroundImage: `url(${gymPixelImage})`,
@@ -91,13 +113,14 @@ export default function AuthPage() {
             >
               <FormField
                 control={form.control}
-                name="username"
+                name="email" // Changed from username to email
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700 dark:text-gray-300">Nome de Usuário</FormLabel>
+                    <FormLabel className="text-gray-700 dark:text-gray-300">Email</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="Digite seu usuário" 
+                        type="email" // Set input type to email
+                        placeholder="Digite seu email"
                         className="py-6" 
                         {...field} 
                       />

@@ -31,69 +31,62 @@ interface TodayAppointmentCardProps {
   className?: string;
 }
 
-export default function TodayAppointmentCard({ className = "" }: TodayAppointmentCardProps) {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Dados mockados para demonstração
-  useEffect(() => {
-    setIsLoading(true);
-    // Simulando carregamento de dados
-    setTimeout(() => {
-      setSessions([
-        {
-          id: 1,
-          startTime: setMinutes(setHours(new Date(), 9), 0),
-          endTime: setMinutes(setHours(new Date(), 10), 0),
-          location: 'Academia Central',
-          source: 'Favale',
-          notes: 'Foco em treinamento de força',
-          status: 'scheduled',
-          studentId: '101',
-          studentName: 'Carlos Oliveira',
-          trainerId: '201',
-          trainerName: 'Ana Silva',
-          calendarEventId: 'event123',
-        },
-        {
-          id: 2,
-          startTime: setMinutes(setHours(new Date(), 15), 0),
-          endTime: setMinutes(setHours(new Date(), 16), 0),
-          location: 'Estúdio Zona Norte',
-          source: 'Pink',
-          notes: 'Treino de cardio e flexibilidade',
-          status: 'scheduled',
-          studentId: '102',
-          studentName: 'Maria Santos',
-          trainerId: '202',
-          trainerName: 'Pedro Costa',
-        },
-        {
-          id: 4,
-          startTime: setMinutes(setHours(new Date(), 17), 30),
-          endTime: setMinutes(setHours(new Date(), 18), 30),
-          location: 'Condomínio Green Parks',
-          source: 'Pink',
-          notes: 'Sessão de alongamento e mobilidade',
-          status: 'scheduled',
-          studentId: '104',
-          studentName: 'Juliana Mendes',
-          trainerId: '203',
-          trainerName: 'Fernanda Lima',
-        },
-      ]);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+import { getSupabaseQueryFn } from "@/lib/queryClient"; // Import the new query function
 
-  // Filtrar sessões para hoje e ordená-las por horário
-  const todaySessions = sessions
-    ? sessions
+type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show' | 'agendado' | 'concluído'; // Added Portuguese statuses
+
+interface Session {
+  id: number;
+  startTime: string; // Expect ISO string from Supabase
+  endTime: string;   // Expect ISO string from Supabase
+  studentId: string; // Assuming studentId might be UUID in Supabase, adjust if number
+  studentName?: string; // This will come from a join in the Edge Function
+  trainerId: string; // Assuming trainerId might be UUID
+  trainerName?: string; // This will come from a join in the Edge Function
+  location: string;
+  status: SessionStatus;
+  source: 'Favale' | 'Pink';
+  notes?: string;
+  calendarEventId?: string;
+}
+
+interface TodayAppointmentCardProps {
+  className?: string;
+}
+
+export default function TodayAppointmentCard({ className = "" }: TodayAppointmentCardProps) {
+  // Fetch detailed sessions for today
+  const today = new Date();
+  const startDate = format(today, "yyyy-MM-dd'T'00:00:00");
+  const endDate = format(today, "yyyy-MM-dd'T'23:59:59");
+
+  const { data: fetchedSessions, isLoading, error } = useQuery<Session[]>({
+    queryKey: ['todaySessions', startDate, endDate],
+    queryFn: getSupabaseQueryFn({
+      functionName: 'scheduling-functions',
+      slug: 'sessions/details', // Use the endpoint that provides detailed sessions
+      // If your 'sessions/details' endpoint doesn't support date range filtering,
+      // you might need to fetch all detailed sessions and filter client-side,
+      // or create a new Edge Function endpoint like 'sessions/details/range'
+      // For now, assuming 'sessions/details' gives all, and we filter client-side.
+      // A more efficient approach would be server-side filtering if possible.
+      on401: 'throw',
+    }),
+  });
+
+  // Filter sessions for today and sort them
+  const todaySessions = fetchedSessions
+    ? fetchedSessions
         .filter(session => isToday(new Date(session.startTime)))
         .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
     : [];
 
-  const getStatusBadge = (status: string) => {
+  if (error) {
+    console.error("Error fetching today's sessions:", error);
+    // Optionally show an error state in the card
+  }
+
+  const getStatusBadge = (status: SessionStatus) => { // Use SessionStatus type
     const statusLower = status.toLowerCase();
     switch (statusLower) {
       case "agendado":

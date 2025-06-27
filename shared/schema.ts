@@ -1,22 +1,60 @@
-import { pgTable, text, serial, integer, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, jsonb, uuid } from "drizzle-orm/pg-core"; // Added uuid
+import { relations } from "drizzle-orm"; // For relationships
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Profiles table linked to Supabase Auth users
+export const profiles = pgTable("profiles", {
+  id: uuid("id").primaryKey().references(() => authUsers.id, { onDelete: 'cascade' }), // References Supabase auth.users.id
+  username: text("username").unique(),
+  role: text("role").default('user').notNull(), // e.g., 'admin', 'trainer', 'marketing', 'comercial'
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // Add any other public profile fields here, e.g., avatar_url, full_name
+});
+
+export const insertProfileSchema = createInsertSchema(profiles);
+export type InsertProfile = z.infer<typeof insertProfileSchema>;
+export type Profile = typeof profiles.$inferSelect;
+
+// Placeholder for Supabase auth.users table if needed for relations, though not directly managed by Drizzle schema here
+// This is more for type safety if you build relations. Supabase manages auth.users schema.
+export const authUsers = pgTable("users", {
+  id: uuid("id").primaryKey(),
+}, (table) => {
+  return {
+    // This is a way to tell Drizzle this table exists in the 'auth' schema if you need to reference it.
+    // However, you don't "create" this table with Drizzle migrations in your public schema.
+    schema: "auth",
+  };
+});
+
+
+// The old 'users' table is effectively replaced by 'profiles' and Supabase 'auth.users'.
+// If you had specific data in the old 'users' table not covered by 'profiles' or 'auth.users.user_metadata',
+// you would need to migrate that data. For now, we assume 'profiles' covers the necessary custom user fields.
+// We will comment out the old 'users' table to avoid conflicts and because auth is now handled by Supabase.
+/*
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password").notNull(), // Passwords are now handled by Supabase Auth
   role: text("role").default("user").notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
-  password: true,
+  // password: true, // No longer needed here
   role: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type User = typeof users.$inferSelect; // This type will now refer to Profile or a combined type
+*/
+
+// Redefine User type to be based on Profile, potentially enriched with SupabaseUser from client side
+export type User = Profile & { email?: string }; // email can be added from authUser on client
+export type InsertUser = InsertProfile & { email: string, password?: string }; // For user creation forms
+
 
 // Tabela de treinadores/professores
 export const trainers = pgTable("trainers", {
@@ -214,7 +252,7 @@ export const sessionHistory = pgTable("session_history", {
   sessionId: integer("session_id").references(() => sessions.id).notNull(),
   changedAt: timestamp("changed_at").defaultNow().notNull(),
   changeType: text("change_type").notNull(), // created, updated, cancelled, rescheduled
-  userId: integer("user_id").references(() => users.id).notNull(), // Quem fez a alteração
+  userId: uuid("user_id").references(() => profiles.id), // Changed to uuid to reference profiles.id (which references auth.users.id)
   oldValue: jsonb("old_value"), // Valor anterior (para campos alterados)
   newValue: jsonb("new_value"), // Novo valor
 });
@@ -229,7 +267,7 @@ export type SessionHistory = typeof sessionHistory.$inferSelect;
 // WhatsApp mensagens
 export const whatsappMessages = pgTable("whatsapp_messages", {
   id: serial("id").primaryKey(),
-  leadId: integer("lead_id").references(() => leads.id).notNull(),
+  leadId: integer("lead_id").references(() => leads.id, { onDelete: 'cascade' }).notNull(), // Added onDelete cascade
   direction: text("direction").notNull(), // "incoming" ou "outgoing"
   content: text("content").notNull(),
   status: text("status").notNull(), // "sent", "delivered", "read", "failed"
@@ -267,14 +305,13 @@ export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  assignedById: integer("assigned_by_id").references(() => users.id).notNull(),
-  assignedToId: integer("assigned_to_id").references(() => users.id).notNull(),
+  // Assuming assignedById and assignedToId will reference the UUID from auth.users (profiles.id)
+  assignedById: uuid("assigned_by_id").references(() => profiles.id).notNull(),
+  assignedToId: uuid("assigned_to_id").references(() => profiles.id).notNull(),
   dueDate: timestamp("due_date"),
   priority: text("priority").default("medium").notNull(), // low, medium, high
   status: text("status").default("pending").notNull(), // pending, in_progress, completed, cancelled
-  // relatedLeadId is kept for backward compatibility but will be phased out
-  // Tasks are now assigned to system users only
-  relatedLeadId: integer("related_lead_id").references(() => leads.id),
+  relatedLeadId: integer("related_lead_id").references(() => leads.id, { onDelete: 'set null' }), // Keep relation, set null on lead delete
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -285,30 +322,25 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   updatedAt: true,
 });
 
+// Update validation schema to expect string UUIDs for user IDs
 export const taskValidationSchema = insertTaskSchema.extend({
   title: z.string().min(1, "O título é obrigatório"),
-  description: z.string().optional(),
-  assignedById: z.number().int().positive("ID do usuário que atribuiu a tarefa inválido"),
-  assignedToId: z.number().int().positive("ID do usuário atribuído inválido"),
+  description: z.string().optional().nullable(), // Allow null
+  assignedById: z.string().uuid("ID do usuário que atribuiu a tarefa inválido"), // Expect UUID string
+  assignedToId: z.string().uuid("ID do usuário atribuído inválido"), // Expect UUID string
   dueDate: z.preprocess((arg) => {
     if (typeof arg === "string" || arg instanceof Date) return arg;
-    // If arg is null or undefined, let it pass to be handled by .optional()
     if (arg === null || arg === undefined) return arg;
-    // For other invalid types, return undefined to trigger validation error if not optional
     return undefined;
   }, z.union([
-    z.string().transform(val => new Date(val)),
-    z.date()
-  ])).optional().refine(date => date ? (date instanceof Date && !isNaN(date.getTime())) : true, {
+    z.string().datetime({ message: "Data de vencimento precisa ser uma data válida." }).transform(val => new Date(val).toISOString()), // Store as ISO string
+    z.date().transform(d => d.toISOString()) // Store as ISO string
+  ])).optional().nullable().refine(dateStr => dateStr ? !isNaN(Date.parse(dateStr)) : true, { // Validate the ISO string
     message: "Data de vencimento precisa ser uma data válida ou estar vazia"
   }),
-  priority: z.enum(["low", "medium", "high"], {
-    errorMap: () => ({ message: "Prioridade deve ser 'low', 'medium' ou 'high'" })
-  }),
-  status: z.enum(["backlog", "pending", "in_progress", "completed", "cancelled"], {
-    errorMap: () => ({ message: "Status deve ser 'backlog', 'pending', 'in_progress', 'completed' ou 'cancelled'" })
-  }),
-  relatedLeadId: z.number().int().positive("ID do lead inválido").optional(),
+  priority: z.enum(["low", "medium", "high"]),
+  status: z.enum(["backlog", "pending", "in_progress", "completed", "cancelled"]),
+  relatedLeadId: z.number().int().positive("ID do lead inválido").optional().nullable(), // Allow null
 });
 
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -317,8 +349,8 @@ export type Task = typeof tasks.$inferSelect;
 // Tabela de comentários em tarefas
 export const taskComments = pgTable("task_comments", {
   id: serial("id").primaryKey(),
-  taskId: integer("task_id").references(() => tasks.id).notNull(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id, { onDelete: 'cascade' }).notNull(), // Added onDelete cascade
+  userId: uuid("user_id").references(() => profiles.id).notNull(), // Changed to uuid to reference profiles.id
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -330,9 +362,10 @@ export const insertTaskCommentSchema = createInsertSchema(taskComments).omit({
   updatedAt: true,
 });
 
+// Update validation schema for task comments
 export const taskCommentValidationSchema = insertTaskCommentSchema.extend({
   taskId: z.number().int().positive("ID da tarefa inválido"),
-  userId: z.number().int().positive("ID do usuário inválido"),
+  userId: z.string().uuid("ID do usuário inválido"), // Expect UUID string
   content: z.string().min(1, "O conteúdo é obrigatório"),
 });
 
@@ -340,18 +373,127 @@ export type InsertTaskComment = z.infer<typeof insertTaskCommentSchema>;
 export type TaskComment = typeof taskComments.$inferSelect;
 
 // Tabela de configurações do WhatsApp/Evolution API
-export const whatsappSettings = pgTable("whatsapp_settings", {
+export const whatsappSettingsTable = pgTable("whatsapp_settings", { // Renamed to avoid conflict if a type 'WhatsappSettings' is defined
   id: serial("id").primaryKey(),
   apiUrl: text("api_url").notNull(),
-  apiToken: text("api_token").notNull(),
+  apiToken: text("api_token").notNull(), // Consider encrypting this if stored in DB
   apiInstance: text("api_instance").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertWhatsappSettingsSchema = createInsertSchema(whatsappSettings).omit({
+export const insertWhatsappSettingsSchema = createInsertSchema(whatsappSettingsTable).omit({
   id: true,
   updatedAt: true,
 });
 
 export type InsertWhatsappSettings = z.infer<typeof insertWhatsappSettingsSchema>;
-export type WhatsappSettings = typeof whatsappSettings.$inferSelect;
+export type WhatsappSettings = typeof whatsappSettingsTable.$inferSelect; // Use the renamed table
+
+// --- New Tables for Supabase specific features ---
+
+// Google OAuth Tokens Table
+export const googleTokens = pgTable("google_tokens", {
+  userId: uuid("user_id").primaryKey().references(() => profiles.id, { onDelete: 'cascade' }), // Foreign key to profiles table
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  expiryDate: timestamp("expiry_date", { mode: 'number' }).notNull(), // Store as number (milliseconds)
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type InsertGoogleToken = typeof googleTokens.$inferInsert;
+export type GoogleToken = typeof googleTokens.$inferSelect;
+
+// Audit Logs Table
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  userId: uuid("user_id").references(() => profiles.id, { onDelete: 'set null' }), // Can be null if action is system-generated or user deleted
+  type: text("event_type").notNull(), // e.g., 'LEAD_CREATED', 'USER_LOGIN_FAILED'
+  ipAddress: text("ip_address"), // Optional, may not always be available or accurate
+  details: jsonb("details"), // Store any relevant JSON data about the event
+});
+
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+
+
+// --- Relations ---
+// Define relations if you need to query them with Drizzle ORM
+// Example: Leads related to Students
+export const studentRelations = relations(students, ({ one }) => ({
+  lead: one(leads, {
+    fields: [students.leadId],
+    references: [leads.id],
+  }),
+}));
+
+export const taskRelations = relations(tasks, ({ one, many }) => ({
+  assignedTo: one(profiles, {
+    fields: [tasks.assignedToId],
+    references: [profiles.id],
+    relationName: 'taskAssignedTo',
+  }),
+  assignedBy: one(profiles, {
+    fields: [tasks.assignedById],
+    references: [profiles.id],
+    relationName: 'taskAssignedBy',
+  }),
+  relatedLead: one(leads, {
+    fields: [tasks.relatedLeadId],
+    references: [leads.id],
+  }),
+  comments: many(taskComments),
+}));
+
+export const taskCommentRelations = relations(taskComments, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskComments.taskId],
+    references: [tasks.id],
+  }),
+  user: one(profiles, { // Changed from users to profiles
+    fields: [taskComments.userId],
+    references: [profiles.id],
+  }),
+}));
+
+export const sessionRelations = relations(sessions, ({ one }) => ({
+  student: one(students, {
+    fields: [sessions.studentId],
+    references: [students.id],
+  }),
+  trainer: one(trainers, {
+    fields: [sessions.trainerId],
+    references: [trainers.id],
+  }),
+  history: many(sessionHistory),
+}));
+
+export const sessionHistoryRelations = relations(sessionHistory, ({ one }) => ({
+  session: one(sessions, {
+    fields: [sessionHistory.sessionId],
+    references: [sessions.id],
+  }),
+  user: one(profiles, { // Changed from users to profiles
+    fields: [sessionHistory.userId],
+    references: [profiles.id],
+  }),
+}));
+
+export const whatsappMessageRelations = relations(whatsappMessages, ({ one }) => ({
+  lead: one(leads, {
+    fields: [whatsappMessages.leadId],
+    references: [leads.id],
+  }),
+}));
+
+// Relation from profiles to auth.users (conceptual, as auth.users is managed by Supabase)
+// export const profileAuthUserRelations = relations(profiles, ({ one }) => ({
+//   authUser: one(authUsers, {
+//     fields: [profiles.id],
+//     references: [authUsers.id],
+//   }),
+// }));
+
+// Note: The old 'users' table relations would need to be updated to 'profiles'
+// if they were used extensively. For example, if tasks were related directly to the old 'users' table.
+// The current changes assume tasks and comments will now relate to 'profiles.id' (which is auth.users.id).

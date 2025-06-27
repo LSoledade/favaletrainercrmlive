@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Calendar, Check, X, RefreshCw } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+// Replace apiRequest with invokeSupabaseFunction
+import { invokeSupabaseFunction } from '@/lib/queryClient';
 
 interface TokenStatus {
   authorized: boolean;
@@ -24,7 +25,8 @@ export default function GoogleCalendarConfig() {
   const fetchTokenStatus = async () => {
     try {
       setIsLoading(true);
-      const response = await apiRequest('GET', '/api/oauth/google/status');
+      // Use invokeSupabaseFunction for 'google-oauth' with slug 'status'
+      const response = await invokeSupabaseFunction<TokenStatus>('google-oauth', 'GET', undefined, { slug: 'status' });
       setTokenStatus(response);
     } catch (error) {
       console.error('Erro ao verificar status:', error);
@@ -41,8 +43,13 @@ export default function GoogleCalendarConfig() {
   const handleGoogleAuth = async () => {
     try {
       setIsAuthenticating(true);
-      const response = await apiRequest('GET', '/api/oauth/google/auth-url');
+      // Use invokeSupabaseFunction for 'google-oauth' with slug 'auth-url'
+      const response = await invokeSupabaseFunction<{ authUrl: string }>('google-oauth', 'GET', undefined, { slug: 'auth-url' });
       
+      if (!response.authUrl) {
+        throw new Error("URL de autorização não recebida.");
+      }
+
       // Abrir janela de autorização
       const authWindow = window.open(
         response.authUrl,
@@ -86,7 +93,8 @@ export default function GoogleCalendarConfig() {
 
     try {
       setIsLoading(true);
-      await apiRequest('DELETE', '/api/oauth/google/revoke');
+      // Use invokeSupabaseFunction for 'google-oauth' with slug 'revoke'
+      await invokeSupabaseFunction('google-oauth', 'DELETE', undefined, { slug: 'revoke' });
       
       toast({
         title: 'Acesso revogado',

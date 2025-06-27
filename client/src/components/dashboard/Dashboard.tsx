@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { getSupabaseQueryFn } from "@/lib/queryClient"; // Import the new query function
 import KpiCard from "./KpiCard";
-import ChartCard from "./ChartCard";
+// ChartCard seems unused, can be removed if not needed elsewhere
+// import ChartCard from "./ChartCard";
 import SourcePieChart from "./SourcePieChart";
 import StateBarChart from "./StateBarChart";
 import TimelineChart from "./TimelineChart";
@@ -27,7 +29,11 @@ interface DashboardStats {
 export default function Dashboard() {
   const { theme } = useTheme();
   const { data: stats, isLoading, error } = useQuery<DashboardStats>({
-    queryKey: ["/api/stats"],
+    queryKey: ["dashboardStats"], // Changed queryKey to be more descriptive
+    queryFn: getSupabaseQueryFn({
+      functionName: 'general-stats', // Name of your Supabase Edge Function for stats
+      on401: 'throw',
+    }),
   });
 
   if (isLoading) {

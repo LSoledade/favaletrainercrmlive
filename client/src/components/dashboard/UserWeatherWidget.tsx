@@ -73,11 +73,37 @@ export default function UserWeatherWidget() {
     totalLeadsByCampaign: number;
   }
   
-  // Busca as estatísticas para obter a distribuição de leads por estado
+import { getSupabaseQueryFn } from '@/lib/queryClient'; // Import the new query function
+
+// ... (keep existing interfaces and constants)
+
+export default function UserWeatherWidget() {
+  const [userCity, setUserCity] = useState('São Paulo'); // Default city
+  const { toast } = useToast();
+
+  // Interface for DashboardStats (can be moved to a shared types file)
+  interface DashboardStats {
+    totalLeads: number;
+    totalStudents: number;
+    totalActiveSessions: number;
+    totalCompletedSessions: number;
+    sessionsPerStudent: string;
+    conversionRate: string;
+    leadsBySource: Record<string, number>;
+    leadsByState: Record<string, number>;
+    leadsByCampaign: Record<string, number>;
+    totalLeadsByCampaign: number;
+  }
+
+  // Fetch dashboard stats to determine dominant city
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/stats"],
+    queryKey: ["dashboardStatsForWeather"], // Unique query key
+    queryFn: getSupabaseQueryFn({
+      functionName: 'general-stats', // Use the 'general-stats' Edge Function
+      on401: 'throw',
+    }),
   });
-  
+
   // Define a cidade baseada no estado com mais leads
   useEffect(() => {
     if (!stats || !stats.leadsByState) return;
@@ -154,14 +180,17 @@ export default function UserWeatherWidget() {
   
   // Busca dados do clima da API
   const { data: weather, isLoading: weatherLoading, error: weatherError } = useQuery<WeatherData>({
-    queryKey: [`/api/weather/${encodeURIComponent(userCity)}`],
+    queryKey: ['weatherData', userCity], // Include userCity in queryKey
+    queryFn: getSupabaseQueryFn({
+      functionName: 'weather-api', // Name of the weather Edge Function
+      slug: encodeURIComponent(userCity), // Pass city as a slug
+      on401: 'throw',
+    }),
     retry: 1,
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 30, // 30 minutos
-    enabled: !!userCity, // Só busca se tiver uma cidade definida
+    enabled: !!userCity && !statsLoading, // Only fetch if userCity is set and stats are loaded
   });
-
-
   
   // Determina o ícone apropriado com base no código de condição e se é dia ou noite
   const getWeatherIcon = (code: number) => {

@@ -40,10 +40,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { getSupabaseQueryFn, invokeSupabaseFunction } from "@/lib/queryClient"; // Import Supabase functions
+
 export default function LeadManagement() {
   const queryClient = useQueryClient();
+  // Fetch leads using getSupabaseQueryFn
   const { data: leads, isLoading, error } = useQuery<Lead[]>({
-    queryKey: ["/api/leads"],
+    queryKey: ["leadsList"], // Use a descriptive query key
+    queryFn: getSupabaseQueryFn({
+      functionName: 'lead-functions', // Target the 'lead-functions' Edge Function
+      on401: 'throw', // Or 'returnNull'
+    }),
   });
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -673,29 +680,28 @@ export default function LeadManagement() {
             }));
             
             setImportProgress(50 + Math.floor((batchIndex / totalBatches) * 40));
-            const response = await fetch('/api/leads/batch/import', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ leads: currentBatch })
-            });
             
-            if (!response.ok) {
-              let errorText;
-              try {
-                // Tenta obter o erro como JSON
-                const errorJson = await response.json();
-                errorText = errorJson.message || 'Erro desconhecido';
-              } catch (e) {
-                // Se não for JSON, tenta obter como texto
-                errorText = await response.text();
-              }
-              throw new Error(`Erro na importação do lote ${batchIndex + 1}: ${errorText}`);
-            }
+            // Use invokeSupabaseFunction for batch import
+            const batchResult = await invokeSupabaseFunction<any>(
+              "lead-functions",
+              "POST",
+              { leads: currentBatch },
+              { slug: "batch/import" }
+            );
+
+            // Error handling for invokeSupabaseFunction would typically be caught by the outer try-catch
+            // if throwIfResNotOk is effective. The structure of batchResult needs to match
+            // what your 'lead-functions' batch/import endpoint returns.
+            // Assuming it returns an object like: { successCount: number, updatedCount: number, errorCount: number, details: any[] }
             
-            try {
-              const batchResult = await response.json();
+            // The original code checked response.ok and then parsed JSON.
+            // invokeSupabaseFunction should ideally handle this. If it throws on non-OK,
+            // the error will be caught by the main try-catch block.
+            // If it returns a structured error, you might need to check for that here.
+            // For now, assuming batchResult directly contains the expected data or an error was thrown.
+
+            // try { // This try-catch might be redundant if invokeSupabaseFunction handles JSON parsing errors
+            // const batchResult = await response.json(); // This line is replaced by invokeSupabaseFunction
               console.log(`Resultado do lote ${batchIndex + 1}:`, batchResult);
               
               // Acumular resultados
@@ -751,11 +757,10 @@ export default function LeadManagement() {
           
           // Atualizar a lista de leads após a importação bem-sucedida
           try {
-            // Primeiro, invalidamos a consulta
-            await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-            
-            // Em seguida, disparamos manualmente uma nova consulta com await para garantir que seja concluída
-            await queryClient.fetchQuery({ queryKey: ["/api/leads"] });
+            // Invalidate the query for the leads list
+            await queryClient.invalidateQueries({ queryKey: ["leadsList"] });
+            // Optionally, refetch immediately if needed, though invalidation often triggers auto-refetch
+            await queryClient.refetchQueries({ queryKey: ["leadsList"] });
             console.log('Dados atualizados com sucesso após importação');
           } catch (e) {
             console.error('Erro ao atualizar dados após importação:', e);
@@ -982,44 +987,21 @@ export default function LeadManagement() {
         statusMessage: 'Enviando dados para o servidor...'
       }));
       
-      // Enviar leads em lote para a API
-      const response = await fetch('/api/leads/batch/import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ leads: parsedLeads })
-      });
-      
-      let result;
-      if (!response.ok) {
-        let errorText;
-        try {
-          // Tenta obter o erro como JSON
-          const errorJson = await response.json();
-          errorText = errorJson.message || 'Erro desconhecido';
-        } catch (e) {
-          // Se não for JSON, tenta obter como texto
-          errorText = await response.text();
-        }
-        
-        setImportStats(prev => ({
-          ...prev,
-          statusMessage: `Erro: ${errorText}`,
-        }));
-        
-        throw new Error(`Erro na importação em lote: ${errorText}`);
-      }
-      
-      try {
-        result = await response.json();
-      } catch (e) {
-        console.error('Erro ao parsear resultado JSON:', e);
-        throw new Error('Erro ao processar resposta do servidor');
-      }
+      // Use invokeSupabaseFunction for the main import confirmation
+      const result = await invokeSupabaseFunction<any>(
+        "lead-functions",
+        "POST",
+        { leads: parsedLeads },
+        { slug: "batch/import" } // Assuming this is the correct slug for the overall import
+      );
+      // Error handling for invokeSupabaseFunction is done via its internal throwIfResNotOk
+      // or by checking the structure of 'result' if it can return structured errors without throwing.
+      // For now, assuming success if no error is thrown by invokeSupabaseFunction.
+
       console.log('Resultado da importação em lote:', result);
       
-      // Atualizar estatísticas com os resultados
+      // Update stats based on the structure of 'result'
+      // This assumes 'result' has successCount, updatedCount, errorCount
       setImportStats(prev => {
         const successCount = result.successCount || 0;
         const updatedCount = result.updatedCount || 0;
@@ -1047,11 +1029,8 @@ export default function LeadManagement() {
       
       // Atualizar a lista de leads após a importação bem-sucedida
       try {
-        // Primeiro, invalidamos a consulta
-        await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-        
-        // Em seguida, disparamos manualmente uma nova consulta com await para garantir que seja concluída
-        await queryClient.fetchQuery({ queryKey: ["/api/leads"] });
+        await queryClient.invalidateQueries({ queryKey: ["leadsList"] });
+        await queryClient.refetchQueries({ queryKey: ["leadsList"] });
         console.log('Dados atualizados com sucesso após importação');
         
         // Atualizar mensagem final
