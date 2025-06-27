@@ -1,3 +1,5 @@
+CREATE TYPE "source_enum" AS ENUM ('Favale', 'Pink', 'Website', 'Referencia', 'Campanha', 'Outro', 'Google');
+--> statement-breakpoint
 CREATE TABLE "audit_logs" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL,
@@ -21,14 +23,14 @@ CREATE TABLE "google_tokens" (
 --> statement-breakpoint
 CREATE TABLE "leads" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"entry_date" timestamp DEFAULT now() NOT NULL,
+	"entryDate" timestamp DEFAULT now() NOT NULL,
 	"name" text NOT NULL,
 	"email" text NOT NULL,
 	"phone" text NOT NULL,
 	"state" text NOT NULL,
 	"campaign" text NOT NULL,
 	"tags" text[] NOT NULL,
-	"source" text NOT NULL,
+	"source" "source_enum" NOT NULL,
 	"status" text NOT NULL,
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,

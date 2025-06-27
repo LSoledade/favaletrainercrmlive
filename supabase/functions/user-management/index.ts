@@ -24,8 +24,8 @@ const createUserSchema = z.object({
   email: z.string().email("Formato de email inválido."),
   password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres."), // Increased min length
   role: userRoleEnum,
-  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres.").optional(),
-  full_name: z.string().min(3, "Nome completo deve ter pelo menos 3 caracteres.").optional(), // Added full_name
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres."),
+  fullName: z.string().min(1, "Nome completo é obrigatório.").optional(),
 });
 type CreateUserPayload = z.infer<typeof createUserSchema>;
 
@@ -33,7 +33,7 @@ const updateUserSchema = z.object({ // For updating existing users (e.g. role, m
     email: z.string().email("Formato de email inválido.").optional(),
     role: userRoleEnum.optional(),
     username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres.").optional(),
-    full_name: z.string().min(3, "Nome completo deve ter pelo menos 3 caracteres.").optional(),
+    fullName: z.string().min(1, "Nome completo deve ter pelo menos 1 caractere.").optional(),
     // Password updates should be handled by a separate, more secure flow (e.g., user-initiated password reset)
 });
 type UpdateUserPayload = z.infer<typeof updateUserSchema>;
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
   };
 
   // Handle CORS preflight requests
@@ -73,9 +73,9 @@ Deno.serve(async (req) => {
 
   let callingUserRole = 'user'; // Default role
   const { data: profile, error: profileError } = await adminSupabaseClient
-    .from('profiles') // Ensure 'profiles' table and 'role' column exist
-    .select('role')
-    .eq('id', callingUser.id) // 'id' in profiles should be FK to auth.users.id (UUID)
+    .from('profiles') // Ensure 'profiles' table exists with required columns
+    .select('role, username, full_name')
+    .eq('id', callingUser.id) // 'id' in profiles references auth.users.id (UUID)
     .single();
 
   if (profileError && profileError.code !== 'PGRST116') {
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      // Enrich with profile data (role, username, full_name)
+      // Enrich with profile data (role, username)
       const userIds = data.users.map(u => u.id);
       let profilesMap = new Map();
       if (userIds.length > 0) {
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
             last_sign_in_at: u.last_sign_in_at,
             role: userProfile?.role || u.user_metadata?.role || 'N/A', // Prefer profile role, then metadata
             username: userProfile?.username || u.user_metadata?.username || u.email?.split('@')[0],
-            full_name: userProfile?.full_name || u.user_metadata?.full_name,
+            fullName: userProfile?.full_name || u.user_metadata?.fullName || null,
             // Add other relevant fields from Supabase user object or profile
         };
       });
@@ -142,12 +142,16 @@ Deno.serve(async (req) => {
             throw error;
         }
         // Enrich with profile
-        const { data: targetProfile } = await adminSupabaseClient.from('profiles').select('role, username, full_name').eq('id', targetUserId).single();
+        const { data: targetProfile } = await adminSupabaseClient
+          .from('profiles')
+          .select('role, username, full_name')
+          .eq('id', targetUserId)
+          .single();
         const responseUser = {
             ...targetUserDetails,
             role: targetProfile?.role || targetUserDetails.user_metadata?.role,
             username: targetProfile?.username || targetUserDetails.user_metadata?.username,
-            full_name: targetProfile?.full_name || targetUserDetails.user_metadata?.full_name,
+            fullName: targetProfile?.full_name || targetUserDetails.user_metadata?.fullName,
         };
         return new Response(JSON.stringify({ data: responseUser }), { headers, status: 200 });
     }
@@ -163,13 +167,13 @@ Deno.serve(async (req) => {
       if (!validationResult.success) {
         return new Response(JSON.stringify({ error: "Dados de criação de usuário inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
       }
-      const { email, password, role, username, full_name } = validationResult.data;
+      const { email, password, role, username, fullName } = validationResult.data;
 
       const { data: { user: newUser }, error: createAuthUserError } = await adminSupabaseClient.auth.admin.createUser({
         email: email,
         password: password,
         email_confirm: true, // Auto-confirm for simplicity; set to false for email verification flow
-        user_metadata: { role, username, full_name } // Store role and other metadata
+        user_metadata: { role, username, fullName } // Store role and other metadata
       });
 
       if (createAuthUserError) {
@@ -184,20 +188,31 @@ Deno.serve(async (req) => {
       const { error: createProfileError } = await adminSupabaseClient
         .from('profiles')
         .insert({
-          id: newUser.id, // Must match auth.users.id (UUID)
+          id: newUser.id, // References auth.users.id (UUID) directly - no FK constraint to users table
           username: username || email.split('@')[0],
-          full_name: full_name,
           role: role,
+          full_name: fullName || null, // Using snake_case for database column
           // Add other fields from your profiles table schema
         });
 
       if (createProfileError) {
         console.error("Erro ao criar perfil, limpando usuário do Auth:", createProfileError.message);
-        await adminSupabaseClient.auth.admin.deleteUser(newUser.id); // Rollback Auth user
+        // Attempt to rollback Auth user creation
+        try {
+          await adminSupabaseClient.auth.admin.deleteUser(newUser.id);
+        } catch (rollbackError) {
+          console.error("Falha ao fazer rollback do usuário Auth:", rollbackError);
+        }
         throw new Error(`Falha ao criar perfil do usuário: ${createProfileError.message}`);
       }
 
-      const safeNewUserResponse = { id: newUser.id, email: newUser.email, role, username, full_name };
+      const safeNewUserResponse = { 
+        id: newUser.id, 
+        email: newUser.email, 
+        role, 
+        username: username || email.split('@')[0],
+        fullName: fullName || null
+      };
       return new Response(JSON.stringify({ data: safeNewUserResponse }), { headers, status: 201 });
     }
 
@@ -211,14 +226,14 @@ Deno.serve(async (req) => {
         if(!validationResult.success) {
             return new Response(JSON.stringify({ error: "Dados de atualização inválidos.", details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ') }), { status: 400, headers });
         }
-        const { role, username, full_name, email: newEmail } = validationResult.data;
+        const { role, username, fullName, email: newEmail } = validationResult.data;
 
         // Update Auth user (email, metadata)
         const authUpdatePayload: any = { user_metadata: {} };
         if (newEmail) authUpdatePayload.email = newEmail;
         if (role) authUpdatePayload.user_metadata.role = role;
         if (username) authUpdatePayload.user_metadata.username = username;
-        if (full_name) authUpdatePayload.user_metadata.full_name = full_name;
+        if (fullName !== undefined) authUpdatePayload.user_metadata.fullName = fullName;
         // Note: Supabase admin.updateUserById does not allow direct password change.
 
         const { data: { user: updatedAuthUser }, error: updateAuthError } = await adminSupabaseClient.auth.admin.updateUserById(targetUserId, authUpdatePayload);
@@ -231,7 +246,7 @@ Deno.serve(async (req) => {
         const profileUpdatePayload: any = {};
         if (role) profileUpdatePayload.role = role;
         if (username) profileUpdatePayload.username = username;
-        if (full_name) profileUpdatePayload.full_name = full_name;
+        if (fullName !== undefined) profileUpdatePayload.full_name = fullName; // Using snake_case for database column
 
         if (Object.keys(profileUpdatePayload).length > 0) {
             const { error: updateProfileError } = await adminSupabaseClient.from('profiles').update(profileUpdatePayload).eq('id', targetUserId);
@@ -284,11 +299,17 @@ Deno.serve(async (req) => {
 /*
 Table Dependencies:
 - `auth.users` (managed by Supabase Auth)
-- `profiles` (or your custom public user table, e.g., `users`):
-  - `id` (UUID or TEXT, primary key, references auth.users.id, ideally with ON DELETE CASCADE)
-  - `username` (TEXT)
-  - `role` (TEXT, e.g., 'admin', 'user', 'marketing', 'comercial', 'trainer')
+- `profiles` (public user profile table):
+  - `id` (UUID, primary key, references auth.users.id conceptually - no FK constraint)
+  - `username` (TEXT, nullable, unique)
+  - `full_name` (TEXT, nullable) - using snake_case for database column
+  - `role` (TEXT, default 'user', e.g., 'admin', 'user', 'marketing', 'comercial', 'trainer')
+  - `updated_at` (TIMESTAMP, default now()) - using snake_case for database column
   - Any other public profile information.
+
+Note: The profiles.id field should match auth.users.id but there's no database-level 
+foreign key constraint to avoid issues with Supabase Auth user management.
+Database columns use snake_case convention while JavaScript objects use camelCase.
 
 Invocation Examples:
 

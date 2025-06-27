@@ -711,7 +711,13 @@ export default function LeadManagement() {
                   leadData.campaign = value;
                   break;
                 case 'fonte':
-                  leadData.source = value;
+                  const validSources = ['Favale', 'Pink', 'Website', 'Referencia', 'Campanha', 'Outro', 'Google'];
+                  if (validSources.includes(value)) {
+                    leadData.source = value;
+                  } else {
+                    leadData.source = 'Outro';
+                    leadData.notes = `Fonte original: ${value}` + (leadData.notes ? `\n${leadData.notes}` : '');
+                  }
                   break;
                 case 'status':
                   leadData.status = value || "Lead";

@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, Shield } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Shield, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, 
          DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useQuery, useQueryClient as useTanstackQueryClient } from "@tanstack/react-query"; // Renamed to avoid conflict
@@ -40,7 +40,7 @@ const changePasswordSchema = z.object({
 // Schema for creating a new user (email is primary identifier for Supabase Auth)
 const newUserSchema = z.object({
   email: z.string().email("Email inválido"),
-  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres").optional(),
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string().min(1, "Confirmação de senha é obrigatória"),
   role: z.enum(["admin", "marketing", "comercial", "trainer"], {
@@ -51,8 +51,18 @@ const newUserSchema = z.object({
   path: ["confirmPassword"],
 });
 
+// Schema for updating an existing user's profile
+const editUserSchema = z.object({
+  id: z.string().uuid("ID de usuário inválido"), // User ID is required for updates
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres").optional().or(z.literal("")),
+  role: z.enum(["admin", "marketing", "comercial", "trainer"], {
+    errorMap: () => ({ message: "Perfil inválido" })
+  }),
+});
+
 type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
-type NewUserFormValues = z.infer<typeof newUserSchema>; // Renamed to avoid conflict with User type
+type NewUserFormValues = z.infer<typeof newUserSchema>;
+type EditUserFormValues = z.infer<typeof editUserSchema>;
 
 // User type from Supabase (or your custom profile type if it differs significantly)
 // This should match what your 'user-management' function returns for a list of users
@@ -72,6 +82,8 @@ export default function ConfigPage() {
   const [activeTab, setActiveTab] = useState<string>("profile");
   const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   
   const currentUserId = currentAuthUser?.id || ""; // Supabase user ID is string (UUID)
   
@@ -83,6 +95,10 @@ export default function ConfigPage() {
       on401: 'throw', // Or handle as needed
     }),
     enabled: currentProfile?.role === 'admin', // Only fetch if current user is admin
+    select: (data: any) => {
+      // Handle the response format from the API
+      return Array.isArray(data) ? data : (data?.data || []);
+    }
   });
   
   const newUserForm = useForm<NewUserFormValues>({
@@ -103,6 +119,16 @@ export default function ConfigPage() {
       currentPassword: "",
       newPassword: "",
       confirmPassword: "",
+    },
+  });
+
+  // Form for editing user
+  const editUserForm = useForm<EditUserFormValues>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      id: "",
+      username: "",
+      role: "trainer",
     },
   });
 
@@ -163,6 +189,32 @@ export default function ConfigPage() {
       setIsUpdating(false);
     }
   };
+
+  const onEditUserSubmit = async (values: EditUserFormValues) => {
+    try {
+      setIsUpdating(true);
+      // Call the 'user-management' Edge Function to update a user
+      // The user ID is passed as a slug, and the data in the body
+      await invokeSupabaseFunction("user-management", "PATCH", { username: values.username, role: values.role }, { slug: values.id });
+      
+      toast({
+        title: "Usuário atualizado",
+        description: `O perfil do usuário ${values.username || values.id} foi atualizado com sucesso.`, 
+      });
+      
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      await tanstackQueryClient.invalidateQueries({ queryKey: ["userList"] });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar usuário",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
   
   const deleteUser = async (userId: string) => {
     if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
@@ -192,7 +244,7 @@ export default function ConfigPage() {
   return (
     <div className="p-6 space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className={`grid w-full ${currentProfile?.role === 'admin' ? 'grid-cols-3' : 'grid-cols-2'} bg-gray-100 dark:bg-gray-800 p-1 rounded-xl`}>
+            <TabsList className={`grid w-full ${currentProfile?.role === 'admin' ? 'grid-cols-3' : 'grid-cols-1'} bg-gray-100 dark:bg-gray-800 p-1 rounded-xl`}>
               <TabsTrigger 
                 value="profile" 
                 className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm font-medium transition-all"
@@ -200,20 +252,20 @@ export default function ConfigPage() {
                 Perfil
               </TabsTrigger>
               {currentProfile?.role === 'admin' && (
-                <TabsTrigger 
-                  value="users" 
-                  className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm font-medium transition-all"
-                >
-                  Usuários
-                </TabsTrigger>
-              )}
-              {currentProfile?.role === 'admin' && (
-                <TabsTrigger 
-                  value="audit" 
-                  className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm font-medium transition-all"
-                >
-                  Auditoria
-                </TabsTrigger>
+                <>
+                  <TabsTrigger 
+                    value="users" 
+                    className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm font-medium transition-all"
+                  >
+                    Usuários
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="audit" 
+                    className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm font-medium transition-all"
+                  >
+                    Auditoria
+                  </TabsTrigger>
+                </>
               )}
             </TabsList>
             
@@ -344,7 +396,7 @@ export default function ConfigPage() {
                           name="username"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-base font-medium">Nome de Usuário (Opcional)</FormLabel>
+                              <FormLabel className="text-base font-medium">Nome de Usuário</FormLabel>
                               <FormControl>
                                 <Input placeholder="Digite o nome de usuário" className="h-12" {...field} />
                               </FormControl>
@@ -443,6 +495,7 @@ export default function ConfigPage() {
                         <thead>
                           <tr className="border-b bg-gray-50 dark:bg-gray-700">
                             <th className="py-4 px-6 text-left font-semibold text-gray-900 dark:text-white">Nome de Usuário</th>
+                            <th className="py-4 px-6 text-left font-semibold text-gray-900 dark:text-white">Email</th>
                             <th className="py-4 px-6 text-left font-semibold text-gray-900 dark:text-white">Perfil</th>
                             <th className="py-4 px-6 text-right font-semibold text-gray-900 dark:text-white">Ações</th>
                           </tr>
@@ -451,7 +504,8 @@ export default function ConfigPage() {
                           {users.length > 0 ? (
                             users.map((user) => (
                               <tr key={user.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                <td className="py-4 px-6 font-medium text-gray-900 dark:text-white">{user.username}</td>
+                                <td className="py-4 px-6 font-medium text-gray-900 dark:text-white">{user.username || 'N/A'}</td>
+                                <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{user.email || 'N/A'}</td>
                                 <td className="py-4 px-6">
                                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                                     {{
@@ -466,6 +520,22 @@ export default function ConfigPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    onClick={() => {
+                                      setEditingUser(user);
+                                      editUserForm.reset({
+                                        id: user.id,
+                                        username: user.username || '',
+                                        role: (user.role as "admin" | "marketing" | "comercial" | "trainer") || 'trainer',
+                                      });
+                                      setIsEditDialogOpen(true);
+                                    }}
+                                    className="h-9 w-9 p-0 mr-1"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => deleteUser(user.id)}
                                     disabled={user.id === currentUserId}
                                     className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
@@ -477,7 +547,7 @@ export default function ConfigPage() {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={3} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                              <td colSpan={4} className="py-12 text-center text-gray-500 dark:text-gray-400">
                                 <div className="flex flex-col items-center gap-2">
                                   <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
                                     <PlusCircle className="h-6 w-6 text-gray-400" />
@@ -495,6 +565,79 @@ export default function ConfigPage() {
                 </CardContent>                </Card>
               </TabsContent>
             )}
+            
+            {/* Edit User Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="sm:max-w-[500px] bg-white dark:bg-gray-800 border-0 shadow-2xl rounded-2xl">
+                <DialogHeader className="space-y-3">
+                  <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">Editar Usuário</DialogTitle>
+                  <DialogDescription className="text-gray-600 dark:text-gray-300 text-base">
+                    Edite as informações do perfil do usuário.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <Form {...editUserForm}>
+                  <form onSubmit={editUserForm.handleSubmit(onEditUserSubmit)} className="space-y-6">
+                    <FormField
+                      control={editUserForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base font-medium">Nome de Usuário</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Digite o nome de usuário" className="h-12" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editUserForm.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base font-medium">Perfil</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12">
+                                <SelectValue placeholder="Selecione um perfil" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="admin">Administrador</SelectItem>
+                              <SelectItem value="marketing">Marketing</SelectItem>
+                              <SelectItem value="comercial">Comercial</SelectItem>
+                              <SelectItem value="trainer">Personal Trainer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <DialogFooter className="gap-3 pt-6">
+                      <Button 
+                        variant="outline" 
+                        type="button" 
+                        onClick={() => setIsEditDialogOpen(false)}
+                        className="h-12 px-6"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button type="submit" disabled={isUpdating} className="h-12 px-6 bg-blue-600 hover:bg-blue-700">
+                        {isUpdating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...
+                          </>
+                        ) : (
+                          "Salvar"
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
             
             {currentProfile?.role === 'admin' && (
               <TabsContent value="audit" className="space-y-6">

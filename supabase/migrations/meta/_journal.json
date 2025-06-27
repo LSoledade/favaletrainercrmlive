@@ -8,6 +8,20 @@
       "when": 1751008166507,
       "tag": "0000_lively_slapstick",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1735334400000,
+      "tag": "0004_fix_profiles_foreign_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1735334500000,
+      "tag": "0005_create_initial_admin",
+      "breakpoints": true
     }
   ]
 }

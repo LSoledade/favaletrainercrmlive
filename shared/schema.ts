@@ -5,53 +5,19 @@ import { z } from "zod";
 
 // Profiles table linked to Supabase Auth users
 export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey().references(() => authUsers.id, { onDelete: 'cascade' }), // References Supabase auth.users.id
+  id: uuid("id").primaryKey(), // References Supabase auth.users.id - constraint handled at DB level
   username: text("username").unique(),
+  fullName: text("full_name"), // Using snake_case to match database column
   role: text("role").default('user').notNull(), // e.g., 'admin', 'trainer', 'marketing', 'comercial'
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  // Add any other public profile fields here, e.g., avatar_url, full_name
+  // Add other public profile fields here if needed in the future
 });
 
 export const insertProfileSchema = createInsertSchema(profiles);
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type Profile = typeof profiles.$inferSelect;
 
-// Placeholder for Supabase auth.users table if needed for relations, though not directly managed by Drizzle schema here
-// This is more for type safety if you build relations. Supabase manages auth.users schema.
-export const authUsers = pgTable("users", {
-  id: uuid("id").primaryKey(),
-}, (table) => {
-  return {
-    // This is a way to tell Drizzle this table exists in the 'auth' schema if you need to reference it.
-    // However, you don't "create" this table with Drizzle migrations in your public schema.
-    schema: "auth",
-  };
-});
-
-
-// The old 'users' table is effectively replaced by 'profiles' and Supabase 'auth.users'.
-// If you had specific data in the old 'users' table not covered by 'profiles' or 'auth.users.user_metadata',
-// you would need to migrate that data. For now, we assume 'profiles' covers the necessary custom user fields.
-// We will comment out the old 'users' table to avoid conflicts and because auth is now handled by Supabase.
-/*
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(), // Passwords are now handled by Supabase Auth
-  role: text("role").default("user").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  // password: true, // No longer needed here
-  role: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect; // This type will now refer to Profile or a combined type
-*/
-
-// Redefine User type to be based on Profile, potentially enriched with SupabaseUser from client side
+// User type combining Profile with auth data
 export type User = Profile & { email?: string }; // email can be added from authUser on client
 export type InsertUser = InsertProfile & { email: string, password?: string }; // For user creation forms
 
