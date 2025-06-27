@@ -84,6 +84,73 @@ export default function UserWeatherWidget() {
     }),
   });
 
+  // Interface para os dados da API do clima (wrapped response)
+  interface WeatherApiResponse {
+    data?: WeatherData;
+    error?: {
+      code: number;
+      message: string;
+    };
+  }
+
+  interface WeatherData {
+    location: {
+      name: string;
+      region: string;
+      country: string;
+      localtime: string;
+    };
+    current: {
+      temp_c: number;
+      condition: {
+        text: string;
+        icon: string;
+        code: number;
+      };
+      wind_kph: number;
+      wind_dir: string;
+      humidity: number;
+      feelslike_c: number;
+      uv: number;
+      is_day: number;
+    };
+    error?: {
+      code: number;
+      message: string;
+    };
+  }
+
+  // Busca dados do clima da API - ALWAYS call this hook
+  const { data: weatherResponse, isLoading: weatherLoading, error: weatherError } = useQuery<WeatherApiResponse>({
+    queryKey: ['weatherData', userCity],
+    queryFn: getSupabaseQueryFn({
+      functionName: 'weather-api',
+      slug: encodeURIComponent(userCity),
+      on401: 'throw',
+    }),
+    retry: (failureCount, error) => {
+      // Don't retry on 4xx errors (client errors)
+      if (error && typeof error === 'object' && 'status' in error) {
+        const status = (error as any).status;
+        if (status >= 400 && status < 500) return false;
+      }
+      return failureCount < 2; // Retry up to 2 times for 5xx errors
+    },
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 30, // 30 minutos
+    gcTime: 1000 * 60 * 60, // 1 hora
+    enabled: !!userCity, // Only depend on userCity, not statsLoading
+  });
+
+  // Extract the actual weather data from the response
+  const weather = weatherResponse?.data;
+
+  // Debug: Log the response structure to understand what we're receiving
+  if (weatherResponse && !weather) {
+    console.log('Weather response structure:', weatherResponse);
+  }
+
   // Define a cidade baseada no estado com mais leads
   useEffect(() => {
     if (!stats || !stats.leadsByState) return;
@@ -114,7 +181,8 @@ export default function UserWeatherWidget() {
     }
   }, [stats]);
 
-  if (statsLoading) {
+  // Show loading state if either query is loading
+  if (statsLoading || weatherLoading) {
     return (
       <Card className="overflow-hidden">
         <CardContent className="p-4">
@@ -130,48 +198,6 @@ export default function UserWeatherWidget() {
       </Card>
     );
   }
-
-  // Interface para os dados da API do clima
-  interface WeatherData {
-    location: {
-      name: string;
-      region: string;
-      country: string;
-      localtime: string;
-    };
-    current: {
-      temp_c: number;
-      condition: {
-        text: string;
-        icon: string;
-        code: number;
-      };
-      wind_kph: number;
-      wind_dir: string;
-      humidity: number;
-      feelslike_c: number;
-      uv: number;
-      is_day: number;
-    };
-    error?: {
-      code: number;
-      message: string;
-    };
-  }
-  
-  // Busca dados do clima da API
-  const { data: weather, isLoading: weatherLoading, error: weatherError } = useQuery<WeatherData>({
-    queryKey: ['weatherData', userCity], // Include userCity in queryKey
-    queryFn: getSupabaseQueryFn({
-      functionName: 'weather-api', // Name of the weather Edge Function
-      slug: encodeURIComponent(userCity), // Pass city as a slug
-      on401: 'throw',
-    }),
-    retry: 1,
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 30, // 30 minutos
-    enabled: !!userCity && !statsLoading, // Only fetch if userCity is set and stats are loaded
-  });
   
   // Determina o ícone apropriado com base no código de condição e se é dia ou noite
   const getWeatherIcon = (code: number) => {
@@ -211,34 +237,24 @@ export default function UserWeatherWidget() {
     return <Wind className="h-8 w-8 text-blue-300" />; // Padrão
   };
 
-  // Se estiver carregando os dados do clima, mostra um componente de carregamento
-  if (weatherLoading) {
+  // Se houve um erro ou não há dados do clima, show a simplified widget
+  if (weatherError || !weatherResponse || weatherResponse.error || !weather || weather.error) {
+    console.warn('Weather data unavailable:', weatherError || weatherResponse?.error || weather?.error);
+    
     return (
-      <Card className="overflow-hidden">
-        <CardContent className="p-4">
-          <div className="flex flex-col space-y-2">
-            <Skeleton className="h-6 w-24" />
-            <div className="flex items-center space-x-2">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <Skeleton className="h-8 w-16" />
-            </div>
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Se houve um erro ou não há dados do clima
-  if (weatherError || !weather || weather.error) {
-    return (
-      <Card className="overflow-hidden border-yellow-200 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/20">
+      <Card className="overflow-hidden border-gray-200 dark:border-gray-700">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
-            <AlertTriangle className="h-8 w-8 text-yellow-500" />
+            <Sun className="h-8 w-8 text-orange-400" />
             <div>
-              <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                Não foi possível obter dados do clima
+              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                Clima em {userCity}
+              </h3>
+              <p className="text-lg font-semibold text-gray-800 dark:text-white">
+                --°C
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Dados indisponíveis
               </p>
             </div>
           </div>

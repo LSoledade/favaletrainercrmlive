@@ -8,6 +8,16 @@ export default function SourcePieChart({ data }: SourcePieChartProps) {
   // Check if running in browser environment
   const isBrowser = typeof window !== 'undefined';
   const isMobile = isBrowser ? window.innerWidth < 640 : false;
+  
+  // Check if data exists and is not null/undefined
+  if (!data || typeof data !== 'object') {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-gray-500 dark:text-gray-400">Nenhum dado disponível</p>
+      </div>
+    );
+  }
+  
   // Format data for chart
   const chartData = Object.entries(data)
     .filter(([_, value]) => value > 0)

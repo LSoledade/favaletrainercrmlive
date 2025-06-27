@@ -81,7 +81,7 @@ export default function Dashboard() {
               <span className="material-icons text-primary dark:text-primary-light">people</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalLeads}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalLeads || 0}</div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-green-600 dark:text-green-400">+5%</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">vs. último mês</span>
@@ -99,7 +99,7 @@ export default function Dashboard() {
               <span className="material-icons text-green-600 dark:text-green-400">school</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalStudents}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalStudents || 0}</div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-green-600 dark:text-green-400">+10%</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">vs. último mês</span>
@@ -117,7 +117,7 @@ export default function Dashboard() {
               <span className="material-icons text-amber-600 dark:text-amber-400">trending_up</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.conversionRate}%</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.conversionRate || '0'}%</div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-green-600 dark:text-green-400">+3%</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">vs. último mês</span>
@@ -135,7 +135,7 @@ export default function Dashboard() {
               <span className="material-icons text-secondary-light dark:text-secondary-light/80">fitness_center</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.sessionsPerStudent}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.sessionsPerStudent || '0'}</div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-green-600 dark:text-green-400">+8%</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">vs. último mês</span>
@@ -156,7 +156,7 @@ export default function Dashboard() {
               <span className="material-icons text-blue-600 dark:text-blue-400">event_available</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalActiveSessions}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalActiveSessions || 0}</div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-green-600 dark:text-green-400">+12%</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">vs. último mês</span>
@@ -174,7 +174,7 @@ export default function Dashboard() {
               <span className="material-icons text-teal-600 dark:text-teal-400">check_circle</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalCompletedSessions}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalCompletedSessions || 0}</div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-green-600 dark:text-green-400">+15%</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">vs. último mês</span>
@@ -192,7 +192,7 @@ export default function Dashboard() {
               <span className="material-icons text-indigo-600 dark:text-indigo-400">campaign</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalLeadsByCampaign}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-white">{stats.totalLeadsByCampaign || 0}</div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-green-600 dark:text-green-400">+7%</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">vs. último mês</span>
@@ -210,7 +210,7 @@ export default function Dashboard() {
               <span className="material-icons text-pink-600 dark:text-pink-400">new_releases</span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-white">{Math.round(stats.totalLeads * 0.23)}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-white">{Math.round((stats.totalLeads || 0) * 0.23)}</div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-green-600 dark:text-green-400">+18%</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">vs. último mês</span>
@@ -227,7 +227,7 @@ export default function Dashboard() {
             <h3 className="text-base font-medium text-gray-800 dark:text-white">Distribuição por Origem</h3>
           </div>
           <div className="h-64">
-            <SourcePieChart data={stats.leadsBySource} />
+            <SourcePieChart data={stats.leadsBySource || {}} />
           </div>
         </div>
         
@@ -236,7 +236,7 @@ export default function Dashboard() {
             <h3 className="text-base font-medium text-gray-800 dark:text-white">Leads por Estado</h3>
           </div>
           <div className="h-64">
-            <StateBarChart data={stats.leadsByState} />
+            <StateBarChart data={stats.leadsByState || {}} />
           </div>
         </div>
       </div>

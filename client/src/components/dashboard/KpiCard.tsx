@@ -18,18 +18,22 @@ export default function KpiCard({
   iconBgColor, 
   iconColor 
 }: KpiCardProps) {
+  // Handle NaN values
+  const displayValue = (typeof value === 'number' && isNaN(value)) ? 0 : value;
+  const displayChange = (typeof change === 'number' && isNaN(change)) ? 0 : change;
+  
   return (
     <Card variant="glowIntenseLifted" className="p-4 sm:p-6">
       <div className="flex justify-between items-start">
         <div className="space-y-1 sm:space-y-2">
           <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
-          <p className="text-xl sm:text-2xl font-semibold tracking-tight dark:text-white dark:glow-value">{value}</p>
+          <p className="text-xl sm:text-2xl font-semibold tracking-tight dark:text-white dark:glow-value">{displayValue}</p>
 
-          <div className={`flex flex-wrap items-center ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          <div className={`flex flex-wrap items-center ${displayChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
             <span className="material-icons text-sm">
-              {change >= 0 ? 'trending_up' : 'trending_down'}
+              {displayChange >= 0 ? 'trending_up' : 'trending_down'}
             </span>
-            <span className="ml-1 text-sm font-medium dark:glow-text-subtle">{Math.abs(change)}%</span>
+            <span className="ml-1 text-sm font-medium dark:glow-text-subtle">{Math.abs(displayChange)}%</span>
             <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 hidden xs:inline">vs último mês</span>
           </div>
         </div>

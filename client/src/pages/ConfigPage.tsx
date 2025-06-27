@@ -16,7 +16,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
@@ -27,7 +26,6 @@ import { useQuery, useQueryClient as useTanstackQueryClient } from "@tanstack/re
 // Replace apiRequest, queryClient with Supabase specific ones
 import { invokeSupabaseFunction, getSupabaseQueryFn } from "@/lib/queryClient";
 import AuditLogViewer from "@/components/admin/AuditLogViewer";
-import GoogleCalendarConfig from "@/components/oauth/GoogleCalendarConfig";
 
 // Schema for changing password (if you implement this via an Edge Function)
 const changePasswordSchema = z.object({
@@ -53,26 +51,7 @@ const newUserSchema = z.object({
   path: ["confirmPassword"],
 });
 
-
-const notificationSettingsSchema = z.object({
-  emailNotifications: z.boolean().default(true),
-  smsNotifications: z.boolean().default(false),
-  leadAssignmentNotification: z.boolean().default(true),
-  statusChangeNotification: z.boolean().default(true),
-  marketingUpdates: z.boolean().default(false),
-});
-
-const systemSettingsSchema = z.object({
-  companyName: z.string().min(1, "Nome da empresa é obrigatório"),
-  primaryPhone: z.string().min(1, "Telefone principal é obrigatório"),
-  primaryEmail: z.string().email("E-mail inválido").min(1, "E-mail principal é obrigatório"),
-  defaultLeadStatus: z.string().min(1, "Status padrão é obrigatório"),
-  defaultLeadSource: z.string().min(1, "Fonte padrão é obrigatória"),
-});
-
 type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
-type NotificationSettingsValues = z.infer<typeof notificationSettingsSchema>;
-type SystemSettingsValues = z.infer<typeof systemSettingsSchema>;
 type NewUserFormValues = z.infer<typeof newUserSchema>; // Renamed to avoid conflict with User type
 
 // User type from Supabase (or your custom profile type if it differs significantly)
@@ -116,8 +95,8 @@ export default function ConfigPage() {
       role: "trainer", // Default role, or make it empty
     },
   });
-
-  // Form for changing password (if implemented)
+  
+  // Form for changing password
   const changePasswordForm = useForm<ChangePasswordValues>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: {
@@ -127,61 +106,32 @@ export default function ConfigPage() {
     },
   });
 
-
-  const notificationSettingsForm = useForm<NotificationSettingsValues>({
-    resolver: zodResolver(notificationSettingsSchema),
-    defaultValues: {
-      emailNotifications: true,
-      smsNotifications: false,
-      leadAssignmentNotification: true,
-      statusChangeNotification: true,
-      marketingUpdates: false,
-    },
-  });
-
-  const systemSettingsForm = useForm<SystemSettingsValues>({
-    resolver: zodResolver(systemSettingsSchema),
-    defaultValues: {
-      companyName: "Favale & Pink Personal Training",
-      primaryPhone: "+55 (11) 99999-9999",
-      primaryEmail: "contato@favalepink.com.br",
-      defaultLeadStatus: "Lead",
-      defaultLeadSource: "Favale",
-    },
-  });
-
   const onChangePasswordSubmit = async (values: ChangePasswordValues) => {
-    // This requires a Supabase Edge Function or direct client call to supabase.auth.updateUser()
-    // For Edge Function:
-    // await invokeSupabaseFunction('user-management', 'POST', { newPassword: values.newPassword }, { slug: 'change-password' });
-    // For direct client (if user is changing their own password):
-    const supabase = (await import('@supabase/supabase-js')).createClient(import.meta.env.VITE_SUPABASE_URL!, import.meta.env.VITE_SUPABASE_ANON_KEY!);
-    const { error } = await supabase.auth.updateUser({ password: values.newPassword });
-    if (error) {
-      toast({ title: "Erro ao alterar senha", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Senha alterada", description: "Sua senha foi atualizada com sucesso." });
-      changePasswordForm.reset();
+    try {
+      // Use the singleton supabase client instead of creating a new one
+      const { supabase } = await import('@/lib/supabaseClient');
+      const { error } = await supabase.auth.updateUser({ password: values.newPassword });
+      
+      if (error) {
+        toast({ 
+          title: "Erro ao alterar senha", 
+          description: error.message, 
+          variant: "destructive" 
+        });
+      } else {
+        toast({ 
+          title: "Senha alterada", 
+          description: "Sua senha foi atualizada com sucesso." 
+        });
+        changePasswordForm.reset();
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao alterar senha",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
     }
-  };
-
-
-  const onNotificationSettingsSubmit = (values: NotificationSettingsValues) => {
-    console.log("Notification settings:", values);
-    // Aqui você implementaria a lógica para salvar as configurações de notificação
-    toast({
-      title: "Notificações atualizadas",
-      description: "Suas preferências de notificação foram salvas.",
-    });
-  };
-
-  const onSystemSettingsSubmit = (values: SystemSettingsValues) => {
-    console.log("System settings:", values);
-    // Aqui você implementaria a lógica para salvar as configurações do sistema
-    toast({
-      title: "Configurações do sistema atualizadas",
-      description: "As configurações do sistema foram atualizadas com sucesso.",
-    });
   };
   
   const onCreateUserSubmit = async (values: NewUserFormValues) => {
@@ -214,7 +164,7 @@ export default function ConfigPage() {
     }
   };
   
-  const deleteUser = async (userId: number) => {
+  const deleteUser = async (userId: string) => {
     if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
     
     try {
@@ -240,417 +190,150 @@ export default function ConfigPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">Configurações</CardTitle>
-          <CardDescription className="text-gray-500 dark:text-gray-400">
-            Gerencie as configurações da sua conta e do sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="bg-gray-100 dark:bg-gray-800 mb-4">
+    <div className="p-6 space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className={`grid w-full ${currentProfile?.role === 'admin' ? 'grid-cols-3' : 'grid-cols-2'} bg-gray-100 dark:bg-gray-800 p-1 rounded-xl`}>
               <TabsTrigger 
                 value="profile" 
-                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm font-medium transition-all"
               >
                 Perfil
               </TabsTrigger>
-              <TabsTrigger 
-                value="notifications" 
-                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-              >
-                Notificações
-              </TabsTrigger>
-              <TabsTrigger 
-                value="system" 
-                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-              >
-                Sistema
-              </TabsTrigger>
-              <TabsTrigger 
-                value="users" 
-                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-              >
-                Usuários
-              </TabsTrigger>
-              <TabsTrigger 
-                value="calendar" 
-                className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-              >
-                Google Calendar
-              </TabsTrigger>
-              {user?.role === 'admin' && (
+              {currentProfile?.role === 'admin' && (
+                <TabsTrigger 
+                  value="users" 
+                  className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm font-medium transition-all"
+                >
+                  Usuários
+                </TabsTrigger>
+              )}
+              {currentProfile?.role === 'admin' && (
                 <TabsTrigger 
                   value="audit" 
-                  className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                  className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm font-medium transition-all"
                 >
                   Auditoria
                 </TabsTrigger>
               )}
             </TabsList>
             
-            <TabsContent value="profile" className="space-y-4">
-              <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Perfil do Usuário</CardTitle>
-                  <CardDescription className="text-gray-500 dark:text-gray-400">
-                    Informações do seu perfil e opção para alterar senha.
+            <TabsContent value="profile" className="space-y-6">
+              <Card className="border-0 shadow-lg bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 pb-6">
+                  <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                      <Shield className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    Perfil do Usuário
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 dark:text-gray-300 text-base">
+                    Informações do seu perfil e opção para alterar senha
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-8">
                   {/* Display user profile info */}
-                  <div className="space-y-2 mb-6">
-                    <div>
-                      <span className="font-medium">Email:</span> {currentAuthUser?.email}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Email</h4>
+                      <p className="text-gray-600 dark:text-gray-300">{currentAuthUser?.email}</p>
                     </div>
-                    <div>
-                      <span className="font-medium">Nome de Usuário:</span> {currentProfile?.username || 'N/A'}
+                    <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Nome de Usuário</h4>
+                      <p className="text-gray-600 dark:text-gray-300">{currentProfile?.username || 'N/A'}</p>
                     </div>
-                    <div>
-                      <span className="font-medium">Perfil (Role):</span> {currentProfile?.role || 'N/A'}
+                    <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Perfil</h4>
+                      <p className="text-gray-600 dark:text-gray-300">{currentProfile?.role || 'N/A'}</p>
                     </div>
                   </div>
 
-                  <Separator className="my-4" />
-                  <h3 className="text-md font-medium mb-4">Alterar Senha</h3>
-                  {/* Change Password Form */}
-                  <Form {...changePasswordForm}>
-                    <form onSubmit={changePasswordForm.handleSubmit(onChangePasswordSubmit)} className="space-y-4">
-                       <FormField
-                        control={changePasswordForm.control}
-                        name="currentPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Senha Atual</FormLabel>
-                            <FormControl>
-                              <Input type="password" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={changePasswordForm.control}
-                          name="newPassword"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nova Senha</FormLabel>
-                              <FormControl>
-                                <Input type="password" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                  <Separator className="my-8" />
+                  
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Alterar Senha</h3>
+                    {/* Change Password Form */}
+                    <Form {...changePasswordForm}>
+                      <form onSubmit={changePasswordForm.handleSubmit(onChangePasswordSubmit)} className="space-y-6">
                          <FormField
                           control={changePasswordForm.control}
-                          name="confirmPassword"
+                          name="currentPassword"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Confirmar Nova Senha</FormLabel>
+                              <FormLabel className="text-base font-medium">Senha Atual</FormLabel>
                               <FormControl>
-                                <Input type="password" {...field} />
+                                <Input type="password" className="h-12" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-                      </div>
-                       <Button type="submit" className="mt-4">
-                        Alterar Senha
-                      </Button>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="notifications" className="space-y-4">
-              <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Preferências de Notificação</CardTitle>
-                  <CardDescription className="text-gray-500 dark:text-gray-400">
-                    Configure como e quando deseja receber notificações
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...notificationSettingsForm}>
-                    <form
-                      onSubmit={notificationSettingsForm.handleSubmit(onNotificationSettingsSubmit)}
-                      className="space-y-4"
-                    >
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Canais de Notificação</h3>
-
-                        <FormField
-                          control={notificationSettingsForm.control}
-                          name="emailNotifications"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                              <div className="space-y-0.5">
-                                <FormLabel>Notificações por Email</FormLabel>
-                                <FormDescription>
-                                  Receba atualizações e alertas por email.
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={notificationSettingsForm.control}
-                          name="smsNotifications"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                              <div className="space-y-0.5">
-                                <FormLabel>Notificações por SMS</FormLabel>
-                                <FormDescription>
-                                  Receba alertas importantes por SMS.
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <Separator className="my-4" />
-
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Tipos de Notificação</h3>
-
-                        <FormField
-                          control={notificationSettingsForm.control}
-                          name="leadAssignmentNotification"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                              <div className="space-y-0.5">
-                                <FormLabel>Atribuição de Leads</FormLabel>
-                                <FormDescription>
-                                  Notificar quando um novo lead for atribuído a você.
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={notificationSettingsForm.control}
-                          name="statusChangeNotification"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                              <div className="space-y-0.5">
-                                <FormLabel>Mudanças de Status</FormLabel>
-                                <FormDescription>
-                                  Notificar quando o status de um lead mudar.
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={notificationSettingsForm.control}
-                          name="marketingUpdates"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md">
-                              <div className="space-y-0.5">
-                                <FormLabel>Atualizações de Marketing</FormLabel>
-                                <FormDescription>
-                                  Receba novidades sobre campanhas e promoções.
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <Button type="submit" className="mt-4">
-                        Salvar Preferências
-                      </Button>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="system" className="space-y-4">
-              <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Configurações Gerais</CardTitle>
-                  <CardDescription className="text-gray-500 dark:text-gray-400">
-                    Configure os parâmetros gerais do sistema
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...systemSettingsForm}>
-                    <form
-                      onSubmit={systemSettingsForm.handleSubmit(onSystemSettingsSubmit)}
-                      className="space-y-4"
-                    >
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Informações da Empresa</h3>
-
-                        <FormField
-                          control={systemSettingsForm.control}
-                          name="companyName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nome da Empresa</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <FormField
-                            control={systemSettingsForm.control}
-                            name="primaryPhone"
+                            control={changePasswordForm.control}
+                            name="newPassword"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Telefone Principal</FormLabel>
+                                <FormLabel className="text-base font-medium">Nova Senha</FormLabel>
                                 <FormControl>
-                                  <Input {...field} />
+                                  <Input type="password" className="h-12" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-
-                          <FormField
-                            control={systemSettingsForm.control}
-                            name="primaryEmail"
+                           <FormField
+                            control={changePasswordForm.control}
+                            name="confirmPassword"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Email Principal</FormLabel>
+                                <FormLabel className="text-base font-medium">Confirmar Nova Senha</FormLabel>
                                 <FormControl>
-                                  <Input {...field} />
+                                  <Input type="password" className="h-12" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
                         </div>
-                      </div>
-
-                      <Separator className="my-4" />
-
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Configurações Padrão de Leads</h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={systemSettingsForm.control}
-                            name="defaultLeadStatus"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Status Padrão de Lead</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                  Status atribuído a novos leads.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={systemSettingsForm.control}
-                            name="defaultLeadSource"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Fonte Padrão de Lead</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                  Fonte atribuída a novos leads.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      <Button type="submit" className="mt-4">
-                        Salvar Configurações
-                      </Button>
-                    </form>
-                  </Form>
+                         <Button type="submit" className="h-12 px-8 bg-blue-600 hover:bg-blue-700">
+                          Alterar Senha
+                        </Button>
+                      </form>
+                    </Form>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
             
-            <TabsContent value="calendar" className="space-y-4">
-              <GoogleCalendarConfig />
-            </TabsContent>
-            
-            <TabsContent value="users" className="space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-800 dark:text-white">Gerenciamento de Usuários</h3>
-                <Dialog open={isNewUserDialogOpen} onOpenChange={setIsNewUserDialogOpen}>
+            {currentProfile?.role === 'admin' && (
+              <TabsContent value="users" className="space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                  <p className="text-gray-600 dark:text-gray-300">Crie e gerencie usuários do sistema</p>
+                  <Dialog open={isNewUserDialogOpen} onOpenChange={setIsNewUserDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="bg-[#ff9810] hover:bg-[#ff9810]/90 text-white">
-                      <PlusCircle className="h-4 w-4 mr-2" />
+                    <Button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg h-12 px-6 rounded-xl">
+                      <PlusCircle className="h-5 w-5 mr-2" />
                       Novo Usuário
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[480px] bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 rounded-xl">
-                    <DialogHeader>
-                      <DialogTitle className="text-gray-800 dark:text-white">Criar Novo Usuário</DialogTitle>
-                      <DialogDescription className="text-gray-500 dark:text-gray-400">
+                  <DialogContent className="sm:max-w-[500px] bg-white dark:bg-gray-800 border-0 shadow-2xl rounded-2xl">
+                    <DialogHeader className="space-y-3">
+                      <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">Criar Novo Usuário</DialogTitle>
+                      <DialogDescription className="text-gray-600 dark:text-gray-300 text-base">
                         Crie um novo usuário para acessar o sistema
                       </DialogDescription>
                     </DialogHeader>
                     
                     <Form {...newUserForm}>
-                      <form onSubmit={newUserForm.handleSubmit(onCreateUserSubmit)} className="space-y-4">
+                      <form onSubmit={newUserForm.handleSubmit(onCreateUserSubmit)} className="space-y-6">
                         <FormField
                           control={newUserForm.control}
-                          name="email" // Changed to email
+                          name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Email do Novo Usuário</FormLabel>
+                              <FormLabel className="text-base font-medium">Email do Novo Usuário</FormLabel>
                               <FormControl>
-                                <Input type="email" placeholder="email@example.com" {...field} />
+                                <Input type="email" placeholder="email@example.com" className="h-12" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -661,9 +344,9 @@ export default function ConfigPage() {
                           name="username"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Nome de Usuário (Opcional)</FormLabel>
+                              <FormLabel className="text-base font-medium">Nome de Usuário (Opcional)</FormLabel>
                               <FormControl>
-                                <Input placeholder="Digite o nome de usuário" {...field} />
+                                <Input placeholder="Digite o nome de usuário" className="h-12" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -674,10 +357,10 @@ export default function ConfigPage() {
                           name="role"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Perfil</FormLabel>
+                              <FormLabel className="text-base font-medium">Perfil</FormLabel>
                               <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                  <SelectTrigger>
+                                  <SelectTrigger className="h-12">
                                     <SelectValue placeholder="Selecione um perfil" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -693,43 +376,46 @@ export default function ConfigPage() {
                           )}
                         />
                         
-                        <FormField
-                          control={newUserForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Senha</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="Digite a senha" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={newUserForm.control}
+                            name="password"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-base font-medium">Senha</FormLabel>
+                                <FormControl>
+                                  <Input type="password" placeholder="Digite a senha" className="h-12" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={newUserForm.control}
+                            name="confirmPassword"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-base font-medium">Confirmar Senha</FormLabel>
+                                <FormControl>
+                                  <Input type="password" placeholder="Confirme a senha" className="h-12" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                         
-                        <FormField
-                          control={newUserForm.control}
-                          name="confirmPassword"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Confirmar Senha</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="Confirme a senha" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <DialogFooter>
+                        <DialogFooter className="gap-3 pt-6">
                           <Button 
                             variant="outline" 
                             type="button" 
                             onClick={() => setIsNewUserDialogOpen(false)}
+                            className="h-12 px-6"
                           >
                             Cancelar
                           </Button>
-                          <Button type="submit" disabled={isUpdating}>
+                          <Button type="submit" disabled={isUpdating} className="h-12 px-6 bg-blue-600 hover:bg-blue-700">
                             {isUpdating ? (
                               <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...
@@ -745,51 +431,60 @@ export default function ConfigPage() {
                 </Dialog>
               </div>
               
-              <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
-                <CardContent className="p-6">
+              <Card className="border-0 shadow-lg bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
+                <CardContent className="p-0">
                   {isLoadingUsers ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                     </div>
                   ) : (
-                    <div className="border rounded-md">
+                    <div className="overflow-hidden">
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b bg-muted/50">
-                            <th className="py-3 px-4 text-left font-medium">Nome de Usuário</th>
-                            <th className="py-3 px-4 text-left font-medium">Perfil</th>
-                            <th className="py-3 px-4 text-right font-medium">Ações</th>
+                          <tr className="border-b bg-gray-50 dark:bg-gray-700">
+                            <th className="py-4 px-6 text-left font-semibold text-gray-900 dark:text-white">Nome de Usuário</th>
+                            <th className="py-4 px-6 text-left font-semibold text-gray-900 dark:text-white">Perfil</th>
+                            <th className="py-4 px-6 text-right font-semibold text-gray-900 dark:text-white">Ações</th>
                           </tr>
                         </thead>
                         <tbody>
                           {users.length > 0 ? (
                             users.map((user) => (
-                              <tr key={user.id} className="border-b hover:bg-muted/30">
-                                <td className="py-3 px-4">{user.username}</td>
-                                <td className="py-3 px-4">
-                                  {{
-                                    admin: "Administrador",
-                                    marketing: "Marketing",
-                                    comercial: "Comercial",
-                                    trainer: "Personal Trainer"
-                                  }[user.role || ""] || "Não definido"}
+                              <tr key={user.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <td className="py-4 px-6 font-medium text-gray-900 dark:text-white">{user.username}</td>
+                                <td className="py-4 px-6">
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                    {{
+                                      admin: "Administrador",
+                                      marketing: "Marketing",
+                                      comercial: "Comercial",
+                                      trainer: "Personal Trainer"
+                                    }[user.role || ""] || "Não definido"}
+                                  </span>
                                 </td>
-                                <td className="py-3 px-4 text-right">
+                                <td className="py-4 px-6 text-right">
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => deleteUser(user.id)}
-                                    disabled={user.id === currentUserId} // Não permite excluir o próprio usuário
+                                    disabled={user.id === currentUserId}
+                                    className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                                   >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={3} className="py-6 text-center text-muted-foreground">
-                                Nenhum usuário encontrado
+                              <td colSpan={3} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                                <div className="flex flex-col items-center gap-2">
+                                  <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                                    <PlusCircle className="h-6 w-6 text-gray-400" />
+                                  </div>
+                                  <p className="font-medium">Nenhum usuário encontrado</p>
+                                  <p className="text-sm">Crie o primeiro usuário para começar</p>
+                                </div>
                               </td>
                             </tr>
                           )}
@@ -797,28 +492,31 @@ export default function ConfigPage() {
                       </table>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                </CardContent>                </Card>
+              </TabsContent>
+            )}
             
-            {user?.role === 'admin' && (
-              <TabsContent value="audit" className="space-y-4">
-                <Card className="border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg font-medium text-gray-800 dark:text-white">Log de Auditoria</CardTitle>
-                    <CardDescription className="text-gray-500 dark:text-gray-400">
+            {currentProfile?.role === 'admin' && (
+              <TabsContent value="audit" className="space-y-6">
+                <Card className="border-0 shadow-lg bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
+                  <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-gray-700 dark:to-gray-800 pb-6">
+                    <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                      <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                        <Shield className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      Log de Auditoria
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-300 text-base">
                       Monitoramento de atividades do sistema
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-8">
                     <AuditLogViewer />
                   </CardContent>
                 </Card>
               </TabsContent>
             )}
           </Tabs>
-        </CardContent>
-      </Card>
     </div>
   );
 }
