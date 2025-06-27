@@ -3,20 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sun, Moon, Sunrise, Coffee } from 'lucide-react';
-
-export default function GreetingWidget() {
-  const [greeting, setGreeting] = useState('');
-  const [welcomeMessage, setWelcomeMessage] = useState('');
-  const [icon, setIcon] = useState<JSX.Element>(<Coffee className="h-8 w-8 text-primary" />);
-  
-import { useAuth } from '@/hooks/use-auth'; // Import useAuth
+import { useAuth } from '@/hooks/use-auth';
 
 export default function GreetingWidget() {
   const [greeting, setGreeting] = useState('');
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [icon, setIcon] = useState<JSX.Element>(<Coffee className="h-8 w-8 text-primary" />);
 
-  const { profile, isLoading: authLoading } = useAuth(); // Use profile from Supabase auth
+  const { profile, isLoading: authLoading } = useAuth();
   
   // Define a saudação com base na hora do dia
   useEffect(() => {

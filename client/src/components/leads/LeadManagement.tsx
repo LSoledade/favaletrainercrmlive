@@ -44,14 +44,148 @@ import { getSupabaseQueryFn, invokeSupabaseFunction } from "@/lib/queryClient"; 
 
 export default function LeadManagement() {
   const queryClient = useQueryClient();
-  // Fetch leads using getSupabaseQueryFn
-  const { data: leads, isLoading, error } = useQuery<Lead[]>({
+  
+  // Dados mock para demonstração
+  const mockLeads: Lead[] = [
+    {
+      id: 1,
+      entryDate: new Date('2024-01-15'),
+      name: 'Ana Silva',
+      email: 'ana.silva@email.com',
+      phone: '(11) 99999-1234',
+      state: 'SP',
+      campaign: 'Campanha Verão 2024',
+      tags: ['interessado', 'premium'],
+      source: 'Favale',
+      status: 'Lead',
+      notes: 'Interessada em treinos funcionais',
+      createdAt: new Date('2024-01-15'),
+      updatedAt: new Date('2024-01-15')
+    },
+    {
+      id: 2,
+      entryDate: new Date('2024-01-16'),
+      name: 'Carlos Oliveira',
+      email: 'carlos.oliveira@email.com',
+      phone: '(11) 88888-5678',
+      state: 'RJ',
+      campaign: 'Campanha Instagram',
+      tags: ['novo', 'musculação'],
+      source: 'Pink',
+      status: 'Aluno',
+      notes: 'Já iniciou o programa de musculação',
+      createdAt: new Date('2024-01-16'),
+      updatedAt: new Date('2024-01-20')
+    },
+    {
+      id: 3,
+      entryDate: new Date('2024-01-17'),
+      name: 'Maria Santos',
+      email: 'maria.santos@email.com',
+      phone: '(11) 77777-9012',
+      state: 'MG',
+      campaign: 'Campanha Facebook',
+      tags: ['retorno', 'pilates'],
+      source: 'Favale',
+      status: 'Lead',
+      notes: 'Ex-aluna interessada em retornar',
+      createdAt: new Date('2024-01-17'),
+      updatedAt: new Date('2024-01-17')
+    },
+    {
+      id: 4,
+      entryDate: new Date('2024-01-18'),
+      name: 'João Pereira',
+      email: 'joao.pereira@email.com',
+      phone: '(11) 66666-3456',
+      state: 'SP',
+      campaign: 'Campanha Google Ads',
+      tags: ['emagrecimento', 'cardio'],
+      source: 'Pink',
+      status: 'Lead',
+      notes: 'Foco em perda de peso',
+      createdAt: new Date('2024-01-18'),
+      updatedAt: new Date('2024-01-18')
+    },
+    {
+      id: 5,
+      entryDate: new Date('2024-01-19'),
+      name: 'Fernanda Costa',
+      email: 'fernanda.costa@email.com',
+      phone: '(11) 55555-7890',
+      state: 'PR',
+      campaign: 'Indicação',
+      tags: ['vip', 'personal'],
+      source: 'Favale',
+      status: 'Aluno',
+      notes: 'Treinos personalizados com personal trainer',
+      createdAt: new Date('2024-01-19'),
+      updatedAt: new Date('2024-01-22')
+    },
+    {
+      id: 6,
+      entryDate: new Date('2024-01-20'),
+      name: 'Roberto Lima',
+      email: 'roberto.lima@email.com',
+      phone: '(11) 44444-1234',
+      state: 'RS',
+      campaign: 'Campanha Verão 2024',
+      tags: ['crossfit', 'avançado'],
+      source: 'Pink',
+      status: 'Lead',
+      notes: 'Experiência prévia em crossfit',
+      createdAt: new Date('2024-01-20'),
+      updatedAt: new Date('2024-01-20')
+    },
+    {
+      id: 7,
+      entryDate: new Date('2024-01-21'),
+      name: 'Juliana Rodrigues',
+      email: 'juliana.rodrigues@email.com',
+      phone: '(11) 33333-5678',
+      state: 'SC',
+      campaign: 'Campanha YouTube',
+      tags: ['yoga', 'flexibilidade'],
+      source: 'Favale',
+      status: 'Lead',
+      notes: 'Interesse em aulas de yoga',
+      createdAt: new Date('2024-01-21'),
+      updatedAt: new Date('2024-01-21')
+    },
+    {
+      id: 8,
+      entryDate: new Date('2024-01-22'),
+      name: 'Pedro Alves',
+      email: 'pedro.alves@email.com',
+      phone: '(11) 22222-9012',
+      state: 'BA',
+      campaign: 'Campanha TikTok',
+      tags: ['jovem', 'hipertrofia'],
+      source: 'Pink',
+      status: 'Aluno',
+      notes: 'Foco em ganho de massa muscular',
+      createdAt: new Date('2024-01-22'),
+      updatedAt: new Date('2024-01-25')
+    }
+  ];
+  
+  // Fetch leads using getSupabaseQueryFn (temporarily disabled for demo)
+  const { data: leadsData, isLoading, error } = useQuery<Lead[]>({
     queryKey: ["leadsList"], // Use a descriptive query key
-    queryFn: getSupabaseQueryFn({
-      functionName: 'lead-functions', // Target the 'lead-functions' Edge Function
-      on401: 'throw', // Or 'returnNull'
-    }),
+    queryFn: async () => {
+      // Temporarily return empty array to use mock data
+      // When Supabase is properly configured, uncomment the line below:
+      // return getSupabaseQueryFn({
+      //   functionName: 'lead-functions',
+      //   on401: 'throw',
+      // })();
+      return [];
+    },
+    enabled: false, // Disable the query for now
   });
+  
+  // Use mock data for demonstration
+  const leads = mockLeads;
   
   const [currentPage, setCurrentPage] = useState(1);
   const leadsPerPage = 10;
@@ -333,22 +467,51 @@ export default function LeadManagement() {
 
   const confirmDelete = async () => {
     if (selectedLead) {
-      await deleteLead(selectedLead.id);
+      // Temporarily disabled for demo - would normally call:
+      // await deleteLead(selectedLead.id);
+      
+      // For demo, just show a success message
+      toast({
+        title: "Demo Mode",
+        description: `Lead "${selectedLead.name}" seria excluído em um ambiente real.`,
+        variant: "default",
+      });
+      
       setDeleteDialogOpen(false);
     }
   };
 
   const handleBatchStatusUpdate = async () => {
     if (selectedLeadIds.length > 0 && batchStatusValue) {
-      await updateLeadsInBatch(selectedLeadIds, { status: batchStatusValue });
+      // Temporarily disabled for demo - would normally call:
+      // await updateLeadsInBatch(selectedLeadIds, { status: batchStatusValue });
+      
+      // For demo, just show a success message
+      toast({
+        title: "Demo Mode",
+        description: `${selectedLeadIds.length} leads teriam o status atualizado para "${batchStatusValue}" em um ambiente real.`,
+        variant: "default",
+      });
+      
       setBatchStatusValue("");
+      setSelectedLeadIds([]);
     }
   };
 
   const handleBatchSourceUpdate = async () => {
     if (selectedLeadIds.length > 0 && batchSourceValue) {
-      await updateLeadsInBatch(selectedLeadIds, { source: batchSourceValue });
+      // Temporarily disabled for demo - would normally call:
+      // await updateLeadsInBatch(selectedLeadIds, { source: batchSourceValue });
+      
+      // For demo, just show a success message
+      toast({
+        title: "Demo Mode",
+        description: `${selectedLeadIds.length} leads teriam a origem atualizada para "${batchSourceValue}" em um ambiente real.`,
+        variant: "default",
+      });
+      
       setBatchSourceValue("");
+      setSelectedLeadIds([]);
     }
   };
 
@@ -360,7 +523,17 @@ export default function LeadManagement() {
 
   const confirmBatchDelete = async () => {
     if (selectedLeadIds.length > 0) {
-      await deleteLeadsInBatch(selectedLeadIds);
+      // Temporarily disabled for demo - would normally call:
+      // await deleteLeadsInBatch(selectedLeadIds);
+      
+      // For demo, just show a success message
+      toast({
+        title: "Demo Mode",
+        description: `${selectedLeadIds.length} leads seriam excluídos em um ambiente real.`,
+        variant: "default",
+      });
+      
+      setSelectedLeadIds([]);
       setBatchDeleteDialogOpen(false);
     }
   };
@@ -681,13 +854,14 @@ export default function LeadManagement() {
             
             setImportProgress(50 + Math.floor((batchIndex / totalBatches) * 40));
             
-            // Use invokeSupabaseFunction for batch import
-            const batchResult = await invokeSupabaseFunction<any>(
-              "lead-functions",
-              "POST",
-              { leads: currentBatch },
-              { slug: "batch/import" }
-            );
+            try {
+              // Use invokeSupabaseFunction for batch import
+              const batchResult = await invokeSupabaseFunction<any>(
+                "lead-functions",
+                "POST",
+                { leads: currentBatch },
+                { slug: "batch/import" }
+              );
 
             // Error handling for invokeSupabaseFunction would typically be caught by the outer try-catch
             // if throwIfResNotOk is effective. The structure of batchResult needs to match
@@ -1169,6 +1343,22 @@ export default function LeadManagement() {
 
   return (
     <div>
+      {/* Indicador de dados mock */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-md p-4 mb-6">
+        <div className="flex items-center">
+          <span className="material-icons text-blue-600 dark:text-blue-400 mr-2">info</span>
+          <div>
+            <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+              Modo Demonstração - Dados Fictícios
+            </p>
+            <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+              Você está visualizando dados de exemplo para demonstrar as funcionalidades do sistema. 
+              Configure o Supabase para usar dados reais.
+            </p>
+          </div>
+        </div>
+      </div>
+      
       {/* Header with actions */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6">
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
@@ -1407,7 +1597,7 @@ export default function LeadManagement() {
                     onClick={() => {
                       // Selecionar todos os leads da página atual
                       const pageLeads = (filteredLeads || []).slice(indexOfFirstLead, indexOfLastLead).map(lead => lead.id);
-                      const newSelection = [...new Set([...selectedLeadIds, ...pageLeads])];
+                      const newSelection = Array.from(new Set([...selectedLeadIds, ...pageLeads]));
                       setSelectedLeadIds(newSelection);
                     }}
                   >

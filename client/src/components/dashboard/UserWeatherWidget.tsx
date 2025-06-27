@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sun, Cloud, CloudRain, CloudSnow, CloudLightning, Wind, CloudFog, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getSupabaseQueryFn } from '@/lib/queryClient';
 
 const capitalCities: Record<string, string> = {
   'AC': 'Rio Branco',
@@ -56,48 +57,27 @@ const getCityName = (apiCityName: string): string => {
   return cityNameMapping[apiCityName] || apiCityName;
 };
 
+// Interface para o tipo de estatísticas
+interface DashboardStats {
+  totalLeads: number;
+  totalStudents: number;
+  totalActiveSessions: number;
+  totalCompletedSessions: number;
+  sessionsPerStudent: string;
+  conversionRate: string;
+  leadsBySource: Record<string, number>;
+  leadsByState: Record<string, number>;
+  leadsByCampaign: Record<string, number>;
+  totalLeadsByCampaign: number;
+}
+
 export default function UserWeatherWidget() {
   const [userCity, setUserCity] = useState('São Paulo');
-  
-  // Interface para o tipo de estatísticas
-  interface DashboardStats {
-    totalLeads: number;
-    totalStudents: number;
-    totalActiveSessions: number;
-    totalCompletedSessions: number;
-    sessionsPerStudent: string;
-    conversionRate: string;
-    leadsBySource: Record<string, number>;
-    leadsByState: Record<string, number>;
-    leadsByCampaign: Record<string, number>;
-    totalLeadsByCampaign: number;
-  }
-  
-import { getSupabaseQueryFn } from '@/lib/queryClient'; // Import the new query function
-
-// ... (keep existing interfaces and constants)
-
-export default function UserWeatherWidget() {
-  const [userCity, setUserCity] = useState('São Paulo'); // Default city
   const { toast } = useToast();
-
-  // Interface for DashboardStats (can be moved to a shared types file)
-  interface DashboardStats {
-    totalLeads: number;
-    totalStudents: number;
-    totalActiveSessions: number;
-    totalCompletedSessions: number;
-    sessionsPerStudent: string;
-    conversionRate: string;
-    leadsBySource: Record<string, number>;
-    leadsByState: Record<string, number>;
-    leadsByCampaign: Record<string, number>;
-    totalLeadsByCampaign: number;
-  }
 
   // Fetch dashboard stats to determine dominant city
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ["dashboardStatsForWeather"], // Unique query key
+    queryKey: ["dashboardStatsForWeather"],
     queryFn: getSupabaseQueryFn({
       functionName: 'general-stats', // Use the 'general-stats' Edge Function
       on401: 'throw',
@@ -171,6 +151,7 @@ export default function UserWeatherWidget() {
       humidity: number;
       feelslike_c: number;
       uv: number;
+      is_day: number;
     };
     error?: {
       code: number;

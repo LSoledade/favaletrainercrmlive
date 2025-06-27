@@ -396,7 +396,7 @@ export const googleTokens = pgTable("google_tokens", {
   userId: uuid("user_id").primaryKey().references(() => profiles.id, { onDelete: 'cascade' }), // Foreign key to profiles table
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token"),
-  expiryDate: timestamp("expiry_date", { mode: 'number' }).notNull(), // Store as number (milliseconds)
+  expiryDate: timestamp("expiry_date").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -456,7 +456,7 @@ export const taskCommentRelations = relations(taskComments, ({ one }) => ({
   }),
 }));
 
-export const sessionRelations = relations(sessions, ({ one }) => ({
+export const sessionRelations = relations(sessions, ({ one, many }) => ({
   student: one(students, {
     fields: [sessions.studentId],
     references: [students.id],

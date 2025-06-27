@@ -22,7 +22,7 @@ interface SidebarProps {
 export default function Sidebar({ open, setOpen, expanded = true }: SidebarProps) {
   const [location] = useLocation();
   const { theme } = useTheme();
-  const { user, logoutMutation } = useAuth();
+  const { user, profile, logoutMutation } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
   
   useEffect(() => {
@@ -115,13 +115,13 @@ export default function Sidebar({ open, setOpen, expanded = true }: SidebarProps
                   <div className="flex items-center">
                     <Avatar className={`${expanded ? 'h-8 w-8' : 'h-9 w-9'} bg-gray-700 transition-all duration-200`}>
                       <AvatarFallback className="text-sm font-medium text-white">
-                        {user.username.substring(0, 2).toUpperCase()}
+                        {(profile?.username || user?.email || 'U')?.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     {expanded && (
                       <div className="ml-3 flex flex-col">
-                        <span className="text-sm font-medium">{user.username}</span>
-                        <span className="text-xs text-gray-400">{user.role === 'admin' ? 'Admin' : 'Usuário'}</span>
+                        <span className="text-sm font-medium">{profile?.username || user?.email?.split('@')[0] || 'Usuário'}</span>
+                        <span className="text-xs text-gray-400">{profile?.role === 'admin' ? 'Admin' : 'Usuário'}</span>
                       </div>
                     )}
                   </div>
@@ -139,7 +139,7 @@ export default function Sidebar({ open, setOpen, expanded = true }: SidebarProps
                     <span className="text-sm">Perfil e Configurações</span>
                   </DropdownMenuItem>
                 </Link>
-                {user.role === 'admin' && (
+                {profile?.role === 'admin' && (
                   <Link href="/config" onClick={() => {
                     setOpen(false);
                   }}>

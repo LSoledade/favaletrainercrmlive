@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useQuery } from "@tanstack/react-query";
+import { getSupabaseQueryFn } from '@/lib/queryClient';
 
 interface LeadTimeData {
   name: string;
@@ -13,15 +14,6 @@ export default function TimelineChart() {
   const [timeRange, setTimeRange] = useState('7d');
   const [darkMode, setDarkMode] = useState(false);
   const [chartData, setChartData] = useState<LeadTimeData[]>([]);
-  
-import { getSupabaseQueryFn } from '@/lib/queryClient'; // Import the new query function
-
-interface LeadTimeData {
-  name: string;
-  novosLeads: number;
-  convertidos: number;
-  sessoes: number;
-}
 
 // Define a more specific type for Lead and Session data if possible
 interface LeadData {
@@ -34,11 +26,6 @@ interface SessionData {
   startTime: string | Date;
   // other session properties if needed by the chart
 }
-
-export default function TimelineChart() {
-  const [timeRange, setTimeRange] = useState('7d');
-  const [darkMode, setDarkMode] = useState(false);
-  const [chartData, setChartData] = useState<LeadTimeData[]>([]);
 
   // Fetch leads data
   const { data: leads, isLoading: leadsLoading } = useQuery<LeadData[]>({

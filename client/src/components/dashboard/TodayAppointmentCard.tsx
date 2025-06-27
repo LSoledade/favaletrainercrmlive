@@ -9,31 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
+import { getSupabaseQueryFn } from "@/lib/queryClient";
 
-type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show';
-
-interface Session {
-  id: number;
-  startTime: Date;
-  endTime: Date;
-  studentId: string;
-  studentName: string;
-  trainerId: string;
-  trainerName: string;
-  location: string;
-  status: SessionStatus;
-  source: 'Favale' | 'Pink';
-  notes?: string;
-  calendarEventId?: string;
-}
-
-interface TodayAppointmentCardProps {
-  className?: string;
-}
-
-import { getSupabaseQueryFn } from "@/lib/queryClient"; // Import the new query function
-
-type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show' | 'agendado' | 'concluído'; // Added Portuguese statuses
+type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no-show' | 'agendado' | 'concluído';
 
 interface Session {
   id: number;

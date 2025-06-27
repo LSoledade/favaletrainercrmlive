@@ -10,8 +10,8 @@ interface Task {
   id: number;
   title: string;
   description?: string;
-  assignedById: number;
-  assignedToId: number;
+  assignedById: string;
+  assignedToId: string;
   assignedByName?: string;
   assignedToName?: string;
   dueDate?: Date;
@@ -27,7 +27,7 @@ interface Task {
 interface TaskComment {
   id: number;
   taskId: number;
-  userId: number;
+  userId: string;
   userName?: string;
   content: string;
   createdAt: Date;
@@ -38,7 +38,7 @@ interface TaskContextType {
   tasks: Task[];
   loading: boolean;
   error: string | null;
-  fetchTasks: () => Promise<void>;
+  fetchTasks: () => Promise<any>;
   fetchTaskById: (id: number) => Promise<Task | undefined>;
   createTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "comments">) => Promise<Task>;
   updateTask: (id: number, task: Partial<Task>) => Promise<Task>;
@@ -114,7 +114,6 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       return processedTask;
     } catch (err) {
       console.error("Erro ao carregar detalhes da tarefa:", err);
-      setError("Erro ao carregar detalhes da tarefa");
       
       toast({
         variant: "destructive",
@@ -122,30 +121,6 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         description: "Não foi possível carregar os detalhes da tarefa.",
       });
 
-      return undefined;
-    }
-  }, [toast]);
-
-      // Process dates
-      const processedTask = {
-        ...task,
-        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-        createdAt: new Date(task.createdAt),
-        updatedAt: new Date(task.updatedAt),
-        comments: task.comments?.map((comment: any) => ({
-          ...comment,
-          createdAt: new Date(comment.createdAt),
-          updatedAt: new Date(comment.updatedAt),
-        })),
-      };
-      return processedTask;
-    } catch (err: any) {
-      console.error("Erro ao carregar detalhes da tarefa:", err.message);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar os detalhes da tarefa.",
-      });
       return undefined;
     }
   }, [toast]);
@@ -245,7 +220,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
 
 
   // Adapt these getters to use the `tasks` data from `useQuery`
-  const currentUserId = authUser?.id || '';
+  const currentUserId = authUser?.id;
   const myTasks = tasks.filter(task => task.assignedToId === currentUserId && task.status !== "completed");
   const assignedTasks = tasks.filter(task => task.assignedById === currentUserId && task.status !== "completed");
   const completedTasks = tasks.filter(task => 
@@ -265,9 +240,9 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         createTask: createTaskMutation.mutateAsync,
         updateTask: (id, data) => updateTaskMutation.mutateAsync({ id, data }),
         deleteTask: deleteTaskMutation.mutateAsync,
-        addComment: addCommentMutation.mutateAsync, // Use the new mutation
-        addTaskComment: addTaskCommentMutation.mutateAsync, // Use the new mutation
-        deleteTaskComment: deleteTaskCommentMutation.mutateAsync,
+        addComment: (taskId, content) => addCommentMutation.mutateAsync({ taskId, content }),
+        addTaskComment: (taskId, comment) => addTaskCommentMutation.mutateAsync({ taskId, comment }),
+        deleteTaskComment: deleteTaskMutation.mutateAsync,
         myTasks,
         assignedTasks,
         completedTasks,

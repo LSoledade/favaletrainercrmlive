@@ -20,7 +20,7 @@ interface HeaderProps {
 export default function Header({ setSidebarOpen }: HeaderProps) {
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
-  const { user, logoutMutation } = useAuth();
+  const { user, profile, logoutMutation } = useAuth();
   
   const toggleTheme = () => {
     if (theme === "light") {
@@ -123,12 +123,12 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
             <div className="flex items-center cursor-pointer ml-2">
               <Avatar className="h-9 w-9 border-2 border-white dark:border-gray-800 ring-2 ring-gray-200 dark:ring-gray-700">
                 <AvatarFallback className="text-sm font-medium text-white bg-gray-700">
-                  {user?.username.substring(0, 2).toUpperCase() || "LW"}
+                  {(profile?.username || user?.email || 'U')?.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="ml-2 hidden sm:block">
-                <div className="text-sm font-medium text-gray-800 dark:text-white">{user?.username || "Leslie Watson"}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">Admin</div>
+                <div className="text-sm font-medium text-gray-800 dark:text-white">{profile?.username || user?.email?.split('@')[0] || 'Usuário'}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{profile?.role === 'admin' ? 'Admin' : 'Usuário'}</div>
               </div>
             </div>
           </DropdownMenuTrigger>

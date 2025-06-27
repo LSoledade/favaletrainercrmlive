@@ -7,25 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Search, RefreshCw, FileDown } from "lucide-react";
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { getSupabaseQueryFn } from '@/lib/queryClient';
 
 // Tipos para os logs de auditoria
 interface AuditLog {
-  timestamp: string;
-  type: string;
-  userId: string | number;
-  username: string;
-  ip: string;
-  details: any;
-}
-
-export default function AuditLogViewer() {
-  const [filter, setFilter] = useState<string>('');
-  const [eventType, setEventType] = useState<string>('');
-import { getSupabaseQueryFn } from '@/lib/queryClient'; // Import the new query function
-
-// Tipos para os logs de auditoria
-interface AuditLog {
-  id?: number; // Assuming Supabase adds an ID
+  id?: number;
   timestamp: string;
   type: string;
   user_id: string | number; // Changed from userId to match typical Supabase column names
