@@ -5,230 +5,218 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// --- Supabase Client Initialization ---
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!; // Use service role for admin-level data access
+// --- Supabase Client Initialization & Env Vars ---
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'); // Use service role for admin-level data access
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    console.error("Supabase URL, Service Role Key, or Anon Key is missing from environment variables.");
+}
 
 // --- Types (consider sharing from a common module in a real project) ---
+// Ensure these types accurately reflect your database schema.
 interface Lead {
   id: number;
   name: string;
-  email: string;
-  phone: string;
-  status: string;
-  source: string;
-  entryDate: string | Date; // Keep as string or Date from DB, convert to ISO string for response
-  state?: string;
-  createdAt?: string | Date;
-  updatedAt?: string | Date;
+  email?: string | null;
+  phone?: string | null;
+  // Add other relevant lead fields
 }
 
 interface Student {
   id: number;
-  leadId: number;
-  source: string;
-  address?: string;
-  preferences?: string;
-  active: boolean;
-  createdAt: string | Date;
-  updatedAt: string | Date;
+  lead_id: number; // Assuming snake_case for foreign keys
+  // active: boolean; // Example field
   lead?: Lead; // For detailed student view
+  // Add other relevant student fields
 }
 
 interface Trainer {
   id: number;
   name: string;
-  specialty?: string; // Assuming it's a single string, adjust if it's an array
   email: string;
-  phone?: string;
   active: boolean;
-  bio?: string;
-  imageUrl?: string;
-  createdAt: string | Date;
-  updatedAt: string | Date;
+  // Add other relevant trainer fields
 }
 
 interface Session {
   id: number;
-  studentId: number;
-  trainerId: number;
-  source: string;
-  startTime: string | Date;
-  endTime: string | Date;
-  status: string;
-  location?: string;
-  notes?: string | null;
-  googleEventId?: string | null;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  // For detailed view
-  studentName?: string;
-  trainerName?: string;
-  feedback?: string | null;
+  student_id: number; // Assuming snake_case
+  trainer_id: number; // Assuming snake_case
+  start_time: string | Date; // Use string for ISO dates from DB
+  end_time: string | Date;
+  status: string; // e.g., 'Agendado', 'Concluído', 'Cancelado'
+  google_event_id?: string | null;
+  // For detailed view, these will be populated by joins
+  student_name?: string;
+  trainer_name?: string;
+  // Add other relevant session fields like location, notes, feedback
 }
 
-// Helper to convert dates to ISO strings for JSON response
-const toISODateString = (date: string | Date | undefined | null): string | null => {
-  if (!date) return null;
-  if (date instanceof Date) return date.toISOString();
+// Helper to convert dates to ISO strings for JSON response, ensuring validity
+const toValidISOString = (dateInput: string | Date | undefined | null): string | null => {
+  if (!dateInput) return null;
+  if (dateInput instanceof Date) {
+    return isNaN(dateInput.getTime()) ? null : dateInput.toISOString();
+  }
   try {
-    return new Date(date).toISOString();
+    const d = new Date(dateInput);
+    return isNaN(d.getTime()) ? null : d.toISOString();
   } catch (e) {
-    return date.toString(); // Fallback if not a valid date string already
+    console.warn(`Could not parse date: ${dateInput}`, e);
+    return null; // Or return original string if that's preferred for certain non-standard formats
   }
 };
 
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
+  const headers = { "Content-Type": "application/json" };
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    return new Response(JSON.stringify({ error: "Configuração do servidor incompleta." }), { status: 503, headers });
+  }
+
   const adminSupabaseClient = createClient(supabaseUrl, serviceRoleKey);
-  const userSupabaseClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+  const userSupabaseClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: req.headers.get('Authorization')! } }
   });
 
   const { data: { user } } = await userSupabaseClient.auth.getUser();
   if (!user) {
-    return new Response(JSON.stringify({ message: "Não autenticado" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers });
   }
 
   const { pathname, searchParams } = new URL(req.url);
-  // Path format: /functions/v1/scheduling-functions/sessions | /trainers | /students
-  // Or with sub-actions: /scheduling-functions/sessions/details | /sessions/range etc.
   const pathParts = pathname.split('/').filter(part => part);
   const mainEntity = pathParts[3]; // 'sessions', 'trainers', 'students'
-  const subAction = pathParts[4]; // 'details', 'range', 'active' or undefined
+  const entityIdOrSubAction = pathParts[4]; // ID of entity, or sub-action like 'details', 'range', 'active'
+  const furtherAction = pathParts[5]; // Further sub-action if any
 
-  console.log("Scheduling Request:", req.method, pathname, "Entity:", mainEntity, "SubAction:", subAction);
+  console.log("Scheduling Request:", req.method, pathname, "Entity:", mainEntity, "ID/SubAction:", entityIdOrSubAction);
 
   try {
     // --- SESSIONS ---
     if (mainEntity === 'sessions') {
       if (req.method === 'GET') {
-        if (subAction === 'details') {
+        if (entityIdOrSubAction === 'details') { // Get all sessions with details
           const { data: sessions, error } = await adminSupabaseClient
-            .from('sessions')
+            .from('sessions') // Ensure table name is 'sessions'
             .select(`
-              *,
-              student:students (
-                id,
-                lead:leads (name, email, phone)
-              ),
-              trainer:trainers (name)
-            `);
+              id, start_time, end_time, status, google_event_id, notes, location,
+              student:students!inner ( id, lead:leads!inner (id, name, email, phone) ),
+              trainer:trainers!inner (id, name, email)
+            `); // Use !inner to ensure related records exist or filter out
           if (error) throw error;
 
           const detailedSessions = sessions?.map((s: any) => ({
-            ...s,
-            startTime: toISODateString(s.startTime),
-            endTime: toISODateString(s.endTime),
-            createdAt: toISODateString(s.createdAt),
-            updatedAt: toISODateString(s.updatedAt),
-            studentName: s.student?.lead?.name || 'Desconhecido',
-            trainerName: s.trainer?.name || 'Desconhecido',
-            // feedback: s.status === 'Concluído' ? 'Mock Feedback' : null, // Add actual feedback if stored
+            id: s.id,
+            startTime: toValidISOString(s.start_time),
+            endTime: toValidISOString(s.end_time),
+            status: s.status,
+            googleEventId: s.google_event_id,
+            notes: s.notes,
+            location: s.location,
+            studentId: s.student?.id,
+            studentName: s.student?.lead?.name || 'N/A',
+            studentEmail: s.student?.lead?.email,
+            studentPhone: s.student?.lead?.phone,
+            trainerId: s.trainer?.id,
+            trainerName: s.trainer?.name || 'N/A',
+            trainerEmail: s.trainer?.email,
           })) || [];
-          return new Response(JSON.stringify(detailedSessions), { status: 200 });
+          return new Response(JSON.stringify({ data: detailedSessions }), { headers, status: 200 });
         }
-        if (subAction === 'range') {
-          const startDate = searchParams.get('start') ? new Date(searchParams.get('start')!) : new Date(new Date().setDate(new Date().getDate() - 30));
-          const endDate = searchParams.get('end') ? new Date(searchParams.get('end')!) : new Date(new Date().setDate(new Date().getDate() + 30));
+        if (entityIdOrSubAction === 'range') { // Get sessions by date range
+          const startDateParam = searchParams.get('start');
+          const endDateParam = searchParams.get('end');
+          if (!startDateParam || !endDateParam) {
+            return new Response(JSON.stringify({ error: "Parâmetros 'start' e 'end' são obrigatórios para o range."}), {status: 400, headers});
+          }
+          const startDate = toValidISOString(startDateParam);
+          const endDate = toValidISOString(endDateParam);
+          if(!startDate || !endDate){
+            return new Response(JSON.stringify({ error: "Formato de data inválido para 'start' ou 'end'."}), {status: 400, headers});
+          }
 
           const { data, error } = await adminSupabaseClient
-            .from<Session>('sessions')
-            .select('*')
-            .gte('startTime', startDate.toISOString())
-            .lte('startTime', endDate.toISOString());
+            .from('sessions') // Cast to Session if type is specific
+            .select('*') // Select specific fields if not all are needed
+            .gte('start_time', startDate)
+            .lte('end_time', endDate); // Consider if 'end_time' or 'start_time' for upper bound
           if (error) throw error;
-           const responseSessions = data?.map(s => ({
+           const responseSessions = data?.map((s: any) => ({ // Cast s to Session
             ...s,
-            startTime: toISODateString(s.startTime)!,
-            endTime: toISODateString(s.endTime)!,
-            createdAt: toISODateString(s.createdAt)!,
-            updatedAt: toISODateString(s.updatedAt)!,
+            start_time: toValidISOString(s.start_time),
+            end_time: toValidISOString(s.end_time),
           })) || [];
-          return new Response(JSON.stringify(responseSessions), { status: 200 });
+          return new Response(JSON.stringify({ data: responseSessions }), { headers, status: 200 });
         }
-        // Default: Get all sessions (basic)
-        const { data, error } = await adminSupabaseClient.from<Session>('sessions').select('*');
+        // Default: Get all sessions (basic, paginated)
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '25');
+        const offset = (page - 1) * limit;
+        const { data, error, count } = await adminSupabaseClient.from('sessions').select('*', {count: 'exact'}).range(offset, offset + limit -1);
         if (error) throw error;
-        const responseSessions = data?.map(s => ({
+        const responseSessions = data?.map((s: any) => ({ // Cast s to Session
             ...s,
-            startTime: toISODateString(s.startTime)!,
-            endTime: toISODateString(s.endTime)!,
-            createdAt: toISODateString(s.createdAt)!,
-            updatedAt: toISODateString(s.updatedAt)!,
+            start_time: toValidISOString(s.start_time),
+            end_time: toValidISOString(s.end_time),
         })) || [];
-        return new Response(JSON.stringify(responseSessions), { status: 200 });
+        return new Response(JSON.stringify({ data: responseSessions, meta: {total: count, page, limit} }), { headers, status: 200 });
       }
+      // Add POST, PATCH, DELETE for sessions if needed, with Zod validation
     }
 
     // --- TRAINERS ---
     if (mainEntity === 'trainers') {
       if (req.method === 'GET') {
-        if (subAction === 'active') {
-          const { data, error } = await adminSupabaseClient.from<Trainer>('trainers').select('*').eq('active', true);
+        if (entityIdOrSubAction === 'active') {
+          const { data, error } = await adminSupabaseClient.from('trainers').select('*').eq('active', true);
           if (error) throw error;
-          const responseTrainers = data?.map(t => ({
-            ...t,
-            createdAt: toISODateString(t.createdAt)!,
-            updatedAt: toISODateString(t.updatedAt)!,
-          })) || [];
-          return new Response(JSON.stringify(responseTrainers), { status: 200 });
+          return new Response(JSON.stringify({ data: data as Trainer[] }), { headers, status: 200 });
         }
-        // Default: Get all trainers
-        const { data, error } = await adminSupabaseClient.from<Trainer>('trainers').select('*');
+        // Default: Get all trainers (paginated)
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '25');
+        const offset = (page - 1) * limit;
+        const { data, error, count } = await adminSupabaseClient.from('trainers').select('*', {count: 'exact'}).range(offset, offset + limit -1);
         if (error) throw error;
-        const responseTrainers = data?.map(t => ({
-            ...t,
-            createdAt: toISODateString(t.createdAt)!,
-            updatedAt: toISODateString(t.updatedAt)!,
-        })) || [];
-        return new Response(JSON.stringify(responseTrainers), { status: 200 });
+        return new Response(JSON.stringify({ data: data as Trainer[], meta: {total: count, page, limit} }), { headers, status: 200 });
       }
+      // Add POST, PATCH, DELETE for trainers if needed
     }
 
     // --- STUDENTS ---
     if (mainEntity === 'students') {
       if (req.method === 'GET') {
-        if (subAction === 'details') {
-          // Fetch students and join with their lead information
-          const { data, error } = await adminSupabaseClient
+        if (entityIdOrSubAction === 'details') {
+          const page = parseInt(searchParams.get('page') || '1');
+          const limit = parseInt(searchParams.get('limit') || '25');
+          const offset = (page - 1) * limit;
+          const { data, error, count } = await adminSupabaseClient
             .from('students')
-            .select(`
-              *,
-              lead:leads (*)
-            `);
+            .select('*, lead:leads!inner(*)', {count: 'exact'}) // Ensure 'leads' is correct table name
+            .range(offset, offset + limit -1);
           if (error) throw error;
-          const responseStudents = data?.map((s: any) => ({
-            ...s,
-            createdAt: toISODateString(s.createdAt)!,
-            updatedAt: toISODateString(s.updatedAt)!,
-            lead: s.lead ? {
-                ...s.lead,
-                entryDate: toISODateString(s.lead.entryDate)!,
-                createdAt: toISODateString(s.lead.createdAt)!,
-                updatedAt: toISODateString(s.lead.updatedAt)!,
-            } : null,
-          })) || [];
-          return new Response(JSON.stringify(responseStudents), { status: 200 });
+          return new Response(JSON.stringify({ data: data as Student[], meta: {total: count, page, limit} }), { headers, status: 200 });
         }
-        // Default: Get all students (basic)
-        const { data, error } = await adminSupabaseClient.from<Student>('students').select('*');
+        // Default: Get all students (basic, paginated)
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '25');
+        const offset = (page - 1) * limit;
+        const { data, error, count } = await adminSupabaseClient.from('students').select('*', {count: 'exact'}).range(offset, offset + limit -1);
         if (error) throw error;
-        const responseStudents = data?.map(s => ({
-            ...s,
-            createdAt: toISODateString(s.createdAt)!,
-            updatedAt: toISODateString(s.updatedAt)!,
-        })) || [];
-        return new Response(JSON.stringify(responseStudents), { status: 200 });
+        return new Response(JSON.stringify({ data: data as Student[], meta: {total: count, page, limit} }), { headers, status: 200 });
       }
+      // Add POST, PATCH, DELETE for students if needed
     }
 
-    return new Response(JSON.stringify({ message: "Rota de agendamento não encontrada ou método não permitido" }), { status: 404 });
+    return new Response(JSON.stringify({ error: "Rota de agendamento não encontrada ou método não permitido." }), { status: 404, headers });
 
   } catch (error) {
-    console.error('Erro na função Scheduling:', error);
-    return new Response(JSON.stringify({ message: error.message || "Erro interno do servidor de agendamento" }), { status: 500 });
+    console.error('Erro na função Scheduling:', error.message, error.stack);
+    return new Response(JSON.stringify({ error: error.message || "Erro interno do servidor de agendamento." }), { status: 500, headers });
   }
 });
 

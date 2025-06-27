@@ -38,7 +38,9 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
   const [dueDate, setDueDate] = useState<Date | undefined>(addDays(new Date(), 3));
   const [isLoading, setIsLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [users, setUsers] = useState<Array<{id: string, username: string, role: string}>>([]);
+  const [showBackButton, setShowBackButton] = useState(false);
+  const [currentStep, setCurrentStep] = useState<"details" | "assignment">("details");
+  const [users, setUsers] = useState<Array<{id: number, username: string, role: string}>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Carregar usuários do sistema
@@ -85,6 +87,20 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
       });
     }
   }, [isEditing, taskId, fetchTaskById]);
+
+  const handleNextStep = () => {
+    if (currentStep === "details") {
+      setCurrentStep("assignment");
+      setShowBackButton(true);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep === "assignment") {
+      setCurrentStep("details");
+      setShowBackButton(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!title || !assignedToId) return;
@@ -160,32 +176,49 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden">
         <div className="flex items-center px-6 py-4 border-b">
+          {showBackButton && (
+            <Button variant="ghost" size="icon" onClick={handlePrevStep} className="mr-2">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
           <DialogHeader>
-            <DialogTitle className="text-xl">
-              {isEditing ? "Editar Tarefa" : "Criar Tarefa"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing ? "Atualize as informações da tarefa" : "Preencha os dados para criar uma nova tarefa"}
-            </DialogDescription>
-          </DialogHeader>
+          <DialogTitle className="text-xl">
+            {isEditing ? "Editar Tarefa" : "Criar Tarefa"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEditing ? "Atualize as informações da tarefa" : "Preencha os dados para criar uma nova tarefa"}
+          </DialogDescription>
+        </DialogHeader>
+          <div className="ml-auto">
+            {currentStep === "assignment" && assignedToId && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Atribuído para:</span>
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
+                    {users.find(u => u.id === assignedToId)?.username.substring(0, 2).toUpperCase() || "UN"}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Conteúdo do formulário principal */}
-        <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="title" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Título da tarefa
-              </Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Digite o título da tarefa"
-                disabled={isLoading}
-                className="mt-1"
-              />
-            </div>
+        {currentStep === "details" && (
+          <div className="p-6">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="title" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Título da tarefa
+                </Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Digite o título da tarefa"
+                  disabled={isLoading}
+                  className="mt-1"
+                />
+              </div>
 
             <div>
               <Label htmlFor="description" className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -322,31 +355,90 @@ export default function TaskDialog({ open, onOpenChange, taskId, initialStatus =
               </Select>
             </div>
 
-            {isEditing && (
-              <div>
-                <Label htmlFor="status" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Status
-                </Label>
-                <Select
-                  value={status}
-                  onValueChange={(value) => setStatus(value as "backlog" | "pending" | "in_progress" | "completed" | "cancelled")}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger id="status" className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="backlog">Backlog</SelectItem>
-                    <SelectItem value="pending">Pendente</SelectItem>
-                    <SelectItem value="in_progress">Em andamento</SelectItem>
-                    <SelectItem value="completed">Concluída</SelectItem>
-                    <SelectItem value="cancelled">Cancelada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+              {isEditing && (
+                <div>
+                  <Label htmlFor="status" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Status
+                  </Label>
+                  <Select
+                    value={status}
+                    onValueChange={(value) => setStatus(value as "backlog" | "pending" | "in_progress" | "completed" | "cancelled")}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="status" className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="backlog">Backlog</SelectItem>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="in_progress">Em andamento</SelectItem>
+                      <SelectItem value="completed">Concluída</SelectItem>
+                      <SelectItem value="cancelled">Cancelada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {currentStep === "assignment" && (
+          <div className="p-6">
+            <div className="space-y-6">
+              <div>
+                <Label className="text-sm font-medium flex items-center text-gray-700 dark:text-gray-300">
+                  {renderIcon("user")}
+                  <span className="ml-2">Atribuir para</span>
+                </Label>
+                <div className="grid grid-cols-1 gap-3 mt-3">
+                  {loadingUsers ? (
+                    <div className="flex justify-center items-center p-6 text-gray-500">
+                      <div className="animate-spin h-6 w-6 border-2 border-gray-500 border-opacity-50 border-t-transparent rounded-full mr-2"></div>
+                      Carregando usuários...
+                    </div>
+                  ) : users.length > 0 ? (
+                    users.map((user) => (
+                      <div 
+                        key={user.id}
+                        className={`flex items-center p-3 rounded-lg border cursor-pointer ${
+                          assignedToId === user.id 
+                            ? "bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800" 
+                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                        }`}
+                        onClick={() => setAssignedToId(user.id)}
+                      >
+                        <Avatar className="h-8 w-8 mr-3">
+                          <AvatarFallback className={`${
+                            assignedToId === user.id 
+                              ? "bg-blue-100 text-blue-600" 
+                              : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                          }`}>
+                            {getUserInitials(user.username)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{user.username}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {user.role === "admin" ? "Administrador" : "Usuário"}
+                          </p>
+                        </div>
+                        {assignedToId === user.id && (
+                          <div className="flex-shrink-0 ml-2">
+                            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-center text-sm text-gray-500">
+                      Nenhum usuário encontrado no sistema
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <DialogFooter className="p-4 border-t">
           <div className="flex justify-between w-full">

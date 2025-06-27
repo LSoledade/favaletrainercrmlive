@@ -175,7 +175,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       
       {/* Email */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Email</label>
+        <label className="block text-sm font-medium mb-1">Email*</label>
         <input
           type="email"
           {...register("email")}
@@ -203,7 +203,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       
       {/* Estado */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Estado</label>
+        <label className="block text-sm font-medium mb-1">Estado*</label>
         <input
           type="text"
           {...register("state")}
@@ -217,7 +217,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       
       {/* Origem */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Origem</label>
+        <label className="block text-sm font-medium mb-1">Origem*</label>
         <select
           {...register("source")}
           className="w-full px-3 py-2 border rounded-md"
@@ -270,7 +270,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       
       {/* Status */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Status</label>
+        <label className="block text-sm font-medium mb-1">Status*</label>
         <div className="flex gap-4">
           <label className="inline-flex items-center">
             <input 

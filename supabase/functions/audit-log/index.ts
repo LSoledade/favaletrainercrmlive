@@ -7,6 +7,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // Define the AuditEventType enum (copied from server/audit-log.ts)
+// Ensure this enum is consistent with your database schema or application logic
 enum AuditEventType {
   LOGIN_SUCCESS = 'login_success',
   LOGIN_FAILURE = 'login_failure',
@@ -30,71 +31,116 @@ enum AuditEventType {
   OAUTH_INIT = 'oauth_init',
   OAUTH_SUCCESS = 'oauth_success',
   OAUTH_ERROR = 'oauth_error',
-  OAUTH_REVOKE = 'oauth_revoke'
+  OAUTH_REVOKE = 'oauth_revoke',
+  LEAD_BATCH_IMPORT = 'lead_batch_import',
+  LEAD_BATCH_UPDATE = 'lead_batch_update',
+  LEAD_BATCH_DELETE = 'lead_batch_delete',
 }
 
 interface AuditLogEntry {
-  timestamp: string;
+  id: number; // Assuming 'id' is the primary key and is a number
+  timestamp: string; // Or Date, then convert toISOString() before sending
   type: AuditEventType;
-  userId: string | 'anonymous';
-  username: string | 'anonymous';
-  ip: string | 'unknown';
-  details: any;
+  user_id: string | null; // Changed from userId to match common DB conventions (snake_case)
+  username: string | 'anonymous'; // Consider making this nullable or fetching if not directly stored
+  ip_address: string | 'unknown'; // Changed from ip to match common DB conventions
+  details: any; // JSONB in Postgres
+  // Add other relevant fields from your 'audit_logs' table
 }
 
 // Initialize Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL')
-const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY'); // This key is for user-context requests.
+const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'); // This key is for admin-level access.
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables');
+if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+  console.error('Missing SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY environment variables');
+  // Consider not serving the function if essential config is missing, or handle gracefully.
 }
 
-
 Deno.serve(async (req) => {
-  const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-    global: { headers: { Authorization: req.headers.get('Authorization')! } }
-  })
+  const headers = { "Content-Type": "application/json" };
 
-  // Check if user is admin
-  const { data: { user } } = await supabase.auth.getUser()
+  // Use service_role client for admin-level operations like fetching all audit logs
+  const supabaseAdminClient = createClient(supabaseUrl!, serviceRoleKey!);
+
+  // Client for getting calling user's context
+  const supabaseUserClient = createClient(supabaseUrl!, supabaseAnonKey!, {
+    global: { headers: { Authorization: req.headers.get('Authorization')! } }
+  });
+
+  // Check if user is authenticated
+  const { data: { user } } = await supabaseUserClient.auth.getUser();
   if (!user) {
-    return new Response(JSON.stringify({ message: "Não autenticado" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers });
   }
 
-  const { data: userProfile, error: profileError } = await supabase
-    .from('profiles') // Assuming you have a 'profiles' table with a 'role' column
+  // Check if user is admin using the admin client to query profiles table
+  const { data: userProfile, error: profileError } = await supabaseAdminClient
+    .from('profiles') // Ensure this table and 'role' column exist
     .select('role')
     .eq('id', user.id)
     .single();
 
-  if (profileError || !userProfile || userProfile.role !== 'admin') {
-    return new Response(JSON.stringify({ message: "Acesso negado" }), { status: 403, headers: { "Content-Type": "application/json" } });
+  if (profileError) {
+    console.error('Erro ao buscar perfil do usuário:', profileError.message);
+    return new Response(JSON.stringify({ error: "Erro ao verificar permissões do usuário." }), { status: 500, headers });
+  }
+  if (!userProfile || userProfile.role !== 'admin') {
+    return new Response(JSON.stringify({ error: "Acesso negado. Requer privilégios de administrador." }), { status: 403, headers });
+  }
+
+  if (req.method !== 'GET') {
+    return new Response(JSON.stringify({ error: "Método não permitido. Use GET." }), { status: 405, headers });
   }
 
   try {
     const url = new URL(req.url);
     const countParam = url.searchParams.get('count');
-    const count = countParam ? parseInt(countParam) : 100;
+    const pageParam = url.searchParams.get('page');
+    const typeFilter = url.searchParams.get('type'); // Filter by AuditEventType
+    const userIdFilter = url.searchParams.get('userId'); // Filter by user_id
 
-    // In Supabase, audit logs are typically stored in a dedicated table or using Postgres' built-in logging.
-    // For this example, we'll query a hypothetical 'audit_logs' table.
-    // You'll need to create this table and insert log entries into it from your application logic.
-    const { data: logs, error } = await supabase
-      .from<AuditLogEntry>('audit_logs') // Specify the type here
-      .select('*')
+    const limit = countParam ? parseInt(countParam) : 25; // Default to 25 entries
+    const page = pageParam ? parseInt(pageParam) : 1;    // Default to page 1
+    const offset = (page - 1) * limit;
+
+    let query = supabaseAdminClient
+      .from('audit_logs') // Ensure this table name is correct
+      .select('*', { count: 'exact' }) // Request total count for pagination
       .order('timestamp', { ascending: false })
-      .limit(Math.max(1, count));
+      .range(offset, offset + limit - 1);
 
-    if (error) {
-      console.error('Erro ao buscar logs de auditoria:', error);
-      return new Response(JSON.stringify({ message: "Erro ao buscar logs de auditoria" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    if (typeFilter && Object.values(AuditEventType).includes(typeFilter as AuditEventType)) {
+        query = query.eq('type', typeFilter);
+    }
+    if (userIdFilter) {
+        query = query.eq('user_id', userIdFilter);
     }
 
-    return new Response(JSON.stringify(logs), { headers: { "Content-Type": "application/json" } });
+
+    const { data: logs, error: dbError, count: totalCount } = await query;
+
+    if (dbError) {
+      console.error('Erro ao buscar logs de auditoria do banco:', dbError.message);
+      return new Response(JSON.stringify({ error: "Erro ao buscar logs de auditoria." }), { status: 500, headers });
+    }
+
+    const responsePayload = {
+      data: logs as AuditLogEntry[], // Cast to ensure type, assuming DB schema matches
+      meta: {
+        currentPage: page,
+        perPage: limit,
+        totalEntries: totalCount,
+        totalPages: totalCount ? Math.ceil(totalCount / limit) : 0,
+      }
+    };
+
+    return new Response(JSON.stringify(responsePayload), { headers, status: 200 });
+
   } catch (error) {
-    console.error('Erro inesperado:', error);
-    return new Response(JSON.stringify({ message: "Erro inesperado no servidor" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    console.error('Erro inesperado na função de logs de auditoria:', error.message);
+    return new Response(JSON.stringify({ error: "Erro inesperado no servidor." }), { status: 500, headers });
   }
 })
 

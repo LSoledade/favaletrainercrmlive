@@ -89,7 +89,7 @@ export default function AuthPage() {
         <div className="text-center mb-8 sm:mb-10">
           <h1 className="text-3xl sm:text-4xl font-bold text-white">Favale & Pink</h1>
           <p className="text-sm sm:text-base text-gray-300 mt-2">
-            Sistema de Gerenciamento de Leads
+            Bem-vindo ao CRM Favale & Pink
           </p>
         </div>
 
@@ -102,7 +102,7 @@ export default function AuthPage() {
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-center">Login</h2>
             <p className="text-gray-700 dark:text-gray-300 text-sm mt-1">
-              Acesse o FavaleTrainer
+              Acesse sua conta
             </p>
           </div>
           
