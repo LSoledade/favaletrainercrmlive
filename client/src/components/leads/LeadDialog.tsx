@@ -31,6 +31,9 @@ export default function LeadDialog() {
           <DialogTitle>
             {selectedLead ? "Editar Lead" : "Adicionar Novo Lead"}
           </DialogTitle>
+          <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 pt-1">
+            {selectedLead ? "Modifique as informações do lead selecionado abaixo." : "Preencha os dados abaixo para adicionar um novo lead ao sistema."}
+          </DialogDescription>
         </DialogHeader>
         <LeadForm 
           lead={selectedLead} 

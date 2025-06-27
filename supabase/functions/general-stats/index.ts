@@ -6,16 +6,22 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // --- Supabase Client Initialization ---
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    console.error("Supabase URL, Service Role Key, or Anon Key is missing from environment variables.");
+}
 
 // --- Types (simplified for stats) ---
+// Ensure these types align with your actual database schema
 interface Lead {
   id: number;
-  status: string;
-  source: string;
-  state: string;
-  campaign: string;
+  status: string; // e.g., 'Novo', 'Convertido', 'Perdido'
+  source: string; // e.g., 'Website', 'Referência', 'Campanha X'
+  state: string;  // e.g., 'SP', 'RJ', 'MG'
+  campaign: string; // e.g., 'Natal23', 'Verao24'
   entryDate: string | Date; // Keep as string or Date from DB
 }
 
@@ -26,108 +32,120 @@ interface Student {
 
 interface Session {
   id: number;
-  status: string; // e.g., 'Agendado', 'Concluído'
+  status: string; // e.g., 'Agendado', 'Concluído', 'Cancelado'
   studentId: number;
 }
 
 
 // --- Request Handler ---
 Deno.serve(async (req) => {
+  const headers = { "Content-Type": "application/json" };
+
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    return new Response(JSON.stringify({ error: "Configuração do servidor incompleta." }), { status: 503, headers }); // 503 Service Unavailable
+  }
+
   const adminSupabaseClient = createClient(supabaseUrl, serviceRoleKey);
-  const userSupabaseClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+  const userSupabaseClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: req.headers.get('Authorization')! } }
   });
 
   const { data: { user } } = await userSupabaseClient.auth.getUser();
   if (!user) {
-    return new Response(JSON.stringify({ message: "Não autenticado" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers });
   }
 
   if (req.method !== 'GET') {
-    return new Response(JSON.stringify({ message: "Método não permitido" }), { status: 405 });
+    return new Response(JSON.stringify({ error: "Método não permitido. Use GET." }), { status: 405, headers });
   }
 
   try {
     // Fetch all necessary data in parallel
+    // Ensure table names 'leads', 'students', 'sessions' are correct.
     const [leadsResponse, studentsResponse, sessionsResponse] = await Promise.all([
-      adminSupabaseClient.from<Lead>('leads').select('id, status, source, state, campaign, entryDate'),
-      adminSupabaseClient.from<Student>('students').select('id', { count: 'exact' }), // Only need count for totalStudents
-      adminSupabaseClient.from<Session>('sessions').select('id, status, studentId')
+      adminSupabaseClient.from('leads').select('id, status, source, state, campaign, entryDate', { count: 'exact' }),
+      adminSupabaseClient.from('students').select('id', { count: 'exact' }),
+      adminSupabaseClient.from('sessions').select('id, status, studentId', { count: 'exact' })
     ]);
 
-    if (leadsResponse.error) throw leadsResponse.error;
-    if (studentsResponse.error) throw studentsResponse.error;
-    if (sessionsResponse.error) throw sessionsResponse.error;
+    if (leadsResponse.error) throw new Error(`Erro ao buscar leads: ${leadsResponse.error.message}`);
+    if (studentsResponse.error) throw new Error(`Erro ao buscar estudantes: ${studentsResponse.error.message}`);
+    if (sessionsResponse.error) throw new Error(`Erro ao buscar sessões: ${sessionsResponse.error.message}`);
 
-    const allLeads: Lead[] = leadsResponse.data || [];
+    const allLeads: Lead[] = (leadsResponse.data as Lead[]) || [];
+    const totalLeads: number = leadsResponse.count || 0;
     const totalStudents: number = studentsResponse.count || 0;
-    const allSessions: Session[] = sessionsResponse.data || [];
+    const allSessions: Session[] = (sessionsResponse.data as Session[]) || [];
+    const totalSessions: number = sessionsResponse.count || 0;
 
-    // Calculate conversion rate
-    const conversionRate = allLeads.length > 0 ? (totalStudents / allLeads.length) * 100 : 0;
+    // Calculate conversion rate (students / leads)
+    const conversionRate = totalLeads > 0 ? (totalStudents / totalLeads) * 100 : 0;
 
     // Calculate monthly growth (based on lead entryDate)
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    oneMonthAgo.setHours(0, 0, 0, 0); // Normalize to start of the day
 
-    let leadsLastMonth = 0;
+    let leadsLastMonthCount = 0;
     allLeads.forEach(lead => {
       const entryD = new Date(lead.entryDate);
       if (entryD >= oneMonthAgo) {
-        leadsLastMonth++;
+        leadsLastMonthCount++;
       }
     });
-    const leadsBeforeLastMonth = allLeads.length - leadsLastMonth;
-    const monthlyGrowth = leadsBeforeLastMonth > 0
-      ? ((leadsLastMonth - leadsBeforeLastMonth) / leadsBeforeLastMonth) * 100
-      : (leadsLastMonth > 0 ? 100 : 0);
-      // Simplified: if no leads before, any new lead is 100% growth. If also no new leads, 0%.
+    const leadsBeforeLastMonthCount = totalLeads - leadsLastMonthCount;
+    // Avoid division by zero; if no leads before, any new lead is 100% growth.
+    const monthlyGrowth = leadsBeforeLastMonthCount > 0
+      ? ((leadsLastMonthCount - leadsBeforeLastMonthCount) / leadsBeforeLastMonthCount) * 100
+      : (leadsLastMonthCount > 0 ? 100 : 0);
+
 
     // Aggregate leads by source, state, campaign
     const leadsBySource = allLeads.reduce((acc, lead) => {
-      const source = lead.source || 'Desconhecido';
-      acc[source] = (acc[source] || 0) + 1;
+      const sourceKey = lead.source || 'Desconhecido';
+      acc[sourceKey] = (acc[sourceKey] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     const leadsByState = allLeads.reduce((acc, lead) => {
-      const state = lead.state || 'Desconhecido';
-      acc[state] = (acc[state] || 0) + 1;
+      const stateKey = lead.state || 'Desconhecido';
+      acc[stateKey] = (acc[stateKey] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     const leadsByCampaign = allLeads.reduce((acc, lead) => {
-      const campaign = lead.campaign || 'Nenhuma';
-      acc[campaign] = (acc[campaign] || 0) + 1;
+      const campaignKey = lead.campaign || 'Nenhuma';
+      acc[campaignKey] = (acc[campaignKey] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Calculate session stats
-    const totalActiveSessions = allSessions.filter(s => s.status === 'Agendado' || s.status === 'agendado').length; // case-insensitive if needed
-    const totalCompletedSessions = allSessions.filter(s => s.status === 'Concluído' || s.status === 'concluido').length;
+    const totalActiveSessions = allSessions.filter(s => s.status && s.status.toLowerCase() === 'agendado').length;
+    const totalCompletedSessions = allSessions.filter(s => s.status && s.status.toLowerCase() === 'concluído').length;
     const sessionsPerStudent = totalStudents > 0
-      ? ((totalActiveSessions + totalCompletedSessions) / totalStudents)
+      ? (totalSessions / totalStudents) // Using totalSessions for average
       : 0;
 
     const stats = {
-      totalLeads: allLeads.length,
+      totalLeads,
       totalStudents,
+      totalSessions, // Added total raw sessions count
       totalActiveSessions,
       totalCompletedSessions,
-      sessionsPerStudent: sessionsPerStudent.toFixed(1),
-      conversionRate: conversionRate.toFixed(1),
-      monthlyGrowth: monthlyGrowth.toFixed(1),
+      sessionsPerStudent: parseFloat(sessionsPerStudent.toFixed(1)),
+      conversionRate: parseFloat(conversionRate.toFixed(1)),
+      monthlyGrowth: parseFloat(monthlyGrowth.toFixed(1)),
       leadsBySource,
       leadsByState,
       leadsByCampaign,
-      totalLeadsByCampaign: Object.values(leadsByCampaign).reduce((a, b) => a + b, 0)
+      totalLeadsByCampaign: Object.values(leadsByCampaign).reduce((a, b) => a + b, 0) // Sum of leads grouped by campaign
     };
 
-    return new Response(JSON.stringify(stats), { headers: { "Content-Type": "application/json" }, status: 200 });
+    return new Response(JSON.stringify({ data: stats }), { headers, status: 200 });
 
   } catch (error) {
-    console.error('Erro ao buscar estatísticas:', error);
-    return new Response(JSON.stringify({ message: error.message || "Erro ao buscar estatísticas" }), { status: 500 });
+    console.error('Erro ao buscar estatísticas gerais:', error.message);
+    return new Response(JSON.stringify({ error: error.message || "Erro ao buscar estatísticas gerais" }), { status: 500, headers });
   }
 });
 
