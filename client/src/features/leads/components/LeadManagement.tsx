@@ -178,7 +178,17 @@ export default function LeadManagement() {
     toast({ title: "Arquivo selecionado", description: file.name });
     // Actual parsing and import logic removed for this example to focus on path updates
     // Simulate parsing
-    setParsedLeads([{ name: "Test Lead from CSV", email: "test@example.com", source: "Favale", status: "Lead", entryDate: new Date().toISOString(), tags: [] }]);
+    setParsedLeads([{
+      name: "Test Lead from CSV",
+      email: "test@example.com",
+      source: "Favale",
+      status: "Lead",
+      entryDate: new Date().toISOString(),
+      tags: [],
+      state: "SP", // Added placeholder
+      phone: "00000000000", // Added placeholder
+      campaign: "CSV Import" // Added placeholder
+    }]);
     // setPreviewData([{ Nome: "Test Lead", Email: "test@example.com" }]); // Removed
     // setShowPreview(true); // Removed
     e.target.value = '';

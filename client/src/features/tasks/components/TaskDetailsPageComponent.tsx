@@ -12,13 +12,14 @@ import { ptBR } from "date-fns/locale";
 import { ArrowLeft, Calendar, Clock, User, MessageSquare, CheckCircle, AlertCircle, XCircle, Send } from "lucide-react";
 import { Link } from "wouter";
 import TaskDialog from "./TaskDialog";
+import { Task, TaskComment } from "@/types";
 
 export default function TaskDetailsPage() {
   const [, params] = useRoute("/tarefas/:id");
   const taskId = params ? parseInt(params.id) : null;
   
   const { fetchTaskById, updateTask, addComment } = useTaskContext();
-  const [task, setTask] = useState<any | null>(null);
+  const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -29,7 +30,7 @@ export default function TaskDetailsPage() {
     if (taskId) {
       setLoading(true);
       fetchTaskById(taskId)
-        .then((fetchedTask) => {
+        .then((fetchedTask: Task | null) => {
           if (fetchedTask) {
             setTask(fetchedTask);
           } else {
@@ -69,10 +70,10 @@ export default function TaskDetailsPage() {
       setComment("");
       
       // Atualizar a tarefa com o novo comentário
-      setTask({
-        ...task,
-        comments: [...(task.comments || []), newComment]
-      });
+      setTask(prevTask => prevTask ? {
+        ...prevTask,
+        comments: [...(prevTask.comments || []), newComment]
+      } : null);
     } catch (err) {
       console.error("Erro ao adicionar comentário:", err);
     } finally {
@@ -266,7 +267,7 @@ export default function TaskDetailsPage() {
             
             <div className="space-y-4 mb-6">
               {task.comments && task.comments.length > 0 ? (
-                task.comments.map((comment: any) => (
+                task.comments.map((comment: TaskComment) => (
                   <div key={comment.id} className="flex gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback>

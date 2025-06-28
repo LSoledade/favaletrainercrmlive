@@ -14,6 +14,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/navigatio
 import { Badge } from '@/components/data-display/badge'; // Updated
 import { Skeleton } from '@/components/data-display/skeleton'; // Updated
 
+interface WhatsappConfigData {
+  apiUrl?: string;
+  apiInstance?: string;
+  hasToken?: boolean;
+  lastUpdated?: string;
+}
+
+interface WhatsappStatusData {
+  status: string;
+  phone?: string;
+  details?: { qrcode?: string }; // Assuming qrcode is nested under details
+}
+
 export default function WhatsappConfigForm() {
   const [apiUrl, setApiUrl] = useState('');
   const [apiToken, setApiToken] = useState('');
@@ -25,14 +38,10 @@ export default function WhatsappConfigForm() {
   const queryClient = useQueryClient();
 
   // Consulta para obter a configuração atual
-  const { data: configData, isLoading: isLoadingConfig } = useQuery({
+  const { data: configData, isLoading: isLoadingConfig } = useQuery<WhatsappConfigData, Error>({
     queryKey: ['/api/whatsapp/config'],
-    onSuccess: (data) => {
-      setApiUrl(data.apiUrl || '');
-      setApiInstance(data.apiInstance || 'default');
-      // Não definimos o token aqui pois o servidor não retorna o token completo por segurança
-    },
-    onError: (error: any) => {
+    // onSuccess removed, will be handled by useEffect
+    onError: (error) => {
       toast({
         title: 'Erro ao carregar configurações',
         description: 'Não foi possível carregar as configurações do WhatsApp.',
@@ -42,10 +51,17 @@ export default function WhatsappConfigForm() {
   });
 
   // Consulta para verificar o status da conexão
-  const { data: statusData, isLoading: isLoadingStatus, refetch: refetchStatus } = useQuery({
+  const { data: statusData, isLoading: isLoadingStatus, refetch: refetchStatus } = useQuery<WhatsappStatusData, Error>({
     queryKey: ['/api/whatsapp/status'],
     refetchInterval: 30000, // Refetch every 30 seconds
   });
+
+  useEffect(() => {
+    if (configData) {
+      setApiUrl(configData.apiUrl || '');
+      setApiInstance(configData.apiInstance || 'default');
+    }
+  }, [configData]);
 
   // Mutação para salvar as configurações
   const saveConfigMutation = useMutation({

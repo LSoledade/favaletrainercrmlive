@@ -45,7 +45,7 @@ interface RawConversation {
 
 
 export function FavaleIAPage() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -374,7 +374,7 @@ export function FavaleIAPage() {
                 <div className="flex items-center space-x-2">
                   <Coffee className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm font-medium text-muted-foreground">
-                    {getGreeting()}, {user?.username || 'Visitante'}
+                    {getGreeting()}, {profile?.username || 'Visitante'}
                   </span>
                 </div>
               </div>
@@ -488,7 +488,7 @@ export function FavaleIAPage() {
               <div className="flex items-center justify-center space-x-2 mb-8">
                 <div className="flex items-center space-x-2">
                   <Coffee className="w-5 h-5 text-primary" />
-                  <h1 className="text-xl text-primary font-medium">{getGreeting()}, {user?.username || 'Visitante'}</h1>
+                  <h1 className="text-xl text-primary font-medium">{getGreeting()}, {profile?.username || 'Visitante'}</h1>
                 </div>
               </div>
               

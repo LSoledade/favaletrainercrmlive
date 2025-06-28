@@ -116,15 +116,16 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       
       const formData: InsertLead = {
         ...data,
-        entryDate,
+        entryDate, // entryDate here is the processed Date object
         tags
       };
       
       console.log('Submitting form data:', formData);
       // Enviar a data no formato ISO para evitar problemas com fusos horários
+      // Ensure we use the 'entryDate' variable which is guaranteed to be a Date object.
       const normalizedFormData = {
-        ...formData,
-        entryDate: formData.entryDate.toISOString(),
+        ...formData, // Spread formData first
+        entryDate: entryDate.toISOString(), // Then explicitly use the processed entryDate
       };
       console.log('Normalized form data for submission:', normalizedFormData);
       
@@ -265,7 +266,7 @@ export default function LeadForm({ lead, onSubmit, onCancel }: LeadFormProps) {
       {/* Tags */}
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Tags</label>
-        <TagInput tags={tags} onChange={handleTagsChange} />
+        <TagInput tags={tags} setTags={handleTagsChange} />
       </div>
       
       {/* Status */}

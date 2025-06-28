@@ -32,6 +32,7 @@ import {
 import { Card } from "@/components/data-display/Card"; // Updated
 import { Badge } from "@/components/data-display/badge"; // Updated
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/data-display/avatar"; // Updated
+import { Task } from "@/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Checkbox } from "@/components/inputs/checkbox"; // Updated
@@ -103,7 +104,7 @@ export default function TasksPage() {
     setShowTaskDetailDialog(true);
   };
   
-  const filterTasks = (taskList: any[]) => {
+  const filterTasks = (taskList: Task[]) => {
     if (!searchQuery) return taskList;
     
     const query = searchQuery.toLowerCase();
@@ -115,7 +116,7 @@ export default function TasksPage() {
     );
   };
   
-  const sortTasks = (tasks: any[]) => {
+  const sortTasks = (tasks: Task[]) => {
     if (sortBy === "due") {
       return [...tasks].sort((a, b) => {
         if (!a.dueDate) return 1;
@@ -204,7 +205,7 @@ export default function TasksPage() {
   };
   
   // Compact task card component for board view
-  const TaskBoardCard = ({ task }: { task: any }) => {
+  const TaskBoardCard = ({ task }: { task: Task }) => {
     // Gerar um código e cor para o cartão baseado no seu status
     const getCardCode = () => {
       switch(task.status) {
@@ -366,7 +367,7 @@ export default function TasksPage() {
     );
   };
   
-  const renderListView = (tasksList: any[]) => (
+  const renderListView = (tasksList: Task[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {tasksList.map((task) => (
         <TaskCard

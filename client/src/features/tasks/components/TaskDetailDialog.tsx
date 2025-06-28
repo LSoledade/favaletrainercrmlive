@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/overlays/dropdown-menu"; // Updated
 import { useToast } from "@/hooks/use-toast"; // Updated
+import { Task, TaskComment } from "@/types";
 
 interface TaskDetailDialogProps {
   open: boolean;
@@ -31,13 +32,13 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const [task, setTask] = useState<any>(null);
+  const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [comment, setComment] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [commentsList, setCommentsList] = useState<any[]>([]);
+  const [commentsList, setCommentsList] = useState<TaskComment[] | undefined>(undefined);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [users, setUsers] = useState<Array<{id: number, username: string, role: string}>>([]);
+  const [users, setUsers] = useState<Array<{id: string, username: string, role: string}>>([]); // Changed id to string
   const [assigningUser, setAssigningUser] = useState(false);
   const [deletingComment, setDeletingComment] = useState<number | null>(null);
 
@@ -109,17 +110,17 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
 
     try {
       // Prepare comment data (without ID - server will assign one)
-      const commentData = {
+      const commentData: InsertTaskComment = { // Explicitly type commentData
         taskId,
         userId: user.id, // Use actual user ID
         content: comment,
       };
 
       // Send to server and get response with actual ID
-      const newComment = await addTaskComment(taskId, commentData);
+      const newComment = await addTaskComment(commentData);
 
       // Only update local state after successful server response
-      setCommentsList(prev => [...prev, newComment]);
+      setCommentsList(prev => [...(prev || []), newComment]);
       setComment("");
 
     } catch (error) {
@@ -145,7 +146,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
   };
 
   // Atribuir tarefa a outro usuário
-  const handleAssignUser = async (userId: number) => {
+  const handleAssignUser = async (userId: string) => { // Changed userId to string
     if (!taskId) return;
 
     setAssigningUser(true);
@@ -419,7 +420,7 @@ export default function TaskDetailDialog({ open, onOpenChange, taskId }: TaskDet
 
             <div className="mt-4 space-y-4">
               {commentsList.length > 0 ? (
-                commentsList.map((comment, index) => (
+                commentsList.map((comment: TaskComment, index) => (
                   <div key={index} className="flex gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback

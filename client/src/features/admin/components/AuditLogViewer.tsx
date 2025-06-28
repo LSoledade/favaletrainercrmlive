@@ -100,7 +100,7 @@ export default function AuditLogViewer() {
           </div>
           <Select value={eventType} onValueChange={setEventType}>
             <SelectTrigger className="w-full md:w-[200px]"><SelectValue placeholder="Tipo de Evento" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Todos</SelectItem>{uniqueEventTypes.map(type => (<SelectItem key={type} value={type}>{formatEventType(type)}</SelectItem>))}</SelectContent>
+            <SelectContent><SelectItem value="all">Todos</SelectItem>{[...uniqueEventTypes].map(type => (<SelectItem key={type} value={type}>{formatEventType(type)}</SelectItem>))}</SelectContent>
           </Select>
           <Select value={limit.toString()} onValueChange={(value) => setLimit(parseInt(value))}>
             <SelectTrigger className="w-full md:w-[150px]"><SelectValue placeholder="Limite" /></SelectTrigger>

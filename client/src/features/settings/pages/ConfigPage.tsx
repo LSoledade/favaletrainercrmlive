@@ -95,7 +95,7 @@ export default function ConfigPage() {
       on401: 'throw', // Or handle as needed
     }),
     enabled: currentProfile?.role === 'admin', // Only fetch if current user is admin
-    select: (data: any) => {
+    select: (data: User[] | { data?: User[] }) => {
       // Handle the response format from the API
       return Array.isArray(data) ? data : (data?.data || []);
     }

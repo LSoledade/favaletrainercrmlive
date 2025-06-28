@@ -83,7 +83,11 @@ export async function invokeSupabaseFunction<T = any>(
   }
 
   // Supabase client's functions.invoke takes the function name and options object
-  const invokeOptions: any = {
+  const invokeOptions: {
+    method: string;
+    headers: Record<string, string>;
+    body?: unknown;
+  } = {
     method: method, // Ensure method is part of the options if not default POST
     headers: headers, // Pass existing headers
   };
@@ -160,12 +164,12 @@ export const getSupabaseQueryFn: <T>(options: {
       }
       await throwIfResNotOk(res);
       const text = await res.text();
-      if (!text) return {} as any; // Or handle as error / null
+      if (!text) return {} as T; // Or handle as error / null
       return JSON.parse(text);
 
     } catch (error) {
-      if (unauthorizedBehavior === "returnNull" && 
-          ((error as any)?.message?.includes("401") || (error as any)?.status === 401)) {
+      if (unauthorizedBehavior === "returnNull" &&
+          ((error instanceof Error && error.message.includes("401")) || (error as { status?: number })?.status === 401)) {
         return null;
       }
       throw error; // Re-throw other errors

@@ -9,15 +9,18 @@
 export type {
   User,
   InsertUser,
-  UserProfile, // Assuming UserProfile is defined in @shared/schema or is similar to User
+  Profile as UserProfile, // Changed UserProfile to Profile
   Lead,
   InsertLead,
+  leadValidationSchema,
   Session, // Assuming Session is a DB table type, not Supabase Auth Session
   InsertSession,
   Task,
   InsertTask,
   TaskComment,
   InsertTaskComment,
+  WhatsappMessage,
+  InsertWhatsappMessage,
   // Add other shared types as needed
 } from "@shared/schema";
 

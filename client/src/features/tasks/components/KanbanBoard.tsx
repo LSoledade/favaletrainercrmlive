@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable, DroppableProvided, DraggableProvided } from "react-beautiful-dnd";
 import TaskCard from "./TaskCard";
 import { useTaskContext } from "@/context/TaskContext";
 import { Button } from "@/components/inputs/Button"; // Updated
 import { PlusCircle, ListTodo, ClipboardList, Loader2, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast"; // Updated
-
+// Task type will be inferred from useTaskContext tasks
 
 const columns = [
   { id: "backlog", name: "Backlog", color: "bg-orange-100 text-orange-700 dark:bg-orange-800 dark:text-orange-200", icon: <ClipboardList className="h-4 w-4" /> },
@@ -16,7 +16,8 @@ const columns = [
 
 export default function KanbanBoard({ onCreateTask, onOpenDetails }: { onCreateTask: (initialStatus?: string) => void, onOpenDetails?: (taskId: number) => void }) {
   const { tasks, updateTask } = useTaskContext();
-  const [localTasks, setLocalTasks] = useState<any[]>([]);
+  // Infer the type of localTasks from the context's tasks
+  const [localTasks, setLocalTasks] = useState(tasks);
   const { toast } = useToast();
 
   // Sincroniza localTasks com tasks do contexto
@@ -32,9 +33,9 @@ export default function KanbanBoard({ onCreateTask, onOpenDetails }: { onCreateT
       (col.id === "done" && task.status === "completed")
     ));
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, typeof tasks>); // Use typeof tasks for the accumulator type
 
-  const onDragEnd = async (result: any) => {
+  const onDragEnd = async (result: { destination: any; draggableId: any; source: any; }) => {
     if (!result.destination) return;
     const { draggableId, destination, source } = result;
 
@@ -93,7 +94,7 @@ export default function KanbanBoard({ onCreateTask, onOpenDetails }: { onCreateT
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 min-h-[500px]">
         {columns.map(col => (
           <Droppable droppableId={col.id} key={col.id}>
-            {(provided: any) => (
+            {(provided: DroppableProvided) => (
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
@@ -119,7 +120,7 @@ export default function KanbanBoard({ onCreateTask, onOpenDetails }: { onCreateT
                   {tasksByStatus[col.id].length > 0 ? (
                     tasksByStatus[col.id].map((task, idx) => (
                       <Draggable draggableId={String(task.id)} index={idx} key={task.id}>
-                        {(provided: any) => (
+                        {(provided: DraggableProvided) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
@@ -127,7 +128,20 @@ export default function KanbanBoard({ onCreateTask, onOpenDetails }: { onCreateT
                             style={{ ...provided.draggableProps.style }}
                             className="rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow duration-200 p-0"
                           >
-                            <TaskCard {...task} onOpenDetails={onOpenDetails} />
+                            <TaskCard
+                              id={task.id}
+                              title={task.title}
+                              description={task.description}
+                              assignedToName={task.assignedToName || "N/A"}
+                              assignedByName={task.assignedByName || "N/A"}
+                              dueDate={task.dueDate}
+                              priority={task.priority}
+                              status={task.status}
+                              // relatedLeadName is not available on the Task type from context
+                              commentCount={task.comments?.length || 0}
+                              // hasAttachments can be derived or added to Task type if needed
+                              onOpenDetails={onOpenDetails}
+                            />
                           </div>
                         )}
                       </Draggable>

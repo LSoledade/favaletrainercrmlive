@@ -3,48 +3,49 @@ import { useToast } from "@/hooks/use-toast"; // Updated
 // Replace apiRequest with invokeSupabaseFunction and queryClient utils
 import { invokeSupabaseFunction, getSupabaseQueryFn, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/features/auth/hooks/use-auth"; // Updated
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // Import useQuery and useMutation
+import { useQuery, useMutation, useQueryClient, QueryObserverResult, RefetchOptions } from "@tanstack/react-query"; // Import useQuery and useMutation
+import { Task, TaskComment, InsertTask, InsertTaskComment } from "@/types"; // Import richer types
 
-// Keep Task and TaskComment interfaces, ensure they match Supabase schema/function return types
-interface Task {
-  id: number;
-  title: string;
-  description?: string;
-  assignedById: string;
-  assignedToId: string;
-  assignedByName?: string;
-  assignedToName?: string;
-  dueDate?: Date;
-  priority: "low" | "medium" | "high";
-  status: "backlog" | "pending" | "in_progress" | "completed" | "cancelled";
-  // No longer using relatedLeadId and relatedLeadName
-  // Tasks are now assigned to system users only
-  createdAt: Date;
-  updatedAt: Date;
-  comments?: TaskComment[];
-}
+// Remove local definitions of Task and TaskComment
+// interface Task {
+//   id: number;
+//   title: string;
+//   description?: string;
+//   assignedById: string;
+//   assignedToId: string;
+//   assignedByName?: string;
+//   assignedToName?: string;
+//   dueDate?: Date;
+//   priority: "low" | "medium" | "high";
+//   status: "backlog" | "pending" | "in_progress" | "completed" | "cancelled";
+//   // No longer using relatedLeadId and relatedLeadName
+//   // Tasks are now assigned to system users only
+//   createdAt: Date;
+//   updatedAt: Date;
+//   comments?: TaskComment[];
+// }
 
-interface TaskComment {
-  id: number;
-  taskId: number;
-  userId: string;
-  userName?: string;
-  content: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// interface TaskComment {
+//   id: number;
+//   taskId: number;
+//   userId: string;
+//   userName?: string;
+//   content: string;
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
 interface TaskContextType {
-  tasks: Task[];
+  tasks: Task[]; // Use Task from @/types
   loading: boolean;
   error: string | null;
-  fetchTasks: () => Promise<void>; // Changed from Promise<any> as refetch returns void
+  fetchTasks: (options?: RefetchOptions | undefined) => Promise<QueryObserverResult<Task[], Error>>;
   fetchTaskById: (id: number) => Promise<Task | undefined>;
-  createTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "comments">) => Promise<Task>;
+  createTask: (task: InsertTask) => Promise<Task>;
   updateTask: (id: number, task: Partial<Task>) => Promise<Task>;
   deleteTask: (id: number) => Promise<boolean>;
-  addComment: (taskId: number, content: string) => Promise<TaskComment>;
-  addTaskComment: (taskId: number, comment: Partial<TaskComment>) => Promise<TaskComment>;
+  addComment: (taskId: number, content: string) => Promise<TaskComment>; // Content only for simple adds
+  addTaskComment: (comment: InsertTaskComment) => Promise<TaskComment>; // Full comment object for richer adds
   deleteTaskComment: (commentId: number) => Promise<boolean>;
   myTasks: Task[];
   assignedTasks: Task[];
@@ -126,7 +127,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   }, [toast]);
 
   // Mutations using React Query
-  const createTaskMutation = useMutation<Task, Error, Omit<Task, "id" | "createdAt" | "updatedAt" | "comments">>({
+  const createTaskMutation = useMutation<Task, Error, InsertTask>({
     mutationFn: (newTaskData) => invokeSupabaseFunction<Task>('task-functions', 'POST', newTaskData),
     onSuccess: () => {
       tanstackQueryClient.invalidateQueries({ queryKey: ['tasksList'] });
@@ -183,17 +184,23 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   
   // addTaskComment can be merged with addCommentMutation if the payload is consistent
   // For now, keeping it separate if it implies a different payload structure for Partial<TaskComment>
-  const addTaskCommentMutation = useMutation<TaskComment, Error, { taskId: number; comment: Partial<TaskComment> }>({
-      mutationFn: ({ taskId, comment }) => {
+  const addTaskCommentMutation = useMutation<TaskComment, Error, InsertTaskComment>({
+      mutationFn: (comment) => { // comment is InsertTaskComment
           if (!authUser) throw new Error("Usuário não logado");
+
+          const commentPayload: InsertTaskComment = {
+            ...comment,
+            userId: comment.userId || authUser.id, // Prioritize comment.userId if present, else use authUser.id
+            // taskId is already part of comment (InsertTaskComment)
+          };
           return invokeSupabaseFunction<TaskComment>(
               'task-functions',
               'POST',
-              { ...comment, userId: authUser.id }, // Ensure userId is set from authUser
-              { slug: `${taskId}/comments` }
+              commentPayload,
+              { slug: `${commentPayload.taskId}/comments` } // Use taskId from the payload
           );
       },
-      onSuccess: (data, variables) => {
+      onSuccess: (data, variables) => { // variables is InsertTaskComment
           tanstackQueryClient.invalidateQueries({ queryKey: ['tasksList'] });
           tanstackQueryClient.invalidateQueries({ queryKey: ['taskDetails', variables.taskId] });
           toast({ title: "Sucesso", description: "Comentário adicionado." });
@@ -241,7 +248,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         updateTask: (id, data) => updateTaskMutation.mutateAsync({ id, data }),
         deleteTask: deleteTaskMutation.mutateAsync,
         addComment: (taskId, content) => addCommentMutation.mutateAsync({ taskId, content }),
-        addTaskComment: (taskId, comment) => addTaskCommentMutation.mutateAsync({ taskId, comment }),
+        addTaskComment: addTaskCommentMutation.mutateAsync, // Pass the mutation directly
         deleteTaskComment: deleteTaskMutation.mutateAsync,
         myTasks,
         assignedTasks,

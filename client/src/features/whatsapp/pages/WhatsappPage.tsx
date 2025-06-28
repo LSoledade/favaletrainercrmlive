@@ -33,7 +33,7 @@ export default function WhatsappPage() {
   });
   
   // Mensagem mais recente para exibir na prévia
-  const { data: allMessages = {} } = useQuery<{[leadId: string]: any[]}>({ 
+  const { data: allMessages = {} } = useQuery<{[leadId: string]: WhatsappMessage[]}>({
     queryKey: ['/api/whatsapp/recent-messages'],
     refetchInterval: 30000, // Atualiza a cada 30 segundos
   });
