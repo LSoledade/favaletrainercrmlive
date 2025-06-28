@@ -1,4 +1,4 @@
-import { OPENAI_CONFIG } from '@/config/openai';
+import { OPENAI_CONFIG } from '@/config/openai.example';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
