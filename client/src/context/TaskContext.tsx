@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react"; // Added useEffect back
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast"; // Updated
 // Replace apiRequest with invokeSupabaseFunction and queryClient utils
 import { invokeSupabaseFunction, getSupabaseQueryFn, queryClient } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth"; // useAuth now returns Supabase user/session
+import { useAuth } from "@/features/auth/hooks/use-auth"; // Updated
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // Import useQuery and useMutation
 
 // Keep Task and TaskComment interfaces, ensure they match Supabase schema/function return types
@@ -38,7 +38,7 @@ interface TaskContextType {
   tasks: Task[];
   loading: boolean;
   error: string | null;
-  fetchTasks: () => Promise<any>;
+  fetchTasks: () => Promise<void>; // Changed from Promise<any> as refetch returns void
   fetchTaskById: (id: number) => Promise<Task | undefined>;
   createTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "comments">) => Promise<Task>;
   updateTask: (id: number, task: Partial<Task>) => Promise<Task>;
@@ -79,7 +79,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
       createdAt: new Date(task.createdAt),
       updatedAt: new Date(task.updatedAt),
-      comments: task.comments?.map((comment: any) => ({
+      comments: task.comments?.map((comment: TaskComment) => ({ // Updated
         ...comment,
         createdAt: new Date(comment.createdAt),
         updatedAt: new Date(comment.updatedAt),
@@ -104,7 +104,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
         createdAt: new Date(task.createdAt),
         updatedAt: new Date(task.updatedAt),
-        comments: task.comments?.map((comment: any) => ({
+        comments: task.comments?.map((comment: TaskComment) => ({ // Updated
           ...comment,
           createdAt: new Date(comment.createdAt),
           updatedAt: new Date(comment.updatedAt),

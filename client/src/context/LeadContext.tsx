@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from "react"; // Removed useEffect, useQuery
-import { Lead, InsertLead } from "@shared/schema";
+import { Lead, InsertLead } from "@/types"; // Updated
 // Replace apiRequest with invokeSupabaseFunction
 import { invokeSupabaseFunction, queryClient } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query"; // useQueryClient is still needed for invalidation

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Lead } from '@shared/schema';
+import { Lead } from '@/types'; // Updated
 import { useQuery } from '@tanstack/react-query';
 
 interface WhatsappConnectionStatus {
@@ -9,7 +9,7 @@ interface WhatsappConnectionStatus {
     name?: string;
     phone?: string;
     quality?: string;
-    [key: string]: any;
+      [key: string]: unknown; // Updated
   };
 }
 
@@ -36,7 +36,7 @@ export function WhatsappProvider({ children }: { children: ReactNode }) {
       name?: string;
       phone?: string;
       quality?: string;
-      [key: string]: any;
+      [key: string]: unknown; // Updated from any
     };
   }>({
     queryKey: ['/api/whatsapp/status'],
